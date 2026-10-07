@@ -13,12 +13,18 @@ export function createLocalApp(options: {
   dbPath?: string;
   database?: Database;
   appUrl?: string;
+  additionalOrigins?: string[];
+  trustProxy?: boolean;
   log?: (message: string) => void;
 }) {
   const db = options.database ?? createDatabase(options.dbPath ?? ":memory:", options.log),
     app = express(),
     http = createServer(app);
-  const origins = new Set([options.appUrl ?? "http://localhost:5174"]);
+  const origins = new Set([
+    options.appUrl ?? "http://localhost:5174",
+    ...(options.additionalOrigins ?? []),
+  ]);
+  if (options.trustProxy) app.set("trust proxy", 1);
   const appOrigin = new URL(options.appUrl ?? "http://localhost:5174");
   if (appOrigin.hostname === "localhost") {
     appOrigin.hostname = "127.0.0.1";

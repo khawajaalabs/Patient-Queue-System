@@ -214,7 +214,12 @@ export function QueueProvider({
       void refresh();
     };
     refreshNow();
-    const socket = io({ withCredentials: true });
+    const socket = io({
+      withCredentials: true,
+      transports: ["websocket"],
+      path: import.meta.env["VITE_SOCKET_PATH"] ?? "/socket.io",
+      addTrailingSlash: !import.meta.env["VITE_SOCKET_PATH"],
+    });
     socket.on("queue:updated", refreshNow);
     socket.on("connect", refreshNow);
     window.addEventListener("queuecare:refresh", refreshNow);

@@ -27,7 +27,7 @@ export async function createPostgresDatabase(
   // Credentials stay in the Express process. Never disable certificate verification.
   for (const key of ["sslmode", "ssl", "sslcert", "sslkey", "sslrootcert"])
     url.searchParams.delete(key);
-  const pool = new pg.Pool({
+  const connectionOptions = {
     connectionString: url.toString(),
     ssl: {
       rejectUnauthorized: true,
@@ -36,11 +36,44 @@ export async function createPostgresDatabase(
         readFileSync(new URL("../certs/supabase-ca.crt", import.meta.url), "utf8"),
       ],
     },
-    max: 10,
+    max: process.env["VERCEL"] ? 3 : 10,
     connectionTimeoutMillis: 15000,
     idleTimeoutMillis: 30000,
     options: `-c search_path=${schema},pg_catalog -c statement_timeout=15000 -c idle_in_transaction_session_timeout=30000`,
-  });
+  };
+  const pool = new pg.Pool(connectionOptions);
+  const channel = `${schema}_updates`;
+  let subscriber: pg.Client | undefined;
+  let stopped = false;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  const listeners = new Set<() => void>();
+  async function listen() {
+    const client = new pg.Client(connectionOptions);
+    subscriber = client;
+    client.on("notification", (message) => {
+      if (message.channel === channel && message.payload === "queue:updated")
+        for (const listener of listeners) listener();
+    });
+    client.on("error", () => {
+      void client.end().catch(() => {});
+    });
+    client.on("end", () => {
+      if (!stopped && subscriber === client) {
+        retry = setTimeout(() => {
+          void listen().catch(() => {});
+        }, 2000);
+        retry.unref();
+      }
+    });
+    try {
+      await client.connect();
+      await client.query(`LISTEN "${channel}"`);
+      for (const listener of listeners) listener();
+    } catch (error) {
+      await client.end().catch(() => {});
+      throw error;
+    }
+  }
   pool.on("error", () => console.error("QueueCare database connection interrupted."));
   const context = new AsyncLocalStorage<pg.PoolClient>();
   async function query(sql: string, values: SQLInputValue[] = []) {
@@ -61,7 +94,16 @@ export async function createPostgresDatabase(
     exec: async (sql) => {
       await query(sql);
     },
-    close: () => pool.end(),
+    async subscribe(listener) {
+      listeners.add(listener);
+      if (!subscriber) await listen();
+    },
+    async close() {
+      stopped = true;
+      clearTimeout(retry);
+      await subscriber?.end().catch(() => {});
+      await pool.end();
+    },
     async transaction<T>(action: () => Promise<T>): Promise<T> {
       if (context.getStore()) throw new Error("Nested QueueCare transactions are not supported.");
       const client = await pool.connect();
@@ -70,6 +112,8 @@ export async function createPostgresDatabase(
         // Serialize queue mutations across requests/processes, including opening a new daily queue.
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`${schema}:queue`]);
         const value = await context.run(client, action);
+        // Delivered only after commit; contains no patient data. Coordinates Vercel instances.
+        await client.query("SELECT pg_notify($1, $2)", [channel, "queue:updated"]);
         await client.query("COMMIT");
         return value;
       } catch (error) {

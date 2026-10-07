@@ -47,3 +47,8 @@ data/
 supabase/.temp/
 
 docs/superpowers/
+
+.vercel/
+
+.vercel
+.env*

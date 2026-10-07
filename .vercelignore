@@ -1,0 +1,16 @@
+.env*
+*.local
+.npm-cache/
+work/
+data/
+.firebase/
+.wrangler/
+.output/
+.tanstack/
+.git/
+node_modules/
+dist/
+supabase/.temp/
+server/test/
+src/test/
+docs/

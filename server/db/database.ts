@@ -20,6 +20,7 @@ export interface Database {
   };
   exec(sql: string): void | Promise<void>;
   close(): void | Promise<void>;
+  subscribe?(listener: () => void): Promise<void>;
   transaction?<T>(action: () => Promise<T>): Promise<T>;
 }
 export async function one<T>(
