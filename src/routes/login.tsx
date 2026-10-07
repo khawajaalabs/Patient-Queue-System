@@ -2,15 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Btn, Field, Logo } from "@/components/qc";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-  DialogClose,
-} from "@/components/ui/dialog";
+import { GoogleButton } from "@/components/google-button";
 import { login } from "@/services/auth";
 import { friendlyError } from "@/services/errors";
 import { cn } from "@/lib/utils";
@@ -37,7 +29,12 @@ function Login() {
   const nav = useNavigate();
   const [role, setRole] = useState<"patient" | "admin">("patient");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("error") === "google"
+      ? "Google sign-in could not be completed. Use a verified patient Google account or sign in with email and password."
+      : "",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const submit = async (e: React.FormEvent) => {
@@ -136,30 +133,12 @@ function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button
-                    type="button"
-                    className="mt-2 min-h-11 text-xs font-medium text-primary hover:underline"
-                  >
-                    Forgot password?
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-[calc(100vw-2rem)] rounded-2xl sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Local password recovery</DialogTitle>
-                    <DialogDescription>
-                      This local application does not send reset emails. Contact the clinic
-                      administrator if you cannot sign in.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogClose asChild>
-                    <Btn type="button" variant="secondary">
-                      Got it
-                    </Btn>
-                  </DialogClose>
-                </DialogContent>
-              </Dialog>
+              <Link
+                to="/forgot-password"
+                className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
             </div>
             {error && (
               <p role="alert" className="text-sm text-destructive">
@@ -176,6 +155,7 @@ function Login() {
               )}
             </Btn>
           </form>
+          {role === "patient" && <GoogleButton />}
           <p className="mt-8 text-center text-sm text-muted-foreground">
             New patient?{" "}
             <Link to="/register" className="font-medium text-primary hover:underline">

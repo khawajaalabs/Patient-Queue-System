@@ -6,11 +6,14 @@ import { Server } from "socket.io";
 import { ZodError } from "zod";
 import { createDatabase, type Database } from "./db/database.ts";
 import { ApiError } from "./middleware/auth.ts";
+import { configuredAuth, type AuthOptions } from "./services/identity.ts";
+import { extendedAuthRoutes } from "./routes/auth-extensions.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { queueRoutes } from "./routes/queue.ts";
 import type { ErrorRequestHandler } from "express";
 export function createLocalApp(options: {
   dbPath?: string;
+  auth?: Partial<AuthOptions>;
   database?: Database;
   appUrl?: string;
   additionalOrigins?: string[];
@@ -63,6 +66,13 @@ export function createLocalApp(options: {
     io.emit("queue:updated");
   }; // Invalidation only: no patient identifiers or private payloads.
   app.use("/api/auth", authRoutes(db));
+  app.use(
+    "/api/auth",
+    extendedAuthRoutes(db, {
+      ...configuredAuth(process.env["APP_URL"] ?? options.appUrl ?? "http://localhost:5174"),
+      ...options.auth,
+    }),
+  );
   app.use("/api", queueRoutes(db, notify));
   app.use("/api", (_req, _res, next) =>
     next(new ApiError(404, "NOT_FOUND", "This API endpoint does not exist.")),

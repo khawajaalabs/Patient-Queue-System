@@ -1,3 +1,4 @@
+import { GoogleButton } from "@/components/google-button";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
@@ -109,6 +110,7 @@ function Register() {
               )}
             </Btn>
           </form>
+          <GoogleButton />
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already registered?{" "}
             <Link to="/login" className="font-medium text-primary hover:underline">

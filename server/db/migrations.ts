@@ -1,8 +1,11 @@
 import type { DatabaseSync } from "node:sqlite";
 export function migrate(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()?.["user_version"] ?? 0);
-  if (version > 1) throw new Error("This database was created by a newer QueueCare version.");
-  if (version === 1) return;
+  if (version > 2) throw new Error("This database was created by a newer QueueCare version.");
+  if (version >= 1) {
+    if (version === 1) migrateAuthentication(db);
+    return;
+  }
   db.exec(`BEGIN IMMEDIATE;
     CREATE TABLE users (
       id TEXT PRIMARY KEY, full_name TEXT NOT NULL, email TEXT NOT NULL COLLATE NOCASE UNIQUE, phone TEXT NOT NULL,
@@ -37,4 +40,17 @@ export function migrate(db: DatabaseSync) {
     CREATE INDEX session_expiry ON sessions(expires_at);
     PRAGMA user_version=1;
     COMMIT;`);
+  migrateAuthentication(db);
+}
+
+function migrateAuthentication(db: DatabaseSync) {
+  db.exec(`BEGIN IMMEDIATE;
+ CREATE TABLE google_identities (provider_subject TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL);
+ CREATE TABLE auth_requests (token_hash TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('oauth','google_profile','recovery','password_reset')), user_id TEXT REFERENCES users(id) ON DELETE CASCADE, payload TEXT, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL);
+ CREATE INDEX auth_requests_user_kind ON auth_requests(user_id,kind);
+ CREATE INDEX auth_requests_expiry ON auth_requests(expires_at);
+ CREATE TABLE auth_rate_limits (bucket TEXT PRIMARY KEY, attempts INTEGER NOT NULL CHECK(attempts>0), expires_at INTEGER NOT NULL);
+ CREATE INDEX auth_rate_limits_expiry ON auth_rate_limits(expires_at);
+ PRAGMA user_version=2;
+ COMMIT;`);
 }

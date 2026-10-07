@@ -55,3 +55,40 @@ export async function logout() {
   ++revision;
   publish(null);
 }
+
+export async function beginGoogleLogin() {
+  const result = await api<{ url: string }>("/auth/google/start", { method: "POST", body: {} });
+  return result.url;
+}
+export async function completeGoogleProfile(fullName: string, phone: string) {
+  const request = ++revision;
+  const profile = await api<UserProfile>("/auth/google/complete", {
+    method: "POST",
+    body: { fullName: fullName.trim(), phone: phone.trim() },
+  });
+  if (request === revision) publish(profile);
+  return profile;
+}
+export async function requestPasswordReset(email: string) {
+  return api<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: { email: email.trim() },
+  });
+}
+export async function resetPassword(token: string, password: string, confirmPassword: string) {
+  const result = await api<{ message: string }>("/auth/reset-password", {
+    method: "POST",
+    body: { token, password, confirmPassword },
+  });
+  ++revision;
+  publish(null);
+  return result;
+}
+
+export async function verifyPasswordRecovery(flow: string, code: string) {
+  const result = await api<{ token: string }>("/auth/verify-reset", {
+    method: "POST",
+    body: { flow, code },
+  });
+  return result.token;
+}
