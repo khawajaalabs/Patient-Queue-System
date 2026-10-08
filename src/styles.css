@@ -188,3 +188,11 @@
   border-radius: calc(var(--radius) + 4px);
   box-shadow: var(--shadow-soft);
 }
+
+@media print {
+ body:has(.prescription-sheet) * { visibility: hidden; }
+ body:has(.prescription-sheet) .prescription-sheet, body:has(.prescription-sheet) .prescription-sheet * { visibility: visible; }
+ .prescription-sheet { position: absolute; top: 0; left: 0; width: 100%; margin: 0; border: 0; box-shadow: none; color: #111; background: white; }
+ .prescription-sheet table { min-width: 0; }
+ .prescription-sheet tr { break-inside: avoid; }
+}

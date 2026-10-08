@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+import { StartConsultation } from "@/components/clinical";
 import { useClinicContext } from "@/providers/clinic-provider";
 import { runAction } from "@/services/queue";
 import { actions, type Entry, useQueue } from "@/lib/queue-store";
@@ -71,6 +73,23 @@ export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose
                   <dd className="mt-1">{current.reason}</dd>
                 </div>
               </dl>
+              {current.patientId && (
+                <div className="flex flex-wrap gap-3">
+                  <Link
+                    to="/admin/patient-record/$patientId"
+                    params={{ patientId: current.patientId }}
+                  >
+                    <Btn variant="secondary">Patient record</Btn>
+                  </Link>
+                  {canManage && current.status === "serving" && (
+                    <StartConsultation
+                      patientId={current.patientId}
+                      clinicId={current.clinicId ?? selected}
+                      tokenId={current.id}
+                    />
+                  )}
+                </div>
+              )}
               <section className="border-t border-border pt-6">
                 <h3 className="text-sm font-semibold">Timeline</h3>
                 <ol className="mt-4 space-y-5 border-l border-border pl-5 text-sm">

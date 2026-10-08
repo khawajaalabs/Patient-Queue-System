@@ -82,6 +82,7 @@ test(
       for (const file of [
         "20261007000200_google_and_password_recovery.sql",
         "20261008000100_multi_clinic_foundation.sql",
+        "20261008000200_clinical_records.sql",
       ])
         await adminQuery(
           readFileSync("supabase/migrations/" + file, "utf8").replace(/\bqueuecare\b/g, schema),

@@ -1,3 +1,4 @@
+import { StartConsultation } from "@/components/clinical";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
@@ -122,7 +123,16 @@ function Appointments() {
                   {a.clinicName} · {a.scheduledAt.replace("T", " ")}
                 </p>
               </div>
-              <span className="text-sm text-muted-foreground">{a.status}</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm text-muted-foreground">{a.status}</span>
+                {a.status === "scheduled" && (
+                  <StartConsultation
+                    patientId={a.patientId}
+                    clinicId={a.clinicId}
+                    appointmentId={a.id}
+                  />
+                )}
+              </div>
             </div>
           ))
         ) : (

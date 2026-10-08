@@ -32,7 +32,14 @@ import { Route as PatientGetTokenRouteImport } from './routes/patient.get-token'
 import { Route as PatientHistoryRouteImport } from './routes/patient.history'
 import { Route as PatientJoinQueueRouteImport } from './routes/patient.join-queue'
 import { Route as PatientLiveQueueRouteImport } from './routes/patient.live-queue'
+import { Route as PatientPrescriptionsRouteImport } from './routes/patient.prescriptions'
+import { Route as PatientProfileRouteImport } from './routes/patient.profile'
 import { Route as PatientQueueRouteImport } from './routes/patient.queue'
+import { Route as PatientVisitsRouteImport } from './routes/patient.visits'
+import { Route as AdminPatientRecordPatientIdRouteImport } from './routes/admin.patient-record.$patientId'
+import { Route as AdminVisitsVisitIdRouteImport } from './routes/admin.visits.$visitId'
+import { Route as PatientPrescriptionVisitIdRouteImport } from './routes/patient.prescription.$visitId'
+import { Route as PatientVisitVisitIdRouteImport } from './routes/patient.visit.$visitId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -149,9 +156,46 @@ const PatientLiveQueueRoute = PatientLiveQueueRouteImport.update({
   path: '/live-queue',
   getParentRoute: () => PatientRoute,
 } as any)
+const PatientPrescriptionsRoute = PatientPrescriptionsRouteImport.update({
+  id: '/prescriptions',
+  path: '/prescriptions',
+  getParentRoute: () => PatientRoute,
+} as any)
+const PatientProfileRoute = PatientProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => PatientRoute,
+} as any)
 const PatientQueueRoute = PatientQueueRouteImport.update({
   id: '/queue',
   path: '/queue',
+  getParentRoute: () => PatientRoute,
+} as any)
+const PatientVisitsRoute = PatientVisitsRouteImport.update({
+  id: '/visits',
+  path: '/visits',
+  getParentRoute: () => PatientRoute,
+} as any)
+const AdminPatientRecordPatientIdRoute =
+  AdminPatientRecordPatientIdRouteImport.update({
+    id: '/patient-record/$patientId',
+    path: '/patient-record/$patientId',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminVisitsVisitIdRoute = AdminVisitsVisitIdRouteImport.update({
+  id: '/visits/$visitId',
+  path: '/visits/$visitId',
+  getParentRoute: () => AdminRoute,
+} as any)
+const PatientPrescriptionVisitIdRoute =
+  PatientPrescriptionVisitIdRouteImport.update({
+    id: '/prescription/$visitId',
+    path: '/prescription/$visitId',
+    getParentRoute: () => PatientRoute,
+  } as any)
+const PatientVisitVisitIdRoute = PatientVisitVisitIdRouteImport.update({
+  id: '/visit/$visitId',
+  path: '/visit/$visitId',
   getParentRoute: () => PatientRoute,
 } as any)
 
@@ -177,9 +221,16 @@ export interface FileRoutesByFullPath {
   '/patient/history': typeof PatientHistoryRoute
   '/patient/join-queue': typeof PatientJoinQueueRoute
   '/patient/live-queue': typeof PatientLiveQueueRoute
+  '/patient/prescriptions': typeof PatientPrescriptionsRoute
+  '/patient/profile': typeof PatientProfileRoute
   '/patient/queue': typeof PatientQueueRoute
+  '/patient/visits': typeof PatientVisitsRoute
   '/admin/': typeof AdminIndexRoute
   '/patient/': typeof PatientIndexRoute
+  '/admin/patient-record/$patientId': typeof AdminPatientRecordPatientIdRoute
+  '/admin/visits/$visitId': typeof AdminVisitsVisitIdRoute
+  '/patient/prescription/$visitId': typeof PatientPrescriptionVisitIdRoute
+  '/patient/visit/$visitId': typeof PatientVisitVisitIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -201,9 +252,16 @@ export interface FileRoutesByTo {
   '/patient/history': typeof PatientHistoryRoute
   '/patient/join-queue': typeof PatientJoinQueueRoute
   '/patient/live-queue': typeof PatientLiveQueueRoute
+  '/patient/prescriptions': typeof PatientPrescriptionsRoute
+  '/patient/profile': typeof PatientProfileRoute
   '/patient/queue': typeof PatientQueueRoute
+  '/patient/visits': typeof PatientVisitsRoute
   '/admin': typeof AdminIndexRoute
   '/patient': typeof PatientIndexRoute
+  '/admin/patient-record/$patientId': typeof AdminPatientRecordPatientIdRoute
+  '/admin/visits/$visitId': typeof AdminVisitsVisitIdRoute
+  '/patient/prescription/$visitId': typeof PatientPrescriptionVisitIdRoute
+  '/patient/visit/$visitId': typeof PatientVisitVisitIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -228,9 +286,16 @@ export interface FileRoutesById {
   '/patient/history': typeof PatientHistoryRoute
   '/patient/join-queue': typeof PatientJoinQueueRoute
   '/patient/live-queue': typeof PatientLiveQueueRoute
+  '/patient/prescriptions': typeof PatientPrescriptionsRoute
+  '/patient/profile': typeof PatientProfileRoute
   '/patient/queue': typeof PatientQueueRoute
+  '/patient/visits': typeof PatientVisitsRoute
   '/admin/': typeof AdminIndexRoute
   '/patient/': typeof PatientIndexRoute
+  '/admin/patient-record/$patientId': typeof AdminPatientRecordPatientIdRoute
+  '/admin/visits/$visitId': typeof AdminVisitsVisitIdRoute
+  '/patient/prescription/$visitId': typeof PatientPrescriptionVisitIdRoute
+  '/patient/visit/$visitId': typeof PatientVisitVisitIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -256,9 +321,16 @@ export interface FileRouteTypes {
     | '/patient/history'
     | '/patient/join-queue'
     | '/patient/live-queue'
+    | '/patient/prescriptions'
+    | '/patient/profile'
     | '/patient/queue'
+    | '/patient/visits'
     | '/admin/'
     | '/patient/'
+    | '/admin/patient-record/$patientId'
+    | '/admin/visits/$visitId'
+    | '/patient/prescription/$visitId'
+    | '/patient/visit/$visitId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -280,9 +352,16 @@ export interface FileRouteTypes {
     | '/patient/history'
     | '/patient/join-queue'
     | '/patient/live-queue'
+    | '/patient/prescriptions'
+    | '/patient/profile'
     | '/patient/queue'
+    | '/patient/visits'
     | '/admin'
     | '/patient'
+    | '/admin/patient-record/$patientId'
+    | '/admin/visits/$visitId'
+    | '/patient/prescription/$visitId'
+    | '/patient/visit/$visitId'
   id:
     | '__root__'
     | '/'
@@ -306,9 +385,16 @@ export interface FileRouteTypes {
     | '/patient/history'
     | '/patient/join-queue'
     | '/patient/live-queue'
+    | '/patient/prescriptions'
+    | '/patient/profile'
     | '/patient/queue'
+    | '/patient/visits'
     | '/admin/'
     | '/patient/'
+    | '/admin/patient-record/$patientId'
+    | '/admin/visits/$visitId'
+    | '/patient/prescription/$visitId'
+    | '/patient/visit/$visitId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -486,11 +572,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PatientLiveQueueRouteImport
       parentRoute: typeof PatientRoute
     }
+    '/patient/prescriptions': {
+      id: '/patient/prescriptions'
+      path: '/prescriptions'
+      fullPath: '/patient/prescriptions'
+      preLoaderRoute: typeof PatientPrescriptionsRouteImport
+      parentRoute: typeof PatientRoute
+    }
+    '/patient/profile': {
+      id: '/patient/profile'
+      path: '/profile'
+      fullPath: '/patient/profile'
+      preLoaderRoute: typeof PatientProfileRouteImport
+      parentRoute: typeof PatientRoute
+    }
     '/patient/queue': {
       id: '/patient/queue'
       path: '/queue'
       fullPath: '/patient/queue'
       preLoaderRoute: typeof PatientQueueRouteImport
+      parentRoute: typeof PatientRoute
+    }
+    '/patient/visits': {
+      id: '/patient/visits'
+      path: '/visits'
+      fullPath: '/patient/visits'
+      preLoaderRoute: typeof PatientVisitsRouteImport
+      parentRoute: typeof PatientRoute
+    }
+    '/admin/patient-record/$patientId': {
+      id: '/admin/patient-record/$patientId'
+      path: '/patient-record/$patientId'
+      fullPath: '/admin/patient-record/$patientId'
+      preLoaderRoute: typeof AdminPatientRecordPatientIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/visits/$visitId': {
+      id: '/admin/visits/$visitId'
+      path: '/visits/$visitId'
+      fullPath: '/admin/visits/$visitId'
+      preLoaderRoute: typeof AdminVisitsVisitIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/patient/prescription/$visitId': {
+      id: '/patient/prescription/$visitId'
+      path: '/prescription/$visitId'
+      fullPath: '/patient/prescription/$visitId'
+      preLoaderRoute: typeof PatientPrescriptionVisitIdRouteImport
+      parentRoute: typeof PatientRoute
+    }
+    '/patient/visit/$visitId': {
+      id: '/patient/visit/$visitId'
+      path: '/visit/$visitId'
+      fullPath: '/patient/visit/$visitId'
+      preLoaderRoute: typeof PatientVisitVisitIdRouteImport
       parentRoute: typeof PatientRoute
     }
   }
@@ -505,6 +640,8 @@ interface AdminRouteChildren {
   AdminQueueRoute: typeof AdminQueueRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminPatientRecordPatientIdRoute: typeof AdminPatientRecordPatientIdRoute
+  AdminVisitsVisitIdRoute: typeof AdminVisitsVisitIdRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -516,6 +653,8 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminQueueRoute: AdminQueueRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminPatientRecordPatientIdRoute: AdminPatientRecordPatientIdRoute,
+  AdminVisitsVisitIdRoute: AdminVisitsVisitIdRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -526,8 +665,13 @@ interface PatientRouteChildren {
   PatientHistoryRoute: typeof PatientHistoryRoute
   PatientJoinQueueRoute: typeof PatientJoinQueueRoute
   PatientLiveQueueRoute: typeof PatientLiveQueueRoute
+  PatientPrescriptionsRoute: typeof PatientPrescriptionsRoute
+  PatientProfileRoute: typeof PatientProfileRoute
   PatientQueueRoute: typeof PatientQueueRoute
+  PatientVisitsRoute: typeof PatientVisitsRoute
   PatientIndexRoute: typeof PatientIndexRoute
+  PatientPrescriptionVisitIdRoute: typeof PatientPrescriptionVisitIdRoute
+  PatientVisitVisitIdRoute: typeof PatientVisitVisitIdRoute
 }
 
 const PatientRouteChildren: PatientRouteChildren = {
@@ -536,8 +680,13 @@ const PatientRouteChildren: PatientRouteChildren = {
   PatientHistoryRoute: PatientHistoryRoute,
   PatientJoinQueueRoute: PatientJoinQueueRoute,
   PatientLiveQueueRoute: PatientLiveQueueRoute,
+  PatientPrescriptionsRoute: PatientPrescriptionsRoute,
+  PatientProfileRoute: PatientProfileRoute,
   PatientQueueRoute: PatientQueueRoute,
+  PatientVisitsRoute: PatientVisitsRoute,
   PatientIndexRoute: PatientIndexRoute,
+  PatientPrescriptionVisitIdRoute: PatientPrescriptionVisitIdRoute,
+  PatientVisitVisitIdRoute: PatientVisitVisitIdRoute,
 }
 
 const PatientRouteWithChildren =

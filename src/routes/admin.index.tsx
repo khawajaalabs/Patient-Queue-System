@@ -1,3 +1,5 @@
+import { StartConsultation } from "@/components/clinical";
+import { useClinicContext } from "@/providers/clinic-provider";
 import { runAction } from "@/services/queue";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, RotateCcw, SkipForward, Check } from "lucide-react";
@@ -22,6 +24,7 @@ export const Route = createFileRoute("/admin/")({
 
 function Overview() {
   const q = useQueue();
+  const { selected } = useClinicContext();
   if (!q.openedToday)
     return (
       <>
@@ -68,6 +71,13 @@ function Overview() {
                 </div>
               </dl>
               <div className="mt-8 flex flex-wrap items-center gap-2">
+                {s.patientId && (
+                  <StartConsultation
+                    patientId={s.patientId}
+                    clinicId={s.clinicId ?? selected}
+                    tokenId={s.id}
+                  />
+                )}
                 <Btn
                   size="lg"
                   onClick={() => {

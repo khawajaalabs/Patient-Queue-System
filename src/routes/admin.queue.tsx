@@ -1,3 +1,5 @@
+import { StartConsultation } from "@/components/clinical";
+import { useClinicContext } from "@/providers/clinic-provider";
 import { runAction } from "@/services/queue";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -20,10 +22,18 @@ export const Route = createFileRoute("/admin/queue")({
 });
 function RowActions({ entry, onDetails }: { entry: Entry; onDetails: () => void }) {
   const q = useQueue();
+  const { selected } = useClinicContext();
   const mayCall = !q.serving && q.waiting[0]?.token === entry.token;
   const active = entry.status === "waiting" || entry.status === "serving";
   return (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex flex-wrap items-center justify-end gap-1">
+      {entry.status === "serving" && entry.patientId && (
+        <StartConsultation
+          patientId={entry.patientId}
+          clinicId={entry.clinicId ?? selected}
+          tokenId={entry.id}
+        />
+      )}
       <Btn
         variant="secondary"
         disabled={entry.status === "waiting" && !mayCall}

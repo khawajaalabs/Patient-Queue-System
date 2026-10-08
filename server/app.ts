@@ -9,6 +9,7 @@ import { ApiError } from "./middleware/auth.ts";
 import { configuredAuth, type AuthOptions } from "./services/identity.ts";
 import { extendedAuthRoutes } from "./routes/auth-extensions.ts";
 import { authRoutes } from "./routes/auth.ts";
+import { clinicalRoutes } from "./routes/clinical.ts";
 import { queueRoutes } from "./routes/queue.ts";
 import type { ErrorRequestHandler } from "express";
 export function createLocalApp(options: {
@@ -59,6 +60,7 @@ export function createLocalApp(options: {
       return next(new ApiError(403, "INVALID_REQUEST", "The request could not be verified."));
     next();
   });
+  app.use("/api/admin/visits", express.json({ limit: "64kb" }));
   app.use(express.json({ limit: "16kb" }));
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
   const notify = (event: string) => {
@@ -73,6 +75,7 @@ export function createLocalApp(options: {
       ...options.auth,
     }),
   );
+  app.use("/api", clinicalRoutes(db, notify));
   app.use("/api", queueRoutes(db, notify));
   app.use("/api", (_req, _res, next) =>
     next(new ApiError(404, "NOT_FOUND", "This API endpoint does not exist.")),

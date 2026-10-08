@@ -404,6 +404,14 @@ export async function mutateQueue(
         .prepare("UPDATE tokens SET status='cancelled',cancelled_at=?,updated_at=? WHERE id=?")
         .run(stamp, stamp, t.id);
     } else if (action === "done") {
+      if (
+        await one(db, "SELECT id FROM encounters WHERE token_id=? AND status='in_progress'", t.id)
+      )
+        throw new ApiError(
+          409,
+          "CONSULTATION_ACTIVE",
+          "Complete the consultation to finish this token.",
+        );
       if (t.status !== "serving" || q.current_token_id !== t.id)
         throw new ApiError(
           409,

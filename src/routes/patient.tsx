@@ -70,6 +70,22 @@ function PatientLayoutContent() {
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-5 py-8 md:py-12">
+        <nav aria-label="Patient records" className="mb-6 flex flex-wrap gap-2 print:hidden">
+          {[
+            { to: "/patient/profile", label: "My profile" },
+            { to: "/patient/visits", label: "My visits" },
+            { to: "/patient/prescriptions", label: "Prescriptions" },
+          ].map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
+              activeProps={{ className: "!text-primary bg-primary-soft font-medium" }}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
         <QueueBoundary kind={pathname.includes("history") ? "list" : "hero"}>
           <Outlet />
         </QueueBoundary>
