@@ -1,3 +1,4 @@
+import { ClinicSwitcher } from "@/providers/clinic-provider";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
@@ -82,6 +83,9 @@ export function Join() {
         <h1 className="text-[28px] font-semibold tracking-tight md:text-[32px]">
           Join today's queue
         </h1>
+        <div className="mt-4">
+          <ClinicSwitcher />
+        </div>
         <p className="mt-2 text-[15px] text-muted-foreground">{q.clinic.name}</p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
           <span>{q.clinic.department}</span>

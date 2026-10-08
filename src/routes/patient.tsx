@@ -1,3 +1,4 @@
+import { ClinicSwitcher } from "@/providers/clinic-provider";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/providers/auth-provider";
 import { logout } from "@/services/auth";
@@ -33,11 +34,11 @@ function PatientLayoutContent() {
       .slice(0, 2)
       .join("") ?? "";
   const { pathname } = useLocation();
-  const { clinic } = useQueue();
+
   return (
     <div className="min-h-screen pb-24 md:pb-0">
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5">
+        <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center gap-3 px-5 py-3 md:gap-6">
           <Link to="/patient/dashboard">
             <Logo />
           </Link>
@@ -54,7 +55,9 @@ function PatientLayoutContent() {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-xs text-muted-foreground xl:block">{clinic.name}</span>
+            <div className="max-w-48 sm:max-w-64">
+              <ClinicSwitcher />
+            </div>
             <Notifications role="patient" />
             <button
               aria-label="Sign out"

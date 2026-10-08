@@ -19,6 +19,8 @@ describe("App routing", () => {
     "/admin/history",
     "/admin/patients",
     "/admin/settings",
+    "/admin/clinics",
+    "/admin/appointments",
     "/public-display",
     "/patient/join-queue",
     "/patient/queue",

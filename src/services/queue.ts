@@ -1,3 +1,4 @@
+import { currentCommandClinic } from "@/providers/clinic-provider";
 import { api } from "@/api/client";
 import { toast } from "sonner";
 import { friendlyError } from "./errors";
@@ -42,10 +43,13 @@ export async function mutateQueue(command: Command, payload: Record<string, unkn
   pending = true;
   listeners.forEach((l) => l());
   try {
-    const result = await api<{ tokenCode?: string }>(endpoints[command], {
-      method: command === "settings" ? "PUT" : "POST",
-      body: payload,
-    });
+    const result = await api<{ tokenCode?: string }>(
+      `${endpoints[command]}?clinicId=${encodeURIComponent(currentCommandClinic())}`,
+      {
+        method: command === "settings" ? "PUT" : "POST",
+        body: payload,
+      },
+    );
     window.dispatchEvent(new Event("queuecare:refresh"));
     return result;
   } finally {

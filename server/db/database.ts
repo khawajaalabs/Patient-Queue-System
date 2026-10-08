@@ -59,7 +59,9 @@ export function createDatabase(filename: string, log: (message: string) => void 
   db.exec("PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
   migrate(db);
   const stamp = new Date().toISOString();
-  db.prepare("INSERT OR IGNORE INTO clinics VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+  db.prepare(
+    "INSERT OR IGNORE INTO clinics (id,name,display_name,address,phone,department,doctor_name,opening_time,closing_time,average_consultation_minutes,token_prefix,public_display_show_next,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+  ).run(
     "northstar",
     "Northstar Medical Clinic",
     "Northstar Medical Clinic",

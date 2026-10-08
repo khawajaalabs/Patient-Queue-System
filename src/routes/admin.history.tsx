@@ -13,7 +13,14 @@ function AdminHistory() {
   const [filter, setFilter] = useState<"all" | Status>("all");
   const entries = [
     ...q.queue,
-    ...q.history.filter((h) => !q.queue.some((e) => e.token === h.token && e.date === h.date)),
+    ...q.history.filter(
+      (h) =>
+        !q.queue.some((e) =>
+          e.id && h.id
+            ? e.id === h.id
+            : e.token === h.token && e.date === h.date && e.clinicId === h.clinicId,
+        ),
+    ),
   ].filter((e) => (e.date ?? q.queueDate) === date);
   const rows = entries.filter((e) => filter === "all" || e.status === filter);
   const average = entries.length
@@ -21,10 +28,7 @@ function AdminHistory() {
     : 0;
   return (
     <>
-      <PageHeader
-        title="Queue history"
-        sub={`Previous queue activity at ${q.clinic.department}.`}
-      />
+      <PageHeader title="Queue history" sub="Queue activity for your selected clinic context." />
       <div className="mb-6 flex flex-wrap gap-4">
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           Date
@@ -76,11 +80,14 @@ function AdminHistory() {
         </div>
         {rows.map((entry) => (
           <div
-            key={entry.token}
+            key={entry.id ?? `${entry.clinicId}-${entry.token}`}
             className="grid gap-3 border-b border-border px-5 py-5 last:border-0 sm:grid-cols-2 xl:grid-cols-[80px_minmax(120px,1fr)_110px_85px_85px_90px_65px_105px] xl:items-center"
           >
             <p className="tabular font-semibold">{entry.token}</p>
-            <p className="text-sm font-medium">{entry.name}</p>
+            <div>
+              <p className="text-sm font-medium">{entry.name}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{entry.clinicName}</p>
+            </div>
             <p className="text-sm text-muted-foreground">{formatDate(entry.date ?? q.queueDate)}</p>
             <p className="text-sm text-muted-foreground">
               <span className="xl:hidden">Joined </span>

@@ -1,3 +1,4 @@
+import { useClinicContext } from "@/providers/clinic-provider";
 import { runAction } from "@/services/queue";
 import { actions, type Entry, useQueue } from "@/lib/queue-store";
 import { Btn, Label, StatusPill } from "@/components/qc";
@@ -10,10 +11,16 @@ import {
 } from "@/components/ui/sheet";
 
 export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose: () => void }) {
+  const { selected } = useClinicContext();
   const { queue, clinic, queueDate } = useQueue();
   const current = entry
-    ? (queue.find((e) => e.token === entry.token && e.date === entry.date) ?? entry)
+    ? (queue.find((e) =>
+        entry.id && e.id
+          ? e.id === entry.id
+          : e.token === entry.token && e.date === entry.date && e.clinicId === entry.clinicId,
+      ) ?? entry)
     : null;
+  const canManage = selected !== "all" && (!current?.clinicId || current.clinicId === selected);
   return (
     <Sheet
       open={!!current}
@@ -39,7 +46,8 @@ export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose
               <dl className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
                 {[
                   ["Phone", current.phone || "—"],
-                  ["Department", clinic.department],
+                  ["Clinic", current.clinicName ?? clinic.name],
+                  ["Department", current.department ?? clinic.department],
                   ["Joined", current.joinedAt],
                   ["Waiting duration", current.token === "—" ? "—" : `${current.waitMin ?? 0} min`],
                 ].map(([label, value]) => (
@@ -81,7 +89,7 @@ export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose
                 </ol>
               </section>
               <div className="flex flex-wrap gap-2 border-t border-border pt-6">
-                {current.date === queueDate && current.status === "waiting" && (
+                {canManage && current.date === queueDate && current.status === "waiting" && (
                   <Btn
                     onClick={() => {
                       void runAction(
@@ -93,7 +101,7 @@ export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose
                     Call patient
                   </Btn>
                 )}
-                {current.date === queueDate && current.status === "serving" && (
+                {canManage && current.date === queueDate && current.status === "serving" && (
                   <Btn
                     onClick={() => {
                       void runAction(
@@ -105,17 +113,19 @@ export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose
                     Mark as done
                   </Btn>
                 )}
-                {current.date === queueDate && ["waiting", "serving"].includes(current.status) && (
-                  <Btn
-                    variant="secondary"
-                    onClick={() => {
-                      void runAction(() => actions.skip(current.token), "Token skipped.");
-                    }}
-                  >
-                    Skip
-                  </Btn>
-                )}
-                {current.date === queueDate && current.status === "skipped" && (
+                {canManage &&
+                  current.date === queueDate &&
+                  ["waiting", "serving"].includes(current.status) && (
+                    <Btn
+                      variant="secondary"
+                      onClick={() => {
+                        void runAction(() => actions.skip(current.token), "Token skipped.");
+                      }}
+                    >
+                      Skip
+                    </Btn>
+                  )}
+                {canManage && current.date === queueDate && current.status === "skipped" && (
                   <Btn
                     variant="secondary"
                     onClick={() => {

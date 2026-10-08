@@ -133,7 +133,7 @@ it("shows empty API state and realtime refetch changes the patient's real token"
   expect(result.current.queue).toEqual([]);
   expect(result.current.history).toEqual([]);
   expect(fixture.api).toHaveBeenCalledWith(
-    "/patient/state",
+    "/patient/state?clinicId=northstar",
     expect.objectContaining({ signal: expect.any(AbortSignal) }),
   );
   state = {
@@ -170,7 +170,9 @@ it("public display uses the sanitized endpoint even with an admin session", asyn
   expect(result.current.serving?.phone).toBe("");
   expect(result.current.history).toEqual([]);
   expect(
-    fixture.api.mock.calls.every(([path]) => path === "/auth/me" || path === "/public/queue"),
+    fixture.api.mock.calls.every(
+      ([path]) => path === "/auth/me" || path === "/public/queue?clinicId=northstar",
+    ),
   ).toBe(true);
 });
 it("failed queue requests show an error without inventing activity and retry recovers", async () => {

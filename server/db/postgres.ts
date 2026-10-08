@@ -143,7 +143,7 @@ async function bootstrapDatabase(db: Database, log: (message: string) => void) {
     const stamp = new Date().toISOString();
     await db
       .prepare(
-        "INSERT INTO clinics VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (id) DO NOTHING",
+        "INSERT INTO clinics (id,name,display_name,address,phone,department,doctor_name,opening_time,closing_time,average_consultation_minutes,token_prefix,public_display_show_next,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (id) DO NOTHING",
       )
       .run(
         "northstar",

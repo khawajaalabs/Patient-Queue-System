@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 
 import { AuthProvider } from "@/providers/auth-provider";
+import { ClinicProvider } from "@/providers/clinic-provider";
 import { QueueProvider } from "@/providers/queue-provider";
 import appCss from "../styles.css?url";
 
@@ -121,10 +122,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <QueueProvider publicOnly={publicOnly}>
-          <Outlet />
-          <Toaster position="top-center" />
-        </QueueProvider>
+        <ClinicProvider publicOnly={publicOnly}>
+          <QueueProvider publicOnly={publicOnly}>
+            <Outlet />
+            <Toaster position="top-center" />
+          </QueueProvider>
+        </ClinicProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -19,6 +19,8 @@ import { Route as PublicDisplayRouteImport } from './routes/public-display'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAppointmentsRouteImport } from './routes/admin.appointments'
+import { Route as AdminClinicsRouteImport } from './routes/admin.clinics'
 import { Route as AdminHistoryRouteImport } from './routes/admin.history'
 import { Route as AdminLiveQueueRouteImport } from './routes/admin.live-queue'
 import { Route as AdminPatientsRouteImport } from './routes/admin.patients'
@@ -80,6 +82,16 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAppointmentsRoute = AdminAppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminClinicsRoute = AdminClinicsRouteImport.update({
+  id: '/clinics',
+  path: '/clinics',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminHistoryRoute = AdminHistoryRouteImport.update({
@@ -153,6 +165,8 @@ export interface FileRoutesByFullPath {
   '/public-display': typeof PublicDisplayRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/appointments': typeof AdminAppointmentsRoute
+  '/admin/clinics': typeof AdminClinicsRoute
   '/admin/history': typeof AdminHistoryRoute
   '/admin/live-queue': typeof AdminLiveQueueRoute
   '/admin/patients': typeof AdminPatientsRoute
@@ -175,6 +189,8 @@ export interface FileRoutesByTo {
   '/public-display': typeof PublicDisplayRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/appointments': typeof AdminAppointmentsRoute
+  '/admin/clinics': typeof AdminClinicsRoute
   '/admin/history': typeof AdminHistoryRoute
   '/admin/live-queue': typeof AdminLiveQueueRoute
   '/admin/patients': typeof AdminPatientsRoute
@@ -200,6 +216,8 @@ export interface FileRoutesById {
   '/public-display': typeof PublicDisplayRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/appointments': typeof AdminAppointmentsRoute
+  '/admin/clinics': typeof AdminClinicsRoute
   '/admin/history': typeof AdminHistoryRoute
   '/admin/live-queue': typeof AdminLiveQueueRoute
   '/admin/patients': typeof AdminPatientsRoute
@@ -226,6 +244,8 @@ export interface FileRouteTypes {
     | '/public-display'
     | '/register'
     | '/reset-password'
+    | '/admin/appointments'
+    | '/admin/clinics'
     | '/admin/history'
     | '/admin/live-queue'
     | '/admin/patients'
@@ -248,6 +268,8 @@ export interface FileRouteTypes {
     | '/public-display'
     | '/register'
     | '/reset-password'
+    | '/admin/appointments'
+    | '/admin/clinics'
     | '/admin/history'
     | '/admin/live-queue'
     | '/admin/patients'
@@ -272,6 +294,8 @@ export interface FileRouteTypes {
     | '/public-display'
     | '/register'
     | '/reset-password'
+    | '/admin/appointments'
+    | '/admin/clinics'
     | '/admin/history'
     | '/admin/live-queue'
     | '/admin/patients'
@@ -371,6 +395,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/appointments': {
+      id: '/admin/appointments'
+      path: '/appointments'
+      fullPath: '/admin/appointments'
+      preLoaderRoute: typeof AdminAppointmentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/clinics': {
+      id: '/admin/clinics'
+      path: '/clinics'
+      fullPath: '/admin/clinics'
+      preLoaderRoute: typeof AdminClinicsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/history': {
       id: '/admin/history'
       path: '/history'
@@ -459,6 +497,8 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAppointmentsRoute: typeof AdminAppointmentsRoute
+  AdminClinicsRoute: typeof AdminClinicsRoute
   AdminHistoryRoute: typeof AdminHistoryRoute
   AdminLiveQueueRoute: typeof AdminLiveQueueRoute
   AdminPatientsRoute: typeof AdminPatientsRoute
@@ -468,6 +508,8 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAppointmentsRoute: AdminAppointmentsRoute,
+  AdminClinicsRoute: AdminClinicsRoute,
   AdminHistoryRoute: AdminHistoryRoute,
   AdminLiveQueueRoute: AdminLiveQueueRoute,
   AdminPatientsRoute: AdminPatientsRoute,

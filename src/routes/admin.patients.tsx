@@ -40,7 +40,12 @@ function Patients() {
             onClick={() => setSelected(entry)}
             className="grid w-full gap-3 border-b border-border px-5 py-5 text-left transition last:border-0 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:grid-cols-2 xl:grid-cols-[1.2fr_1.2fr_1fr_90px_110px] xl:items-center xl:px-6"
           >
-            <span className="text-sm font-medium">{entry.name}</span>
+            <span className="text-sm font-medium">
+              {entry.name}
+              <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                {entry.clinicName}
+              </span>
+            </span>
             <span className="text-sm text-muted-foreground">{entry.phone || "—"}</span>
             <span className="text-sm text-muted-foreground">
               <span className="xl:hidden">Last visit · </span>

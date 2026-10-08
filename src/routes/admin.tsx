@@ -1,3 +1,5 @@
+import { ClinicSwitcher, useClinicContext } from "@/providers/clinic-provider";
+import { AllClinicsOverview } from "@/components/all-clinics-overview";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/providers/auth-provider";
 import { logout } from "@/services/auth";
@@ -23,9 +25,12 @@ const nav = [
   { to: "/admin/live-queue", label: "Live Queue", icon: ListOrdered },
   { to: "/admin/history", label: "Queue History", icon: History },
   { to: "/admin/patients", label: "Patients", icon: Users },
+  { to: "/admin/clinics", label: "Clinics", icon: LayoutGrid },
+  { to: "/admin/appointments", label: "Appointments", icon: History },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ] as const;
 function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
+  const { selected } = useClinicContext();
   return (
     <nav className="mt-8 space-y-1">
       {nav.map((n) => (
@@ -43,15 +48,17 @@ function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
           {n.label}
         </Link>
       ))}
-      <Link
-        to="/public-display"
-        target="_blank"
-        onClick={onNavigate}
-        className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent"
-      >
-        <Monitor className="size-4" />
-        Public display
-      </Link>
+      {selected !== "all" && (
+        <a
+          href={`/public-display?clinicId=${encodeURIComponent(selected === "all" ? "northstar" : selected)}`}
+          target="_blank"
+          onClick={onNavigate}
+          className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent"
+        >
+          <Monitor className="size-4" />
+          Public display
+        </a>
+      )}
     </nav>
   );
 }
@@ -64,6 +71,7 @@ function AdminLayout() {
 }
 function AdminLayoutContent() {
   const { profile } = useAuth();
+  const { selected } = useClinicContext();
   const initials =
     profile?.fullName
       .split(/\s+/)
@@ -128,9 +136,10 @@ function AdminLayoutContent() {
           </button>
           <Logo className="[&>span]:hidden sm:[&>span]:inline lg:hidden" />
           <div className="hidden text-sm lg:block">
-            <span className="font-medium">{clinic.name}</span>
+            <span className="font-medium">{selected === "all" ? "All Clinics" : clinic.name}</span>
             <span className="ml-3 text-muted-foreground">{date}</span>
           </div>
+          <ClinicSwitcher all />
           <span
             className={cn(
               "ml-auto inline-flex shrink-0 items-center gap-2 rounded-full px-2 py-1 text-xs font-medium sm:px-3",
@@ -144,7 +153,16 @@ function AdminLayoutContent() {
         </header>
         <main className="mx-auto w-full max-w-[1240px] flex-1 px-5 py-8 md:px-8 md:py-10">
           <QueueBoundary kind={pathname === "/admin" || pathname === "/admin/" ? "hero" : "list"}>
-            <Outlet />
+            {selected === "all" && (pathname === "/admin" || pathname === "/admin/") ? (
+              <AllClinicsOverview />
+            ) : selected === "all" &&
+              ["/admin/queue", "/admin/live-queue", "/admin/settings"].includes(pathname) ? (
+              <p className="surface p-8 text-sm text-muted-foreground">
+                Choose a clinic above to manage its queue or settings.
+              </p>
+            ) : (
+              <Outlet />
+            )}
           </QueueBoundary>
         </main>
       </div>

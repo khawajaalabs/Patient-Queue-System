@@ -76,9 +76,16 @@ test(
         "supabase/migrations/20261007000100_queuecare_postgresql.sql",
         "utf8",
       )
-        .replace(/^CREATE ROLE queuecare_backend[^;]+;\n/m, "")
+        .replace(/^CREATE ROLE queuecare_backend[^;]+;\r?\n/m, "")
         .replace(/\bqueuecare\b/g, schema);
       await adminQuery(migration);
+      for (const file of [
+        "20261007000200_google_and_password_recovery.sql",
+        "20261008000100_multi_clinic_foundation.sql",
+      ])
+        await adminQuery(
+          readFileSync("supabase/migrations/" + file, "utf8").replace(/\bqueuecare\b/g, schema),
+        );
       await start();
       assert.equal((await request("/public/queue")).data.currentToken, null);
       const admin = await request("/auth/login", "", {

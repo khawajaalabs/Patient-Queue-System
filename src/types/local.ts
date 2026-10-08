@@ -8,9 +8,12 @@ export interface UserProfile {
   email: string;
   phone: string;
   role: Role;
-  clinicId: string;
+  clinicId?: string;
 }
 export interface ClinicConfig {
+  id?: string;
+  active?: boolean;
+  consultationFee?: number | null;
   name: string;
   publicDisplayName: string;
   address: string;
@@ -32,6 +35,8 @@ export interface DailyQueue {
   currentTokenId: string | null;
 }
 export interface QueueToken {
+  clinicId?: string;
+  clinicName?: string;
   id: string;
   tokenCode: string;
   tokenNumber: number;
@@ -79,6 +84,9 @@ export interface QueueResponse {
 }
 export type Status = "waiting" | "serving" | "done" | "skipped" | "left";
 export type Entry = {
+  clinicId?: string | undefined;
+  clinicName?: string | undefined;
+  department?: string | undefined;
   token: string;
   id?: string | undefined;
   patientId?: string | undefined;
@@ -109,3 +117,38 @@ export type Clinic = {
   showNext: boolean;
 };
 export type LoadState = "ready" | "loading" | "error";
+
+export interface ManagedClinic extends ClinicConfig {
+  id: string;
+  active: boolean;
+  consultationFee: number | null;
+}
+export interface ClinicSummary {
+  clinic: ManagedClinic;
+  status: string;
+  waiting: number;
+  currentToken: string | null;
+  appointments: number;
+  completed: number;
+  patients: number;
+}
+export interface AllClinicsState {
+  clinics: ClinicSummary[];
+  totals: {
+    clinics: number;
+    patients: number;
+    waiting: number;
+    appointments: number;
+    completed: number;
+  };
+}
+export interface Appointment {
+  id: string;
+  clinicId: string;
+  clinicName: string;
+  patientId: string;
+  patientName: string;
+  scheduledAt: string;
+  status: "scheduled" | "completed" | "cancelled";
+  reason: string;
+}

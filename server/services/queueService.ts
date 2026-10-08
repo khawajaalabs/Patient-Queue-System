@@ -12,6 +12,9 @@ import type {
   PatientRow,
 } from "../../src/types/local.ts";
 interface ClinicRow {
+  id: string;
+  active: number;
+  consultation_fee: number | null;
   name: string;
   display_name: string;
   address: string;
@@ -55,12 +58,16 @@ interface TokenRow {
   full_name: string;
   phone: string;
   queue_date: string;
+  clinic_id: string;
+  clinic_name: string;
 }
 const tokenSelect =
-  "SELECT t.*,u.full_name,u.phone,q.queue_date FROM tokens t JOIN users u ON u.id=t.patient_id JOIN daily_queues q ON q.id=t.queue_id";
+  "SELECT t.*,u.full_name,u.phone,q.queue_date,q.clinic_id,c.name clinic_name FROM tokens t JOIN users u ON u.id=t.patient_id JOIN daily_queues q ON q.id=t.queue_id JOIN clinics c ON c.id=q.clinic_id";
 export function tokenValue(t: TokenRow): QueueToken {
   return {
     id: t.id,
+    clinicId: t.clinic_id,
+    clinicName: t.clinic_name,
     patientId: t.patient_id,
     patientName: t.full_name,
     phone: t.phone,
@@ -80,9 +87,13 @@ export function tokenValue(t: TokenRow): QueueToken {
     cancelledAt: t.cancelled_at,
   };
 }
-export async function clinicValue(db: Database): Promise<ClinicConfig> {
-  const c = (await one<ClinicRow>(db, "SELECT * FROM clinics WHERE id='northstar'"))!;
+export async function clinicValue(db: Database, clinicId = "northstar"): Promise<ClinicConfig> {
+  const c = await one<ClinicRow>(db, "SELECT * FROM clinics WHERE id=?", clinicId);
+  if (!c) throw new ApiError(404, "CLINIC_NOT_FOUND", "This clinic is unavailable.");
   return {
+    id: c.id,
+    active: Boolean(c.active),
+    consultationFee: c.consultation_fee,
     name: c.name,
     publicDisplayName: c.display_name,
     address: c.address,
@@ -96,10 +107,11 @@ export async function clinicValue(db: Database): Promise<ClinicConfig> {
     publicDisplayShowNext: Boolean(c.public_display_show_next),
   };
 }
-export async function currentQueue(db: Database) {
+export async function currentQueue(db: Database, clinicId = "northstar") {
   return await one<QueueRow>(
     db,
-    "SELECT * FROM daily_queues WHERE clinic_id='northstar' AND queue_date=?",
+    "SELECT * FROM daily_queues WHERE clinic_id=? AND queue_date=?",
+    clinicId,
     clinicDayKey(),
   );
 }
@@ -122,9 +134,9 @@ export async function queueTokens(db: Database, qid: string) {
     )
   ).map(tokenValue);
 }
-export async function publicQueue(db: Database): Promise<PublicQueue> {
-  const c = await clinicValue(db),
-    q = await currentQueue(db);
+export async function publicQueue(db: Database, clinicId = "northstar"): Promise<PublicQueue> {
+  const c = await clinicValue(db, clinicId),
+    q = await currentQueue(db, clinicId);
   const waiting = q
     ? await many<{ token_code: string; queue_order: number }>(
         db,
@@ -143,7 +155,10 @@ export async function publicQueue(db: Database): Promise<PublicQueue> {
     (
       await one<{ stamp: string }>(
         db,
-        "SELECT MAX(stamp) AS stamp FROM (SELECT updated_at AS stamp FROM clinics UNION ALL SELECT updated_at AS stamp FROM daily_queues UNION ALL SELECT updated_at AS stamp FROM tokens) AS updates",
+        "SELECT MAX(stamp) AS stamp FROM (SELECT updated_at AS stamp FROM clinics WHERE id=? UNION ALL SELECT updated_at AS stamp FROM daily_queues WHERE clinic_id=? UNION ALL SELECT t.updated_at AS stamp FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.clinic_id=?) AS updates",
+        clinicId,
+        clinicId,
+        clinicId,
       )
     )?.stamp ?? new Date().toISOString();
   return {
@@ -161,8 +176,8 @@ export async function publicQueue(db: Database): Promise<PublicQueue> {
     updatedAt: updated,
   };
 }
-export async function patientState(db: Database, uid: string) {
-  const q = await currentQueue(db);
+export async function patientState(db: Database, uid: string, clinicId = "northstar") {
+  const q = await currentQueue(db, clinicId);
   const last = q
     ? await one<TokenRow>(
         db,
@@ -178,14 +193,14 @@ export async function patientState(db: Database, uid: string) {
       uid,
     )
   ).map(tokenValue);
-  const pub = await publicQueue(db),
+  const pub = await publicQueue(db, clinicId),
     mine = last ? tokenValue(last) : null;
   const ahead =
     mine?.status === "waiting"
       ? pub.waitingTokens.filter((t) => t.queueOrder < mine.queueOrder).length
       : 0;
   return {
-    clinic: await clinicValue(db),
+    clinic: await clinicValue(db, clinicId),
     public: pub,
     mine,
     queue: [],
@@ -195,12 +210,16 @@ export async function patientState(db: Database, uid: string) {
     eta: ahead * pub.averageConsultationMinutes,
   };
 }
-export async function adminState(db: Database, date: string) {
-  const q = await currentQueue(db);
+export async function adminState(db: Database, date: string, clinicId = "northstar") {
+  const all = clinicId === "all";
+  const q = all ? undefined : await currentQueue(db, clinicId);
   const history = (
     await many<TokenRow>(
       db,
-      tokenSelect + " WHERE q.queue_date=? ORDER BY t.queue_order LIMIT 200",
+      tokenSelect +
+        " WHERE (?='all' OR q.clinic_id=?) AND q.queue_date=? ORDER BY t.joined_at DESC,t.queue_order LIMIT 200",
+      clinicId,
+      clinicId,
       date,
     )
   ).map(tokenValue);
@@ -208,13 +227,18 @@ export async function adminState(db: Database, date: string) {
     (
       await many<UserRow>(
         db,
-        "SELECT * FROM users WHERE role='patient' ORDER BY full_name LIMIT 200",
+        "SELECT u.* FROM users u WHERE u.role='patient' AND (?='all' OR EXISTS (SELECT 1 FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE t.patient_id=u.id AND q.clinic_id=?)) ORDER BY full_name LIMIT 200",
+        clinicId,
+        clinicId,
       )
     ).map(async (u) => {
       const visit = await one<TokenRow>(
         db,
-        tokenSelect + " WHERE t.patient_id=? ORDER BY t.joined_at DESC,t.rowid DESC LIMIT 1",
+        tokenSelect +
+          " WHERE t.patient_id=? AND (?='all' OR q.clinic_id=?) ORDER BY t.joined_at DESC,t.rowid DESC LIMIT 1",
         u.id,
+        clinicId,
+        clinicId,
       );
       return {
         user: { id: u.id, fullName: u.full_name, phone: u.phone },
@@ -223,8 +247,11 @@ export async function adminState(db: Database, date: string) {
     }),
   );
   return {
-    clinic: await clinicValue(db),
-    public: await publicQueue(db),
+    clinic: await clinicValue(db, all ? "northstar" : clinicId),
+    public: {
+      ...(await publicQueue(db, all ? "northstar" : clinicId)),
+      ...(all ? { status: "unavailable" as const } : {}),
+    },
     mine: null,
     queue: q ? await queueTokens(db, q.id) : [],
     history,
@@ -247,35 +274,38 @@ export async function mutateQueue(
   user: UserRow,
   action: QueueAction,
   input: { token?: string | undefined; reason?: string | undefined } = {},
+  clinicId = "northstar",
 ) {
   if (user.role !== (action === "join" || action === "leave" ? "patient" : "admin"))
     throw new ApiError(403, "FORBIDDEN", "Your account cannot perform this action.");
   return atomic(db, async () => {
     const stamp = new Date().toISOString(),
       day = clinicDayKey(),
-      clinic = await clinicValue(db);
-    let q = await currentQueue(db);
+      clinic = await clinicValue(db, clinicId);
+    if ((action === "open" || action === "join") && !clinic.active)
+      throw new ApiError(409, "CLINIC_INACTIVE", "This clinic is inactive.");
+    let q = await currentQueue(db, clinicId);
     if (action === "open") {
       if (!q) {
         const id = randomUUID();
         await db
           .prepare("INSERT INTO daily_queues VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-          .run(id, "northstar", day, "open", 1, null, stamp, null, user.id, stamp, stamp);
-        q = (await currentQueue(db))!;
+          .run(id, clinicId, day, "open", 1, null, stamp, null, user.id, stamp, stamp);
+        q = (await currentQueue(db, clinicId))!;
       } else if (q.status === "closed")
         await db
           .prepare(
             "UPDATE daily_queues SET status='open',opened_at=?,closed_at=NULL,updated_at=? WHERE id=?",
           )
           .run(stamp, stamp, q.id);
-      return dailyQueueValue((await currentQueue(db))!);
+      return dailyQueueValue((await currentQueue(db, clinicId))!);
     }
     if (!q) throw new ApiError(409, "NO_QUEUE", "No queue has been opened today.");
     if (action === "close") {
       await db
         .prepare("UPDATE daily_queues SET status='closed',closed_at=?,updated_at=? WHERE id=?")
         .run(stamp, stamp, q.id);
-      return dailyQueueValue((await currentQueue(db))!);
+      return dailyQueueValue((await currentQueue(db, clinicId))!);
     }
     if (action === "join") {
       const existing = await one<TokenRow>(
@@ -384,6 +414,11 @@ export async function mutateQueue(
         .prepare("UPDATE tokens SET status='completed',completed_at=?,updated_at=? WHERE id=?")
         .run(stamp, stamp, t.id);
       await db.prepare("UPDATE daily_queues SET current_token_id=NULL WHERE id=?").run(q.id);
+      await db
+        .prepare(
+          "INSERT INTO visits (id,clinic_id,patient_id,doctor_id,queue_id,token_id,completed_at) VALUES (?,?,?,?,?,?,?)",
+        )
+        .run(randomUUID(), clinicId, t.patient_id, user.id, q.id, t.id, stamp);
     } else if (action === "skip") {
       if (!["waiting", "serving"].includes(t.status))
         throw new ApiError(
@@ -439,7 +474,7 @@ const settingsSchema = z
   })
   .strict()
   .refine((c) => c.opening < c.closing, { message: "Closing time must be after opening time." });
-export async function saveSettings(db: Database, input: unknown) {
+export async function saveSettings(db: Database, input: unknown, clinicId = "northstar") {
   const data = z
       .object({ clinic: settingsSchema, avgMin: z.number().int().min(1).max(120) })
       .strict()
@@ -448,7 +483,7 @@ export async function saveSettings(db: Database, input: unknown) {
   return atomic(db, async () => {
     await db
       .prepare(
-        "UPDATE clinics SET name=?,display_name=?,address=?,phone=?,department=?,doctor_name=?,opening_time=?,closing_time=?,average_consultation_minutes=?,token_prefix=?,public_display_show_next=?,updated_at=? WHERE id='northstar'",
+        "UPDATE clinics SET name=?,display_name=?,address=?,phone=?,department=?,doctor_name=?,opening_time=?,closing_time=?,average_consultation_minutes=?,token_prefix=?,public_display_show_next=?,updated_at=? WHERE id=?",
       )
       .run(
         c.name,
@@ -463,7 +498,8 @@ export async function saveSettings(db: Database, input: unknown) {
         c.prefix,
         c.showNext ? 1 : 0,
         new Date().toISOString(),
+        clinicId,
       );
-    return await clinicValue(db);
+    return await clinicValue(db, clinicId);
   });
 }

@@ -19,7 +19,6 @@ export const publicUser = (u: UserRow): UserProfile => ({
   email: u.email,
   phone: u.phone,
   role: u.role,
-  clinicId: "northstar",
 });
 export function sessionCookie(req: Request) {
   return (

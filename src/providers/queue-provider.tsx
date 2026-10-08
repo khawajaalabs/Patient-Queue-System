@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { io } from "socket.io-client";
+import { useClinicContext } from "./clinic-provider";
 import { api } from "@/api/client";
 import { useAuth } from "./auth-provider";
 import { friendlyError } from "@/services/errors";
@@ -14,6 +15,7 @@ import type {
   QueueToken,
 } from "@/types/local";
 export type QueueState = {
+  scope: string;
   open: boolean;
   openedToday: boolean;
   queue: Entry[];
@@ -43,6 +45,7 @@ const emptyClinic: Clinic = {
   showNext: true,
 };
 const initial = (): Omit<QueueState, "retry" | "setHistoryDate" | "historyDate" | "queueDate"> => ({
+  scope: "",
   open: false,
   openedToday: false,
   queue: [],
@@ -69,6 +72,9 @@ export function toEntry(t: QueueToken): Entry {
   const end = t.calledAt ?? t.cancelledAt ?? t.skippedAt;
   return {
     id: t.id,
+    clinicId: t.clinicId,
+    clinicName: t.clinicName,
+    department: t.department,
     patientId: t.patientId,
     token: t.tokenCode,
     name: t.patientName,
@@ -114,6 +120,7 @@ export function QueueProvider({
   publicOnly?: boolean;
 }) {
   const { profile, loading: authLoading } = useAuth();
+  const { selected } = useClinicContext();
   const role = publicOnly ? undefined : profile?.role;
   const uid = publicOnly ? undefined : profile?.id;
   const [state, setState] = useState(initial);
@@ -139,7 +146,10 @@ export function QueueProvider({
             : role === "patient"
               ? "/patient/state"
               : "/public/queue";
-        const data = await api<QueueResponse | PublicQueue>(path, { signal: controller.signal });
+        const scopedPath = `${path}${path.includes("?") ? "&" : "?"}clinicId=${encodeURIComponent(selected)}`;
+        const data = await api<QueueResponse | PublicQueue>(scopedPath, {
+          signal: controller.signal,
+        });
         if (!active || request !== sequence) return;
         const privateState = "public" in data ? data : null;
         const pub = privateState ? privateState.public : (data as PublicQueue);
@@ -173,6 +183,7 @@ export function QueueProvider({
                 },
           ) ?? [];
         setState((previous) => ({
+          scope: selected,
           open: pub.status === "open",
           openedToday: pub.status !== "unavailable",
           queue,
@@ -205,6 +216,7 @@ export function QueueProvider({
         if (active && request === sequence)
           setState((previous) => ({
             ...previous,
+            scope: selected,
             loadState: "error",
             error: friendlyError(error),
           }));
@@ -220,7 +232,10 @@ export function QueueProvider({
       path: import.meta.env["VITE_SOCKET_PATH"] ?? "/socket.io",
       addTrailingSlash: !import.meta.env["VITE_SOCKET_PATH"],
     });
-    socket.on("queue:updated", refreshNow);
+    socket.on("queue:updated", () => {
+      refreshNow();
+      window.dispatchEvent(new Event("queuecare:updated"));
+    });
     socket.on("connect", refreshNow);
     window.addEventListener("queuecare:refresh", refreshNow);
     const timer = setInterval(refreshNow, 30000);
@@ -231,11 +246,12 @@ export function QueueProvider({
       socket.disconnect();
       window.removeEventListener("queuecare:refresh", refreshNow);
     };
-  }, [role, uid, authLoading, publicOnly, day, historyDate, attempt]);
+  }, [role, uid, authLoading, publicOnly, day, historyDate, attempt, selected]);
   return (
     <Context.Provider
       value={{
         ...state,
+        loadState: state.scope === selected ? state.loadState : "loading",
         queueDate: day,
         historyDate,
         setHistoryDate,
