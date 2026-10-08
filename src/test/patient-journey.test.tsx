@@ -99,7 +99,7 @@ it("demonstrates login, token issuance, anonymous tracking, completion and histo
   await waitFor(() => expect(router.state.location.pathname).toBe("/patient/history"));
 }, 15000);
 it.each(["no-queue", "completed"] as const)(
-  "dashboard hides current queue for %s tokens",
+  "dashboard preserves the original %s token state",
   async (scenario) => {
     actions.demo(scenario);
     const router = renderPatientApp();
@@ -107,7 +107,18 @@ it.each(["no-queue", "completed"] as const)(
       await router.navigate({ to: "/patient/dashboard" });
     });
     await screen.findByRole("heading", { name: "Good morning, Zain" });
-    expect(screen.queryByText("You don't have an active token.")).toBeNull();
-    expect(screen.queryByText("Your token")).toBeNull();
+    if (scenario === "no-queue") {
+      const heading = screen.getByRole("heading", { name: "You don't have an active token." });
+      const card = heading.closest("section")!;
+      expect(within(card).getByRole("link", { name: /Get a token/ })).toHaveAttribute(
+        "href",
+        "/patient/get-token",
+      );
+      expect(within(card).getByRole("button", { name: /Get a token/ })).toBeDisabled();
+    } else {
+      expect(screen.getByText("Your token")).toBeInTheDocument();
+      expect(screen.getByText("Visit completed.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Get another token" })).toBeInTheDocument();
+    }
   },
 );
