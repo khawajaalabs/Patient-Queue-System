@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "@/api/client";
@@ -91,14 +92,14 @@ function Staff() {
             />
             <label className="text-sm font-medium">
               Role
-              <select
+              <SelectField
                 name="role"
                 defaultValue={editing?.role ?? "receptionist"}
                 className="mt-2 block w-full rounded-lg border bg-card p-3"
               >
                 <option value="receptionist">Receptionist</option>
                 <option value="nurse">Nurse / Assistant</option>
-              </select>
+              </SelectField>
             </label>
             <Field
               name="password"

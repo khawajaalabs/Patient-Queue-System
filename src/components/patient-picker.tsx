@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { useClinicContext } from "@/providers/clinic-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { useClinicalData } from "@/components/clinical";
@@ -25,7 +26,7 @@ export function PatientPicker({
   return (
     <label className="block text-sm font-medium">
       Patient
-      <select
+      <SelectField
         name={name}
         required={required}
         value={value}
@@ -38,7 +39,7 @@ export function PatientPicker({
             {p.name}
           </option>
         ))}
-      </select>
+      </SelectField>
       {remote.error && (
         <span role="alert" className="mt-1 text-xs text-destructive">
           {remote.error}

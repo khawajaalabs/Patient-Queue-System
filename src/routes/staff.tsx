@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { AppointmentCalendar } from "@/components/appointment-calendar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -388,7 +389,7 @@ function DemographicEditor({
         />
         <label className="text-sm">
           Gender
-          <select
+          <SelectField
             name="gender"
             defaultValue={p.gender}
             className="mt-2 block w-full rounded-lg border bg-card p-3"
@@ -398,11 +399,11 @@ function DemographicEditor({
                 {v.replaceAll("_", " ") || "Not provided"}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <label className="text-sm">
           Blood group
-          <select
+          <SelectField
             name="bloodGroup"
             defaultValue={p.bloodGroup}
             className="mt-2 block w-full rounded-lg border bg-card p-3"
@@ -412,7 +413,7 @@ function DemographicEditor({
                 {v || "Not provided"}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
       </div>
       {error && (

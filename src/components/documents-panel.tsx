@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { PatientPicker } from "@/components/patient-picker";
 import { useState } from "react";
 import { api } from "@/api/client";
@@ -107,7 +108,7 @@ export function DocumentsPanel({
             <Field label="Title" name="title" maxLength={160} required />
             <label className="text-sm font-medium">
               Document type
-              <select name="type" className="mt-2 block w-full rounded-lg border bg-card p-3">
+              <SelectField name="type" className="mt-2 block w-full rounded-lg border bg-card p-3">
                 {["lab_report", "imaging_report", "referral", "medical_document", "other"].map(
                   (t) => (
                     <option key={t} value={t}>
@@ -115,7 +116,7 @@ export function DocumentsPanel({
                     </option>
                   ),
                 )}
-              </select>
+              </SelectField>
             </label>
             <Field label="Description" name="description" maxLength={1000} />
             <label className="text-sm font-medium">

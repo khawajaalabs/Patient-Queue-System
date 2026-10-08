@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { useQueue } from "@/lib/queue-store";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
@@ -103,7 +104,7 @@ export function OperationalReports({ reports = false }: { reports?: boolean }) {
       <div className="surface mb-6 flex flex-wrap items-end gap-3 p-4 print:hidden">
         <label className="text-sm">
           Period
-          <select
+          <SelectField
             aria-label="Report period"
             className={inputClass}
             defaultValue="today"
@@ -113,14 +114,14 @@ export function OperationalReports({ reports = false }: { reports?: boolean }) {
             <option value="week">This week</option>
             <option value="month">This month</option>
             <option value="custom">Custom range</option>
-          </select>
+          </SelectField>
         </label>
         <Field label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         <Field label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         {reports && (
           <label className="text-sm">
             Status
-            <select
+            <SelectField
               className={inputClass}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
@@ -140,7 +141,7 @@ export function OperationalReports({ reports = false }: { reports?: boolean }) {
               ].map((x) => (
                 <option key={x}>{x}</option>
               ))}
-            </select>
+            </SelectField>
           </label>
         )}
         <Btn variant="secondary" onClick={remote.reload}>

@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
 import { useAuth } from "@/providers/auth-provider";
@@ -144,7 +145,7 @@ export function AppointmentCalendar() {
         />
         <label className="text-sm">
           Status
-          <select
+          <SelectField
             className="ml-2 rounded-lg border border-input bg-card p-2"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -155,7 +156,7 @@ export function AppointmentCalendar() {
                 <option key={s}>{s}</option>
               ),
             )}
-          </select>
+          </SelectField>
         </label>
         <Btn variant="secondary" onClick={remote.reload}>
           Refresh

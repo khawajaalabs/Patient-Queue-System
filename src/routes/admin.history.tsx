@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQueue, formatDate, type Status } from "@/lib/queue-store";
@@ -51,7 +52,7 @@ function AdminHistory() {
         </label>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           Status
-          <select
+          <SelectField
             value={filter}
             onChange={(e) => setFilter(e.target.value as typeof filter)}
             className="h-11 rounded-lg border border-input bg-card px-3 text-foreground"
@@ -62,7 +63,7 @@ function AdminHistory() {
             <option value="done">Completed</option>
             <option value="skipped">Skipped</option>
             <option value="left">Cancelled</option>
-          </select>
+          </SelectField>
         </label>
       </div>
       <dl className="mb-7 grid grid-cols-2 gap-5 border-y border-border py-5 sm:grid-cols-4">

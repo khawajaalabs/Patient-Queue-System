@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { StartConsultation } from "@/components/clinical";
 import { useClinicContext } from "@/providers/clinic-provider";
 import { runAction } from "@/services/queue";
@@ -167,7 +168,7 @@ export function LiveQueue() {
         </label>
         <label className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Status</span>
-          <select
+          <SelectField
             value={filter}
             onChange={(e) => setFilter(e.target.value as typeof filter)}
             className="h-11 rounded-lg border border-input bg-card px-3"
@@ -184,7 +185,7 @@ export function LiveQueue() {
                 {label}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
       </div>
       <div className="surface overflow-hidden">

@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { PrintBranding } from "@/components/final-operations";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/api/client";
@@ -136,7 +137,7 @@ export function BillingWorkspace({ portal = false }: { portal?: boolean }) {
         />
         <label className="text-sm font-medium">
           Status
-          <select
+          <SelectField
             className="mt-2 block rounded-lg border bg-card p-3"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -148,7 +149,7 @@ export function BillingWorkspace({ portal = false }: { portal?: boolean }) {
                   {s.replaceAll("_", " ")}
                 </option>
               ))}
-          </select>
+          </SelectField>
         </label>
         {!portal && (
           <Btn
@@ -414,13 +415,13 @@ export function BillingWorkspace({ portal = false }: { portal?: boolean }) {
               />
               <label className="text-sm font-medium">
                 Method
-                <select name="method" className="mt-2 block w-full rounded-lg border bg-card p-3">
+                <SelectField name="method" className="mt-2 block w-full rounded-lg border bg-card p-3">
                   {["cash", "card", "bank_transfer", "other"].map((m) => (
                     <option key={m} value={m}>
                       {m.replaceAll("_", " ")}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               <Field label="Reference / note" name="reference" maxLength={300} />
               <Btn disabled={busy} className="self-end">

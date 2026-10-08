@@ -1,3 +1,4 @@
+import { selectOption } from "./select-option";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
@@ -86,7 +87,7 @@ it("operational dashboard uses server totals and provides date controls", async 
   expect(await screen.findByText("Completed consultations")).toBeInTheDocument();
   expect(screen.getByLabelText("From")).toBeInTheDocument();
   expect(screen.getByText("No appointments in this period.")).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Report period"), { target: { value: "month" } });
+  await selectOption(screen.getByLabelText("Report period"), "This month");
   await waitFor(() => expect(fixture.api.mock.calls.length).toBeGreaterThan(1));
 });
 it("follow-ups expose explicit actions and send audited mutations", async () => {

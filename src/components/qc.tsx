@@ -1,3 +1,5 @@
+import { useId } from "react";
+import { TemporalInput } from "@/components/form-controls";
 import { useSyncExternalStore } from "react";
 import { subscribePending, isQueueActionPending } from "@/services/queue";
 import { cn } from "@/lib/utils";
@@ -107,6 +109,18 @@ export function Field({
   label,
   ...p
 }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const generatedId = useId();
+  if (["date", "time", "datetime-local"].includes(p.type ?? "")) {
+    const id = p.id ?? generatedId;
+    return (
+      <div className="block">
+        <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+          {label}
+        </label>
+        <TemporalInput {...p} id={id} aria-label={p["aria-label"] ?? label} />
+      </div>
+    );
+  }
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium">{label}</span>

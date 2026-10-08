@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { api } from "@/api/client";
 import { useAuth } from "./auth-provider";
@@ -99,7 +100,7 @@ export function ClinicSwitcher({ all = false }: { all?: boolean }) {
   return (
     <label className="block min-w-0 text-xs text-muted-foreground">
       <span className="sr-only">Current clinic</span>
-      <select
+      <SelectField
         aria-label="Current clinic"
         className="max-w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium text-foreground outline-none focus:border-primary"
         value={c.selected}
@@ -113,7 +114,7 @@ export function ClinicSwitcher({ all = false }: { all?: boolean }) {
             {clinic.active === false ? " (inactive)" : ""}
           </option>
         ))}
-      </select>
+      </SelectField>
       {c.error && (
         <span role="alert" className="mt-1 block text-destructive">
           {c.error}

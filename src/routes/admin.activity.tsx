@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageHeader, Field } from "@/components/qc";
@@ -28,7 +29,7 @@ function ActivityPage() {
         <Field label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         <label className="text-sm font-medium">
           Staff
-          <select
+          <SelectField
             value={staff}
             onChange={(e) => setStaff(e.target.value)}
             className="mt-2 block rounded-lg border bg-card p-3"
@@ -39,7 +40,7 @@ function ActivityPage() {
                 {s.name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <Field
           label="Action (e.g. payment.recorded)"

@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -113,7 +114,7 @@ function PatientRecord() {
       </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-lg font-semibold">Clinical visit history</h2>
-        <select
+        <SelectField
           aria-label="Filter visit clinic"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -127,7 +128,7 @@ function PatientRecord() {
               </option>
             ),
           )}
-        </select>
+        </SelectField>
       </div>
       <VisitTimeline
         visits={visits.filter((v) => filter === "all" || v.clinicId === filter)}

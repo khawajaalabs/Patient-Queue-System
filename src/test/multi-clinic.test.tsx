@@ -1,5 +1,6 @@
+import { selectOption } from "./select-option";
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { ClinicProvider, ClinicSwitcher, currentCommandClinic } from "@/providers/clinic-provider";
 const fixture = vi.hoisted(() => ({ role: "admin", api: vi.fn() }));
 vi.mock("@/api/client", () => ({ api: fixture.api }));
@@ -24,11 +25,11 @@ it("switches clinics and persists an account-specific preference including All C
     </ClinicProvider>,
   );
   const chooser = screen.getByLabelText("Current clinic");
-  await screen.findByRole("option", { name: "Clifton" });
-  fireEvent.change(chooser, { target: { value: "clifton" } });
+  await waitFor(() => expect(screen.getByLabelText("Current clinic")).toHaveTextContent("Northstar"));
+  await selectOption(chooser, "Clifton");
   expect(currentCommandClinic()).toBe("clifton");
   expect(localStorage.getItem("queuecare:clinic:main-admin")).toBe("clifton");
-  fireEvent.change(chooser, { target: { value: "all" } });
+  await selectOption(chooser, "All Clinics");
   expect(currentCommandClinic()).toBe("all");
 });
 it("rejects a stale or unauthorized All Clinics patient preference", async () => {
@@ -40,7 +41,7 @@ it("rejects a stale or unauthorized All Clinics patient preference", async () =>
       <ClinicSwitcher />
     </ClinicProvider>,
   );
-  await waitFor(() => expect(screen.getByLabelText("Current clinic")).toHaveValue("northstar"));
+  await waitFor(() => expect(screen.getByLabelText("Current clinic")).toHaveTextContent("Northstar"));
   expect(screen.queryByRole("option", { name: "All Clinics" })).toBeNull();
 });
 it("keeps an explicit public display clinic without using the admin preference", async () => {
@@ -55,7 +56,7 @@ it("keeps an explicit public display clinic without using the admin preference",
       <ClinicSwitcher />
     </ClinicProvider>,
   );
-  await waitFor(() => expect(screen.getByLabelText("Current clinic")).toHaveValue("clifton"));
+  await waitFor(() => expect(screen.getByLabelText("Current clinic")).toHaveTextContent("Clifton"));
 });
 import {QueueProvider,useLiveQueue} from '@/providers/queue-provider';
 vi.mock('socket.io-client',()=>({io:()=>({on:()=>{},disconnect:()=>{}})}));
@@ -68,7 +69,7 @@ it('refetches the selected clinic and hides the previous queue during switching'
  function View(){const q=useLiveQueue();return <><ClinicSwitcher/><output>{q.loadState==='ready'?`${q.clinic.name}: ${q.serving?.token}`:'Loading'}</output></>;}
  render(<ClinicProvider><QueueProvider><View/></QueueProvider></ClinicProvider>);
  await screen.findByText('Northstar: A-001');
- fireEvent.change(screen.getByLabelText('Current clinic'),{target:{value:'clifton'}});
+ await selectOption(screen.getByLabelText('Current clinic'), 'Clifton');
  expect(screen.queryByText('Northstar: A-001')).toBeNull();
  await waitFor(()=>expect(fixture.api).toHaveBeenCalledWith('/patient/state?clinicId=clifton',expect.anything()));
  finish(state('Clifton','A-002'));

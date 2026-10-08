@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "@/api/client";
@@ -74,7 +75,7 @@ function Profile() {
           />
           <label className="block text-sm font-medium">
             Gender
-            <select
+            <SelectField
               name="gender"
               defaultValue={p.gender}
               className="mt-2 block h-11 w-full rounded-lg border border-input bg-card px-3"
@@ -90,11 +91,11 @@ function Profile() {
                   {label}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
           <label className="block text-sm font-medium">
             Blood group
-            <select
+            <SelectField
               name="bloodGroup"
               defaultValue={p.bloodGroup}
               className="mt-2 block h-11 w-full rounded-lg border border-input bg-card px-3"
@@ -104,7 +105,7 @@ function Profile() {
                   {id || "Not provided"}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
           <Field label="Address" name="address" maxLength={500} defaultValue={p.address} />
           <Field
