@@ -1,12 +1,13 @@
 import type { DatabaseSync } from "node:sqlite";
 export function migrate(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()?.["user_version"] ?? 0);
-  if (version > 5) throw new Error("This database was created by a newer QueueCare version.");
+  if (version > 6) throw new Error("This database was created by a newer QueueCare version.");
   if (version >= 1) {
     if (version === 1) migrateAuthentication(db);
     if (version < 3) migrateClinics(db);
     if (version < 4) migrateClinical(db);
     if (version < 5) migrateOperations(db);
+    if (version < 6) migrateFinal(db);
     return;
   }
   db.exec(`BEGIN IMMEDIATE;
@@ -47,6 +48,7 @@ export function migrate(db: DatabaseSync) {
   migrateClinics(db);
   migrateClinical(db);
   migrateOperations(db);
+  migrateFinal(db);
 }
 
 function migrateAuthentication(db: DatabaseSync) {
@@ -151,4 +153,27 @@ CREATE TABLE audit_logs (id TEXT PRIMARY KEY, actor_user_id TEXT NOT NULL REFERE
 CREATE INDEX audit_clinic_date ON audit_logs(clinic_id,created_at);
 CREATE INDEX audit_actor_date ON audit_logs(actor_user_id,created_at);
 PRAGMA user_version=5; COMMIT;`);
+}
+
+function migrateFinal(db: DatabaseSync) {
+  db.exec(`BEGIN IMMEDIATE;
+CREATE TABLE doctor_profiles (
+ user_id TEXT PRIMARY KEY REFERENCES users(id), full_name TEXT NOT NULL DEFAULT '', title TEXT NOT NULL DEFAULT '', specialty TEXT NOT NULL DEFAULT '', license TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', photo_url TEXT NOT NULL DEFAULT '', signature_url TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL
+);
+CREATE TABLE clinic_branding (
+ clinic_id TEXT PRIMARY KEY REFERENCES clinics(id), email TEXT NOT NULL DEFAULT '', logo_url TEXT NOT NULL DEFAULT '', footer TEXT NOT NULL DEFAULT '', slot_minutes INTEGER NOT NULL DEFAULT 15 CHECK(slot_minutes BETWEEN 5 AND 120), updated_at TEXT NOT NULL
+);
+CREATE TABLE appointment_workflow (
+ appointment_id TEXT PRIMARY KEY REFERENCES appointments(id), status TEXT NOT NULL CHECK(status IN ('scheduled','confirmed','checked_in','cancelled','no_show')), updated_at TEXT NOT NULL
+);
+CREATE TABLE follow_up_actions (
+ encounter_id TEXT PRIMARY KEY REFERENCES encounters(id), follow_up_date TEXT, status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','contacted','booked','completed')), appointment_id TEXT REFERENCES appointments(id), updated_by TEXT NOT NULL REFERENCES users(id), updated_at TEXT NOT NULL
+);
+CREATE TABLE email_delivery_log (
+ id TEXT PRIMARY KEY, notification_id TEXT NOT NULL UNIQUE REFERENCES notifications(id), user_id TEXT NOT NULL REFERENCES users(id), status TEXT NOT NULL CHECK(status IN ('pending','sent','failed')), attempts INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, sent_at TEXT
+);
+CREATE INDEX follow_up_date_status ON follow_up_actions(follow_up_date,status);
+CREATE INDEX email_delivery_pending ON email_delivery_log(status,created_at);
+
+PRAGMA user_version=6; COMMIT;`);
 }

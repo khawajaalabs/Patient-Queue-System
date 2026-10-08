@@ -1,5 +1,5 @@
+import { GlobalSearch, OperationalReports } from "@/components/final-operations";
 import { ClinicSwitcher, useClinicContext } from "@/providers/clinic-provider";
-import { AllClinicsOverview } from "@/components/all-clinics-overview";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/providers/auth-provider";
 import { logout } from "@/services/auth";
@@ -31,6 +31,11 @@ const nav = [
   { to: "/admin/billing", label: "Billing", icon: ListOrdered },
   { to: "/admin/documents", label: "Documents", icon: History },
   { to: "/admin/activity", label: "Activity", icon: History },
+  { to: "/admin/follow-ups", label: "follow ups", icon: Settings },
+  { to: "/admin/reports", label: "reports", icon: Settings },
+  { to: "/admin/branding", label: "branding", icon: Settings },
+  { to: "/admin/account", label: "account", icon: Settings },
+  { to: "/admin/data-management", label: "data management", icon: Settings },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ] as const;
 function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
@@ -143,29 +148,39 @@ function AdminLayoutContent() {
             <span className="font-medium">{selected === "all" ? "All Clinics" : clinic.name}</span>
             <span className="ml-3 text-muted-foreground">{date}</span>
           </div>
-          <ClinicSwitcher all />
+          <div className="min-w-0 max-w-40">
+            <ClinicSwitcher all />
+          </div>
           <span
             className={cn(
-              "ml-auto inline-flex shrink-0 items-center gap-2 rounded-full px-2 py-1 text-xs font-medium sm:px-3",
+              "ml-auto hidden sm:inline-flex shrink-0 items-center gap-2 rounded-full px-2 py-1 text-xs font-medium sm:px-3",
               open ? "bg-success-soft text-success" : "bg-muted text-muted-foreground",
             )}
           >
             {open ? <LiveDot /> : <span className="size-2 rounded-full bg-current" />}
             {open ? "Queue open" : "Queue closed"}
           </span>
+          <GlobalSearch />
           <Notifications role="admin" />
         </header>
         <main className="mx-auto w-full max-w-[1240px] flex-1 px-5 py-8 md:px-8 md:py-10">
           <QueueBoundary kind={pathname === "/admin" || pathname === "/admin/" ? "hero" : "list"}>
             {selected === "all" && (pathname === "/admin" || pathname === "/admin/") ? (
-              <AllClinicsOverview />
+              <OperationalReports />
             ) : selected === "all" &&
               ["/admin/queue", "/admin/live-queue", "/admin/settings"].includes(pathname) ? (
               <p className="surface p-8 text-sm text-muted-foreground">
                 Choose a clinic above to manage its queue or settings.
               </p>
             ) : (
-              <Outlet />
+              <>
+                <Outlet />
+                {(pathname === "/admin" || pathname === "/admin/") && (
+                  <section className="mt-10">
+                    <OperationalReports />
+                  </section>
+                )}
+              </>
             )}
           </QueueBoundary>
         </main>

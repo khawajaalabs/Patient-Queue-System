@@ -190,9 +190,60 @@
 }
 
 @media print {
- body:has(.prescription-sheet) * { visibility: hidden; }
- body:has(.prescription-sheet) .prescription-sheet, body:has(.prescription-sheet) .prescription-sheet * { visibility: visible; }
- .prescription-sheet { position: absolute; top: 0; left: 0; width: 100%; margin: 0; border: 0; box-shadow: none; color: #111; background: white; }
- .prescription-sheet table { min-width: 0; }
- .prescription-sheet tr { break-inside: avoid; }
+  body:has(.prescription-sheet) * {
+    visibility: hidden;
+  }
+  body:has(.prescription-sheet) .prescription-sheet,
+  body:has(.prescription-sheet) .prescription-sheet * {
+    visibility: visible;
+  }
+  .prescription-sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    color: #111;
+    background: white;
+  }
+  .prescription-sheet table {
+    min-width: 0;
+  }
+  .prescription-sheet tr {
+    break-inside: avoid;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 14mm;
+}
+@media print {
+  .prescription-sheet img {
+    max-height: 20mm;
+  }
+  .print-visit-summary .prescription-sheet {
+    display: none;
+  }
+  body:has(.print-visit-summary) .visit-summary-sheet,
+  body:has(.print-visit-summary) .visit-summary-sheet * {
+    visibility: visible;
+  }
+  .visit-summary-sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    background: white;
+    color: #111;
+  }
+  .prescription-sheet p,
+  .visit-summary-sheet p {
+    overflow-wrap: anywhere;
+  }
 }

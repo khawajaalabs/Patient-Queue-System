@@ -1,3 +1,5 @@
+import { useClinicContext } from "@/providers/clinic-provider";
+import { PrintBranding } from "@/components/final-operations";
 import { QueueSkeleton, QueueError } from "@/components/queue-feedback";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -20,6 +22,7 @@ export const Route = createFileRoute("/public-display")({
 });
 
 function Display() {
+  const { selected } = useClinicContext();
   const { serving, waiting, clinic, open, loadState } = useQueue();
   const [time, setTime] = useState("");
   useEffect(() => {
@@ -49,6 +52,7 @@ function Display() {
             {clinic.publicName}
           </div>
           <div className="mt-1 text-lg text-display-muted">{clinic.department}</div>
+          <PrintBranding clinicId={selected} />
         </div>
         <div className="text-right">
           <div className="inline-flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-display-accent">

@@ -43,7 +43,7 @@ export function ClinicProvider({
       }
     };
     const urlClinic = new URLSearchParams(window.location.search).get("clinicId");
-    const saved = publicOnly ? (urlClinic ?? "northstar") : (readSaved() ?? "northstar");
+    const saved = urlClinic ?? (publicOnly ? "northstar" : (readSaved() ?? "northstar"));
     setSelected(saved);
     commandClinic = saved;
     const refresh = async () => {

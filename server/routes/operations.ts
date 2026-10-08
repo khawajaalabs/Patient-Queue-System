@@ -51,7 +51,7 @@ export function operationsRoutes(
   r.get("/patient/appointments", requireRole(db, "patient"), async (_req, res) => {
     const rows = await many<Record<string, unknown>>(
       db,
-      "SELECT a.*,c.name clinic_name FROM appointments a JOIN clinics c ON c.id=a.clinic_id WHERE a.patient_id=? ORDER BY a.scheduled_at DESC LIMIT 200",
+      "SELECT a.*,CASE WHEN a.status='completed' THEN 'completed' ELSE COALESCE(w.status,a.status) END status,c.name clinic_name FROM appointments a JOIN clinics c ON c.id=a.clinic_id LEFT JOIN appointment_workflow w ON w.appointment_id=a.id WHERE a.patient_id=? ORDER BY a.scheduled_at DESC LIMIT 200",
       user(res).id,
     );
     res.json({

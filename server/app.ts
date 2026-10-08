@@ -1,3 +1,4 @@
+import { finalRoutes } from "./routes/final.ts";
 import { operationsRoutes } from "./routes/operations.ts";
 import type { DocumentStorage } from "./services/document-storage.ts";
 import express from "express";
@@ -78,6 +79,7 @@ export function createLocalApp(options: {
       ...options.auth,
     }),
   );
+  app.use("/api", finalRoutes(db, notify));
   app.use("/api", operationsRoutes(db, notify, options.storage));
   app.use("/api", clinicalRoutes(db, notify));
   app.use("/api", queueRoutes(db, notify));

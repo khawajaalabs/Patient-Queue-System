@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -33,16 +34,18 @@ export async function one<T>(
 export async function many<T>(db: Database, sql: string, ...values: SQLInputValue[]): Promise<T[]> {
   return (await db.prepare(sql).all(...values)) as T[];
 }
+const activeTransaction = new AsyncLocalStorage<Database>();
 const transactions = new WeakMap<Database, Promise<unknown>>();
 export async function atomic<T>(db: Database, action: () => Promise<T>): Promise<T> {
-  if (db.transaction) return db.transaction(action);
+  if (activeTransaction.getStore() === db) return action();
+  if (db.transaction) return db.transaction(() => activeTransaction.run(db, action));
   const prior = transactions.get(db) ?? Promise.resolve();
   const pending = prior
     .catch(() => {})
     .then(async () => {
       await db.exec("BEGIN IMMEDIATE");
       try {
-        const value = await action();
+        const value = await activeTransaction.run(db, action);
         await db.exec("COMMIT");
         return value;
       } catch (error) {

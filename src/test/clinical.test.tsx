@@ -96,6 +96,7 @@ it("completes a visit through the dedicated transactional endpoint", async () =>
   );
 });
 it("patient detail renders released fields and prescription without private doctor working notes", () => {
+  fixture.api.mockResolvedValue(null);
   render(
     <PatientVisitView
       visit={{

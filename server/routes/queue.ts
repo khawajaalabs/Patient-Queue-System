@@ -1,4 +1,4 @@
-import { authorizeClinic } from "../services/operations.ts";
+import { audit, authorizeClinic } from "../services/operations.ts";
 import {
   listClinics,
   saveClinic,
@@ -62,6 +62,7 @@ export function queueRoutes(db: Database, notify: Notify) {
   );
   router.post("/admin/clinics", requireRole(db, "admin"), async (req, res) => {
     const data = await saveClinic(db, req.body);
+    await audit(db, (res.locals["user"] as UserRow).id, "clinic.saved", "clinic", data.id, data.id);
     notify("clinics:updated");
     res.status(201).json({ success: true, data });
   });
@@ -178,7 +179,7 @@ export function queueRoutes(db: Database, notify: Notify) {
       res.json({ success: true, data: result });
     });
   router.put("/admin/settings", requireRole(db, "admin"), async (req, res) => {
-    const result = await saveSettings(db, req.body, scope(req));
+    const result = await saveSettings(db, req.body, scope(req), (res.locals["user"] as UserRow).id);
     notify("settings:updated");
     res.json({ success: true, data: result });
   });

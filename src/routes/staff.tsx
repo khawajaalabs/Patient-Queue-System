@@ -1,3 +1,4 @@
+import { AppointmentCalendar } from "@/components/appointment-calendar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
@@ -120,6 +121,9 @@ function Workspace() {
         <div className="ml-auto flex items-center gap-3">
           <ClinicSwitcher />
           <NotificationCenter />
+          <a className="text-sm text-primary" href="/account">
+            Account
+          </a>
           <Btn variant="ghost" onClick={() => void logout()}>
             Sign out
           </Btn>
@@ -242,102 +246,27 @@ function Workspace() {
                 </div>
               </>
             )}
-            {tab === "appointments" && (
-              <>
-                {!nurse && (
-                  <form
-                    key={editingAppointment?.id ?? "new"}
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const f = new FormData(e.currentTarget);
-                      void action(
-                        editingAppointment
-                          ? "/operations/appointments/" + editingAppointment.id
-                          : "/staff/appointments",
-                        editingAppointment
-                          ? { status: "scheduled", scheduledAt: String(f.get("scheduledAt")) }
-                          : {
-                              patientId: String(f.get("patientId")),
-                              scheduledAt: String(f.get("scheduledAt")),
-                              reason: String(f.get("reason")),
-                            },
-                        editingAppointment ? "PUT" : "POST",
-                      ).then((result) => {
-                        if (result) setEditingAppointment(null);
-                      });
-                    }}
-                    className="surface mb-5 grid gap-4 p-5 sm:grid-cols-2"
-                  >
-                    <h2 className="font-semibold sm:col-span-2">
-                      {editingAppointment ? "Reschedule appointment" : "Book appointment"}
-                    </h2>
-                    {!editingAppointment && <PatientPicker />}
-                    <Field
-                      label="Date and time"
-                      name="scheduledAt"
-                      type="datetime-local"
-                      required
-                      defaultValue={editingAppointment?.scheduledAt}
-                    />
-                    {!editingAppointment && <Field label="Reason" name="reason" maxLength={300} />}
-                    <Btn disabled={busy}>
-                      {editingAppointment ? "Save change" : "Book appointment"}
-                    </Btn>
-                    {editingAppointment && (
-                      <Btn
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setEditingAppointment(null)}
-                      >
-                        Cancel edit
-                      </Btn>
-                    )}
-                  </form>
-                )}
+            {tab === "appointments" &&
+              (!nurse ? (
+                <AppointmentCalendar />
+              ) : (
                 <div className="surface divide-y divide-border">
                   {state.appointments.map((a) => (
-                    <article key={a.id} className="flex flex-wrap justify-between gap-4 p-5">
-                      <div>
-                        <p className="font-medium">{a.patientName}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {a.scheduledAt.replace("T", " ")} · {a.status}
-                        </p>
-                      </div>
-                      {a.status === "scheduled" && (
-                        <div className="flex gap-2">
-                          {nurse ? (
-                            <Btn onClick={() => void prepare(a.patientId, undefined, a.id)}>
-                              Prepare consultation
-                            </Btn>
-                          ) : (
-                            <>
-                              <Btn variant="secondary" onClick={() => setEditingAppointment(a)}>
-                                Reschedule
-                              </Btn>
-                              <Btn
-                                variant="ghost"
-                                onClick={() =>
-                                  void action(
-                                    "/operations/appointments/" + a.id,
-                                    { status: "cancelled", scheduledAt: a.scheduledAt },
-                                    "PUT",
-                                  )
-                                }
-                              >
-                                Cancel appointment
-                              </Btn>
-                            </>
-                          )}
-                        </div>
+                    <article key={a.id} className="space-y-3 p-5">
+                      <p className="font-medium">{a.patientName}</p>
+                      <p className="text-sm">
+                        {a.scheduledAt.replace("T", " ")} · {a.status}
+                      </p>
+                      {["scheduled", "confirmed", "checked_in"].includes(a.status) && (
+                        <Btn onClick={() => void prepare(a.patientId, undefined, a.id)}>
+                          Prepare consultation
+                        </Btn>
                       )}
                     </article>
                   ))}
-                  {!state.appointments.length && (
-                    <p className="p-6 text-sm text-muted-foreground">No appointments.</p>
-                  )}
+                  {!state.appointments.length && <p className="p-6 text-sm">No appointments.</p>}
                 </div>
-              </>
-            )}
+              ))}
             {tab === "patients" && (
               <>
                 <div className="surface divide-y divide-border">

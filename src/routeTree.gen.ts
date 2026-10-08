@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -20,15 +21,20 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAccountRouteImport } from './routes/admin.account'
 import { Route as AdminActivityRouteImport } from './routes/admin.activity'
 import { Route as AdminAppointmentsRouteImport } from './routes/admin.appointments'
 import { Route as AdminBillingRouteImport } from './routes/admin.billing'
+import { Route as AdminBrandingRouteImport } from './routes/admin.branding'
 import { Route as AdminClinicsRouteImport } from './routes/admin.clinics'
+import { Route as AdminDataManagementRouteImport } from './routes/admin.data-management'
 import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
+import { Route as AdminFollowUpsRouteImport } from './routes/admin.follow-ups'
 import { Route as AdminHistoryRouteImport } from './routes/admin.history'
 import { Route as AdminLiveQueueRouteImport } from './routes/admin.live-queue'
 import { Route as AdminPatientsRouteImport } from './routes/admin.patients'
 import { Route as AdminQueueRouteImport } from './routes/admin.queue'
+import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminStaffRouteImport } from './routes/admin.staff'
 import { Route as PatientIndexRouteImport } from './routes/patient.index'
@@ -52,6 +58,11 @@ import { Route as PatientVisitVisitIdRouteImport } from './routes/patient.visit.
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -104,6 +115,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAccountRoute = AdminAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminActivityRoute = AdminActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
@@ -119,14 +135,29 @@ const AdminBillingRoute = AdminBillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBrandingRoute = AdminBrandingRouteImport.update({
+  id: '/branding',
+  path: '/branding',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminClinicsRoute = AdminClinicsRouteImport.update({
   id: '/clinics',
   path: '/clinics',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDataManagementRoute = AdminDataManagementRouteImport.update({
+  id: '/data-management',
+  path: '/data-management',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminDocumentsRoute = AdminDocumentsRouteImport.update({
   id: '/documents',
   path: '/documents',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFollowUpsRoute = AdminFollowUpsRouteImport.update({
+  id: '/follow-ups',
+  path: '/follow-ups',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminHistoryRoute = AdminHistoryRouteImport.update({
@@ -147,6 +178,11 @@ const AdminPatientsRoute = AdminPatientsRouteImport.update({
 const AdminQueueRoute = AdminQueueRouteImport.update({
   id: '/queue',
   path: '/queue',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -249,6 +285,7 @@ const PatientVisitVisitIdRoute = PatientVisitVisitIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/complete-profile': typeof CompleteProfileRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -258,15 +295,20 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/staff': typeof StaffRoute
+  '/admin/account': typeof AdminAccountRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/billing': typeof AdminBillingRoute
+  '/admin/branding': typeof AdminBrandingRoute
   '/admin/clinics': typeof AdminClinicsRoute
+  '/admin/data-management': typeof AdminDataManagementRoute
   '/admin/documents': typeof AdminDocumentsRoute
+  '/admin/follow-ups': typeof AdminFollowUpsRoute
   '/admin/history': typeof AdminHistoryRoute
   '/admin/live-queue': typeof AdminLiveQueueRoute
   '/admin/patients': typeof AdminPatientsRoute
   '/admin/queue': typeof AdminQueueRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff': typeof AdminStaffRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
@@ -290,6 +332,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/complete-profile': typeof CompleteProfileRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -297,15 +340,20 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/staff': typeof StaffRoute
+  '/admin/account': typeof AdminAccountRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/billing': typeof AdminBillingRoute
+  '/admin/branding': typeof AdminBrandingRoute
   '/admin/clinics': typeof AdminClinicsRoute
+  '/admin/data-management': typeof AdminDataManagementRoute
   '/admin/documents': typeof AdminDocumentsRoute
+  '/admin/follow-ups': typeof AdminFollowUpsRoute
   '/admin/history': typeof AdminHistoryRoute
   '/admin/live-queue': typeof AdminLiveQueueRoute
   '/admin/patients': typeof AdminPatientsRoute
   '/admin/queue': typeof AdminQueueRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff': typeof AdminStaffRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
@@ -330,6 +378,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/complete-profile': typeof CompleteProfileRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -339,15 +388,20 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/staff': typeof StaffRoute
+  '/admin/account': typeof AdminAccountRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/billing': typeof AdminBillingRoute
+  '/admin/branding': typeof AdminBrandingRoute
   '/admin/clinics': typeof AdminClinicsRoute
+  '/admin/data-management': typeof AdminDataManagementRoute
   '/admin/documents': typeof AdminDocumentsRoute
+  '/admin/follow-ups': typeof AdminFollowUpsRoute
   '/admin/history': typeof AdminHistoryRoute
   '/admin/live-queue': typeof AdminLiveQueueRoute
   '/admin/patients': typeof AdminPatientsRoute
   '/admin/queue': typeof AdminQueueRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff': typeof AdminStaffRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
@@ -373,6 +427,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/admin'
     | '/complete-profile'
     | '/forgot-password'
@@ -382,15 +437,20 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/staff'
+    | '/admin/account'
     | '/admin/activity'
     | '/admin/appointments'
     | '/admin/billing'
+    | '/admin/branding'
     | '/admin/clinics'
+    | '/admin/data-management'
     | '/admin/documents'
+    | '/admin/follow-ups'
     | '/admin/history'
     | '/admin/live-queue'
     | '/admin/patients'
     | '/admin/queue'
+    | '/admin/reports'
     | '/admin/settings'
     | '/admin/staff'
     | '/patient/appointments'
@@ -414,6 +474,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/complete-profile'
     | '/forgot-password'
     | '/login'
@@ -421,15 +482,20 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/staff'
+    | '/admin/account'
     | '/admin/activity'
     | '/admin/appointments'
     | '/admin/billing'
+    | '/admin/branding'
     | '/admin/clinics'
+    | '/admin/data-management'
     | '/admin/documents'
+    | '/admin/follow-ups'
     | '/admin/history'
     | '/admin/live-queue'
     | '/admin/patients'
     | '/admin/queue'
+    | '/admin/reports'
     | '/admin/settings'
     | '/admin/staff'
     | '/patient/appointments'
@@ -453,6 +519,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/admin'
     | '/complete-profile'
     | '/forgot-password'
@@ -462,15 +529,20 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/staff'
+    | '/admin/account'
     | '/admin/activity'
     | '/admin/appointments'
     | '/admin/billing'
+    | '/admin/branding'
     | '/admin/clinics'
+    | '/admin/data-management'
     | '/admin/documents'
+    | '/admin/follow-ups'
     | '/admin/history'
     | '/admin/live-queue'
     | '/admin/patients'
     | '/admin/queue'
+    | '/admin/reports'
     | '/admin/settings'
     | '/admin/staff'
     | '/patient/appointments'
@@ -495,6 +567,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   AdminRoute: typeof AdminRouteWithChildren
   CompleteProfileRoute: typeof CompleteProfileRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -513,6 +586,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -585,6 +665,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/account': {
+      id: '/admin/account'
+      path: '/account'
+      fullPath: '/admin/account'
+      preLoaderRoute: typeof AdminAccountRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/activity': {
       id: '/admin/activity'
       path: '/activity'
@@ -606,6 +693,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBillingRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/branding': {
+      id: '/admin/branding'
+      path: '/branding'
+      fullPath: '/admin/branding'
+      preLoaderRoute: typeof AdminBrandingRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/clinics': {
       id: '/admin/clinics'
       path: '/clinics'
@@ -613,11 +707,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminClinicsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/data-management': {
+      id: '/admin/data-management'
+      path: '/data-management'
+      fullPath: '/admin/data-management'
+      preLoaderRoute: typeof AdminDataManagementRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/documents': {
       id: '/admin/documents'
       path: '/documents'
       fullPath: '/admin/documents'
       preLoaderRoute: typeof AdminDocumentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/follow-ups': {
+      id: '/admin/follow-ups'
+      path: '/follow-ups'
+      fullPath: '/admin/follow-ups'
+      preLoaderRoute: typeof AdminFollowUpsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/history': {
@@ -646,6 +754,13 @@ declare module '@tanstack/react-router' {
       path: '/queue'
       fullPath: '/admin/queue'
       preLoaderRoute: typeof AdminQueueRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -785,15 +900,20 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAccountRoute: typeof AdminAccountRoute
   AdminActivityRoute: typeof AdminActivityRoute
   AdminAppointmentsRoute: typeof AdminAppointmentsRoute
   AdminBillingRoute: typeof AdminBillingRoute
+  AdminBrandingRoute: typeof AdminBrandingRoute
   AdminClinicsRoute: typeof AdminClinicsRoute
+  AdminDataManagementRoute: typeof AdminDataManagementRoute
   AdminDocumentsRoute: typeof AdminDocumentsRoute
+  AdminFollowUpsRoute: typeof AdminFollowUpsRoute
   AdminHistoryRoute: typeof AdminHistoryRoute
   AdminLiveQueueRoute: typeof AdminLiveQueueRoute
   AdminPatientsRoute: typeof AdminPatientsRoute
   AdminQueueRoute: typeof AdminQueueRoute
+  AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStaffRoute: typeof AdminStaffRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -802,15 +922,20 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAccountRoute: AdminAccountRoute,
   AdminActivityRoute: AdminActivityRoute,
   AdminAppointmentsRoute: AdminAppointmentsRoute,
   AdminBillingRoute: AdminBillingRoute,
+  AdminBrandingRoute: AdminBrandingRoute,
   AdminClinicsRoute: AdminClinicsRoute,
+  AdminDataManagementRoute: AdminDataManagementRoute,
   AdminDocumentsRoute: AdminDocumentsRoute,
+  AdminFollowUpsRoute: AdminFollowUpsRoute,
   AdminHistoryRoute: AdminHistoryRoute,
   AdminLiveQueueRoute: AdminLiveQueueRoute,
   AdminPatientsRoute: AdminPatientsRoute,
   AdminQueueRoute: AdminQueueRoute,
+  AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStaffRoute: AdminStaffRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -861,6 +986,7 @@ const PatientRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   AdminRoute: AdminRouteWithChildren,
   CompleteProfileRoute: CompleteProfileRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,

@@ -42,6 +42,21 @@ export async function notification(
       "INSERT INTO notifications(id,user_id,type,title,message,entity_type,entity_id,clinic_id,created_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id,type,entity_id) DO NOTHING",
     )
     .run(randomUUID(), userId, type, title, message, entityType, entityId, clinicId, stamp());
+  if (/^(appointment\.|document\.released|invoice\.issued|follow_up\.)/.test(type)) {
+    const n = await one<{ id: string }>(
+      db,
+      "SELECT n.id FROM notifications n JOIN users u ON u.id=n.user_id WHERE n.user_id=? AND n.type=? AND n.entity_id=? AND u.role='patient' AND NOT EXISTS(SELECT 1 FROM staff_profiles s WHERE s.user_id=u.id)",
+      userId,
+      type,
+      entityId,
+    );
+    if (n)
+      await db
+        .prepare(
+          "INSERT INTO email_delivery_log(id,notification_id,user_id,status,created_at) VALUES (?,?,?,'pending',?) ON CONFLICT(notification_id) DO NOTHING",
+        )
+        .run(randomUUID(), n.id, userId, stamp());
+  }
 }
 export async function operationalNotification(
   db: Database,

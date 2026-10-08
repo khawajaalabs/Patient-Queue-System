@@ -72,6 +72,7 @@ function PatientLayoutContent() {
       <main className="mx-auto max-w-6xl px-5 py-8 md:py-12">
         <nav aria-label="Patient records" className="mb-6 flex flex-wrap gap-2 print:hidden">
           {[
+            { to: "/account", label: "Account & security" },
             { to: "/patient/profile", label: "My profile" },
             { to: "/patient/visits", label: "My visits" },
             { to: "/patient/prescriptions", label: "Prescriptions" },

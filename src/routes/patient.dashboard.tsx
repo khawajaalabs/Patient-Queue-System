@@ -1,3 +1,4 @@
+import { PatientSummary } from "@/components/final-operations";
 import { useAuth } from "@/providers/auth-provider";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Clock, MapPin, Phone, Ticket, Users, BellRing } from "lucide-react";
@@ -232,6 +233,7 @@ function Dashboard() {
           </div>
         </aside>
       </div>
+      <PatientSummary />
     </>
   );
 }

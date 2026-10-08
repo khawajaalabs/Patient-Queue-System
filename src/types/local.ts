@@ -149,6 +149,6 @@ export interface Appointment {
   patientId: string;
   patientName: string;
   scheduledAt: string;
-  status: "scheduled" | "completed" | "cancelled";
+  status: "scheduled" | "confirmed" | "checked_in" | "completed" | "cancelled" | "no_show";
   reason: string;
 }

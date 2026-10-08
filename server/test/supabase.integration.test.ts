@@ -84,6 +84,7 @@ test(
         "20261008000100_multi_clinic_foundation.sql",
         "20261008000200_clinical_records.sql",
         "20261008000300_staff_documents_billing.sql",
+        "20261008000400_final_operations.sql",
       ])
         await adminQuery(
           readFileSync("supabase/migrations/" + file, "utf8").replace(/\bqueuecare\b/g, schema),

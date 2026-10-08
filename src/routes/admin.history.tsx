@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueue, formatDate, type Status } from "@/lib/queue-store";
 import { PageHeader, StatusPill } from "@/components/qc";
 export const Route = createFileRoute("/admin/history")({
@@ -8,6 +8,12 @@ export const Route = createFileRoute("/admin/history")({
 });
 function AdminHistory() {
   const q = useQueue();
+  const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+  const tokenId = params.get("tokenId");
+  useEffect(() => {
+    const requested = params.get("date");
+    if (requested && /^\d{4}-\d{2}-\d{2}$/.test(requested)) q.setHistoryDate(requested);
+  }, []);
   const date = q.historyDate;
   const setDate = q.setHistoryDate;
   const [filter, setFilter] = useState<"all" | Status>("all");
@@ -22,7 +28,9 @@ function AdminHistory() {
         ),
     ),
   ].filter((e) => (e.date ?? q.queueDate) === date);
-  const rows = entries.filter((e) => filter === "all" || e.status === filter);
+  const rows = entries.filter(
+    (e) => (!tokenId || e.id === tokenId) && (filter === "all" || e.status === filter),
+  );
   const average = entries.length
     ? Math.round(entries.reduce((sum, e) => sum + (e.waitMin ?? 0), 0) / entries.length)
     : 0;

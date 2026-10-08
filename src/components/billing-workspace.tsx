@@ -1,3 +1,4 @@
+import { PrintBranding } from "@/components/final-operations";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/api/client";
 import { Btn, Field } from "@/components/qc";
@@ -61,8 +62,8 @@ export function BillingWorkspace({ portal = false }: { portal?: boolean }) {
         body: {
           patientId: patient,
           clinicId: selected,
-          visitId: editing?.visit_id ?? params.get("visitId"),
-          appointmentId: null,
+          visitId: editing ? editing.visit_id : params.get("visitId"),
+          appointmentId: editing ? (editing.appointment_id ?? null) : params.get("appointmentId"),
           discount: decimalMinor(String(f.get("discount") || "0")),
           dueAt: String(f.get("dueAt") || "") || null,
           draft: f.get("draft") === "on",
@@ -296,6 +297,7 @@ export function BillingWorkspace({ portal = false }: { portal?: boolean }) {
       {i && (
         <>
           <section className="prescription-sheet surface p-6 md:p-9">
+            <PrintBranding clinicId={i.clinic_id} />
             <div className="flex flex-wrap justify-between gap-4 border-b border-border pb-5">
               <div>
                 <h2 className="text-xl font-semibold">{i.clinic_name}</h2>

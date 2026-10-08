@@ -1,3 +1,4 @@
+import { validateSlot } from "./final.ts";
 import { audit, notification } from "./operations.ts";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -147,7 +148,7 @@ export async function appointments(db: Database, clinicId?: string): Promise<App
     reason: string;
   }>(
     db,
-    `SELECT a.*,c.name clinic_name,u.full_name FROM appointments a JOIN clinics c ON c.id=a.clinic_id JOIN users u ON u.id=a.patient_id ${clinicId ? "WHERE a.clinic_id=?" : ""} ORDER BY a.scheduled_at DESC LIMIT 200`,
+    `SELECT a.*,CASE WHEN a.status='completed' THEN 'completed' ELSE COALESCE(w.status,a.status) END status,c.name clinic_name,u.full_name FROM appointments a JOIN clinics c ON c.id=a.clinic_id JOIN users u ON u.id=a.patient_id LEFT JOIN appointment_workflow w ON w.appointment_id=a.id ${clinicId ? "WHERE a.clinic_id=?" : ""} ORDER BY a.scheduled_at DESC LIMIT 200`,
     ...(clinicId ? [clinicId] : []),
   );
   return rows.map((a) => ({
@@ -183,6 +184,7 @@ export async function createAppointment(
     .parse(input);
   return atomic(db, async () => {
     const clinic = await clinicValue(db, clinicId);
+    await validateSlot(db, clinicId, c.scheduledAt);
     if (!clinic.active) throw new ApiError(409, "CLINIC_INACTIVE", "This clinic is inactive.");
     if (
       !(await one(

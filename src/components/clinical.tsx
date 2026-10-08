@@ -1,3 +1,4 @@
+import { DoctorSignature, PrintBranding } from "@/components/final-operations";
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { api } from "@/api/client";
@@ -145,6 +146,7 @@ export function VisitTimeline({
 export function PrescriptionView({ visit }: { visit: PatientVisit }) {
   return (
     <section className="prescription-sheet surface mt-6 p-6 md:p-9">
+      <PrintBranding clinicId={visit.clinicId} />
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
         <div>
           <h2 className="text-2xl font-semibold">{visit.clinicName}</h2>
@@ -198,6 +200,7 @@ export function PrescriptionView({ visit }: { visit: PatientVisit }) {
       )}
       {visit.followUpDate && <p className="mt-5 text-sm">Follow-up: {visit.followUpDate}</p>}
       <p className="mt-2 whitespace-pre-wrap text-sm">{visit.followUpInstructions}</p>
+      <DoctorSignature />
     </section>
   );
 }
@@ -209,19 +212,26 @@ export function PatientVisitView({
   prescriptionOnly?: boolean;
 }) {
   return (
-    <>
-      <div className="print:hidden">
-        <PageHeader
-          title={prescriptionOnly ? "Prescription" : "Visit details"}
-          sub={`${visit.clinicName} · ${new Date(visit.visitAt).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })}`}
-          right={
-            <Btn variant="secondary" onClick={() => window.print()}>
-              Print prescription
-            </Btn>
-          }
-        />
+    <div className={prescriptionOnly ? "" : "print-visit-summary"}>
+      <div>
+        <div className="print:hidden">
+          <PageHeader
+            title={prescriptionOnly ? "Prescription" : "Visit details"}
+            sub={`${visit.clinicName} · ${new Date(visit.visitAt).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })}`}
+            right={
+              <Btn variant="secondary" onClick={() => window.print()}>
+                {prescriptionOnly ? "Print prescription" : "Print visit summary"}
+              </Btn>
+            }
+          />
+        </div>
         {!prescriptionOnly && (
-          <section className="surface space-y-5 p-6">
+          <section className="visit-summary-sheet surface space-y-5 p-6">
+            <PrintBranding clinicId={visit.clinicId} />
+            <p className="text-sm">
+              {visit.patientName} · {visit.clinicName} ·{" "}
+              {new Date(visit.visitAt).toLocaleDateString()}
+            </p>
             {[
               ["Visit summary", visit.patientSummary],
               ["Diagnosis", visit.diagnosis],
@@ -239,6 +249,6 @@ export function PatientVisitView({
         )}
       </div>
       <PrescriptionView visit={visit} />
-    </>
+    </div>
   );
 }

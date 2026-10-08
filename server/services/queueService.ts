@@ -527,7 +527,12 @@ const settingsSchema = z
   })
   .strict()
   .refine((c) => c.opening < c.closing, { message: "Closing time must be after opening time." });
-export async function saveSettings(db: Database, input: unknown, clinicId = "northstar") {
+export async function saveSettings(
+  db: Database,
+  input: unknown,
+  clinicId = "northstar",
+  actorId?: string,
+) {
   const data = z
       .object({ clinic: settingsSchema, avgMin: z.number().int().min(1).max(120) })
       .strict()
@@ -553,6 +558,7 @@ export async function saveSettings(db: Database, input: unknown, clinicId = "nor
         new Date().toISOString(),
         clinicId,
       );
+    if (actorId) await audit(db, actorId, "clinic.settings_updated", "clinic", clinicId, clinicId);
     return await clinicValue(db, clinicId);
   });
 }
