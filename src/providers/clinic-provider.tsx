@@ -49,7 +49,11 @@ export function ClinicProvider({
     const refresh = async () => {
       try {
         const list = await api<ClinicOption[]>(
-          !publicOnly && profile?.role === "admin" ? "/admin/clinics" : "/clinics",
+          !publicOnly && profile?.role === "admin"
+            ? "/admin/clinics"
+            : !publicOnly && (profile?.role === "nurse" || profile?.role === "receptionist")
+              ? "/staff/clinics"
+              : "/clinics",
         );
         if (!active) return;
         setClinics(list);

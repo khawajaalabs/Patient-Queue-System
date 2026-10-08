@@ -1,3 +1,4 @@
+import { audit, notification } from "./operations.ts";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { atomic, one, many, type Database } from "../db/database.ts";
@@ -105,7 +106,7 @@ export const recordSchema = z
 async function patient(db: Database, id: string) {
   const u = await one<Row>(
     db,
-    "SELECT id,full_name,email,phone FROM users WHERE id=? AND role='patient'",
+    "SELECT id,full_name,email,phone FROM users WHERE id=? AND role='patient' AND NOT EXISTS (SELECT 1 FROM staff_profiles sp WHERE sp.user_id=users.id)",
     id,
   );
   if (!u) throw new ApiError(404, "PATIENT_NOT_FOUND", "Patient not found.");
@@ -131,7 +132,13 @@ export async function profile(db: Database, id: string, admin = false): Promise<
     ...(admin ? { generalNotes: str(p, "general_notes") } : {}),
   };
 }
-export async function saveProfile(db: Database, id: string, input: unknown, clinical = false) {
+export async function saveProfile(
+  db: Database,
+  id: string,
+  input: unknown,
+  clinical = false,
+  actorId = id,
+) {
   const c = clinical ? clinicalProfileSchema.parse(input) : demographicsSchema.parse(input);
   return atomic(db, async () => {
     await patient(db, id);
@@ -166,6 +173,13 @@ export async function saveProfile(db: Database, id: string, input: unknown, clin
           id,
         );
     }
+    await audit(
+      db,
+      actorId,
+      clinical ? "patient.clinical_profile.updated" : "patient.demographics.updated",
+      "patient",
+      id,
+    );
     return profile(db, id, clinical);
   });
 }
@@ -269,6 +283,7 @@ export async function startVisit(
   patientId: string,
   doctorId: string,
   input: unknown,
+  actorId = doctorId,
 ) {
   const c = z
     .object({
@@ -381,6 +396,7 @@ export async function startVisit(
         stamp,
         stamp,
       );
+    await audit(db, actorId, "visit.started", "visit", id, c.clinicId);
     return visitDetail(db, id);
   });
 }
@@ -494,6 +510,39 @@ export async function saveVisit(db: Database, id: string, input: unknown, comple
           item.duration,
           item.instructions,
         );
+    await audit(
+      db,
+      str(e, "doctor_id"),
+      complete ? "visit.completed" : "visit.updated",
+      "visit",
+      id,
+      str(e, "clinic_id"),
+    );
+    if (c.prescription.items.length)
+      await audit(db, str(e, "doctor_id"), "prescription.saved", "visit", id, str(e, "clinic_id"));
+    if (complete) {
+      await notification(
+        db,
+        str(e, "patient_id"),
+        "visit.released",
+        "Visit summary available",
+        "A completed visit is available in your patient portal.",
+        "visit",
+        id,
+        str(e, "clinic_id"),
+      );
+      if (c.prescription.items.length)
+        await notification(
+          db,
+          str(e, "patient_id"),
+          "prescription.available",
+          "Prescription available",
+          "Your prescription is available in the patient portal.",
+          "prescription",
+          id,
+          str(e, "clinic_id"),
+        );
+    }
     return visitDetail(db, id);
   });
 }

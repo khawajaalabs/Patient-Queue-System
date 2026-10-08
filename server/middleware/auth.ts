@@ -30,16 +30,29 @@ export function sessionCookie(req: Request) {
   );
 }
 const digest = (token: string) => createHash("sha256").update(token).digest("hex");
+export async function resolveUser(
+  db: Database,
+  user: UserRow | undefined | null,
+): Promise<UserRow | null> {
+  if (!user) return null;
+  const staff = await one<{ role: "receptionist" | "nurse"; active: number }>(
+    db,
+    "SELECT role,active FROM staff_profiles WHERE user_id=?",
+    user.id,
+  );
+  return staff ? (Number(staff.active) === 1 ? { ...user, role: staff.role } : null) : user;
+}
 export async function currentUser(db: Database, req: Request) {
   const token = sessionCookie(req);
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
-  return (
+  return resolveUser(
+    db,
     (await one<UserRow>(
       db,
       "SELECT u.* FROM users u JOIN sessions s ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?",
       digest(token),
       Date.now(),
-    )) ?? null
+    )) ?? null,
   );
 }
 export async function startSession(db: Database, req: Request, res: Response, userId: string) {

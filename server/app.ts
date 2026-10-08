@@ -1,3 +1,5 @@
+import { operationsRoutes } from "./routes/operations.ts";
+import type { DocumentStorage } from "./services/document-storage.ts";
 import express from "express";
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
@@ -14,6 +16,7 @@ import { queueRoutes } from "./routes/queue.ts";
 import type { ErrorRequestHandler } from "express";
 export function createLocalApp(options: {
   dbPath?: string;
+  storage?: DocumentStorage;
   auth?: Partial<AuthOptions>;
   database?: Database;
   appUrl?: string;
@@ -75,6 +78,7 @@ export function createLocalApp(options: {
       ...options.auth,
     }),
   );
+  app.use("/api", operationsRoutes(db, notify, options.storage));
   app.use("/api", clinicalRoutes(db, notify));
   app.use("/api", queueRoutes(db, notify));
   app.use("/api", (_req, _res, next) =>

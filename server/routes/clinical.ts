@@ -58,6 +58,8 @@ export function clinicalRoutes(db: Database, notify: Notify) {
       db,
       z.string().min(1).max(100).parse(req.params["id"]),
       req.body,
+      false,
+      (res.locals["user"] as UserRow).id,
     );
     notify("clinical:updated");
     res.json({ success: true, data });
@@ -68,6 +70,7 @@ export function clinicalRoutes(db: Database, notify: Notify) {
       z.string().min(1).max(100).parse(req.params["id"]),
       req.body,
       true,
+      (res.locals["user"] as UserRow).id,
     );
     notify("clinical:updated");
     res.json({ success: true, data });

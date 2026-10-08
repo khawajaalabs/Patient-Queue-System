@@ -273,7 +273,7 @@ test("additive clinical migration backfills existing patient profiles without ch
     );
     const original = JSON.stringify(db.prepare("SELECT * FROM users ORDER BY id").all());
     db.exec(
-      "DROP TABLE prescription_items; DROP TABLE prescriptions; DROP TABLE visit_vitals; DROP TABLE encounters; DROP TABLE patient_profiles; DROP INDEX appointments_identity_clinic; PRAGMA user_version=3;",
+      "DROP TABLE audit_logs; DROP TABLE notifications; DROP TABLE payments; DROP TABLE invoice_items; DROP TABLE invoices; DROP TABLE patient_documents; DROP TABLE staff_clinics; DROP TABLE staff_profiles; DROP TABLE prescription_items; DROP TABLE prescriptions; DROP TABLE visit_vitals; DROP TABLE encounters; DROP TABLE patient_profiles; DROP INDEX appointments_identity_clinic; PRAGMA user_version=3;",
     );
     migrate(db);
     assert.equal(JSON.stringify(db.prepare("SELECT * FROM users ORDER BY id").all()), original);

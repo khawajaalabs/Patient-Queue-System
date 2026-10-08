@@ -1,3 +1,4 @@
+import { DocumentsPanel } from "@/components/documents-panel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -34,9 +35,23 @@ function Consultation() {
           title={v.status === "completed" ? "Completed visit" : "Consultation"}
           sub={`${v.patientName} · ${v.clinicName}`}
           right={
-            <Link to="/admin/patient-record/$patientId" params={{ patientId: v.patientId }}>
-              <Btn variant="secondary">Patient record</Btn>
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={
+                  "/admin/billing?clinicId=" +
+                  encodeURIComponent(v.clinicId) +
+                  "&patientId=" +
+                  encodeURIComponent(v.patientId) +
+                  "&visitId=" +
+                  encodeURIComponent(v.id)
+                }
+              >
+                <Btn variant="secondary">Create Invoice</Btn>
+              </a>
+              <Link to="/admin/patient-record/$patientId" params={{ patientId: v.patientId }}>
+                <Btn variant="secondary">Patient record</Btn>
+              </Link>
+            </div>
           }
         />
         <section className="surface mb-6 p-6">
@@ -116,6 +131,9 @@ function Consultation() {
             </Btn>
           </>
         )}
+        <div className="mt-6 print:hidden">
+          <DocumentsPanel patientId={v.patientId} visitId={v.id} clinicId={v.clinicId} />
+        </div>
         <h2 className="mb-4 mt-8 text-lg font-semibold">Previous visits across clinics</h2>
         <VisitTimeline
           visits={record.data?.visits.filter((item) => item.id !== v.id).slice(0, 5) ?? []}

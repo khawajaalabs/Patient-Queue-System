@@ -1,4 +1,4 @@
-export type Role = "patient" | "admin";
+export type Role = "patient" | "admin" | "receptionist" | "nurse";
 export type TokenStatus = "waiting" | "serving" | "skipped" | "completed" | "cancelled";
 export type QueueStatus = "open" | "closed";
 export interface UserProfile {

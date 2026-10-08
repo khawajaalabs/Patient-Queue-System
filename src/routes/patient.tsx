@@ -75,6 +75,9 @@ function PatientLayoutContent() {
             { to: "/patient/profile", label: "My profile" },
             { to: "/patient/visits", label: "My visits" },
             { to: "/patient/prescriptions", label: "Prescriptions" },
+            { to: "/patient/appointments", label: "Appointments" },
+            { to: "/patient/documents", label: "Documents" },
+            { to: "/patient/billing", label: "Billing" },
           ].map((item) => (
             <Link
               key={item.to}

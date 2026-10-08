@@ -12,7 +12,12 @@ export function ProtectedRoute({ role, children }: { role: Role; children: React
     if (!profile) void navigate({ to: "/login", replace: true });
     else if (profile.role !== role)
       void navigate({
-        to: profile.role === "admin" ? "/admin" : "/patient/dashboard",
+        to:
+          profile.role === "admin"
+            ? "/admin"
+            : profile.role === "patient"
+              ? "/patient/dashboard"
+              : "/staff",
         replace: true,
       });
   }, [profile, loading, error, role, navigate]);

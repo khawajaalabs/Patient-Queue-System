@@ -1,3 +1,4 @@
+import { authorizeClinic, audit, notification, operationalNotification } from "./operations.ts";
 import type { Database } from "../db/database.ts";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -227,7 +228,7 @@ export async function adminState(db: Database, date: string, clinicId = "northst
     (
       await many<UserRow>(
         db,
-        "SELECT u.* FROM users u WHERE u.role='patient' AND (?='all' OR EXISTS (SELECT 1 FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE t.patient_id=u.id AND q.clinic_id=?)) ORDER BY full_name LIMIT 200",
+        "SELECT u.* FROM users u WHERE u.role='patient' AND NOT EXISTS (SELECT 1 FROM staff_profiles sp WHERE sp.user_id=u.id) AND (?='all' OR EXISTS (SELECT 1 FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE t.patient_id=u.id AND q.clinic_id=?)) ORDER BY full_name LIMIT 200",
         clinicId,
         clinicId,
       )
@@ -276,7 +277,11 @@ export async function mutateQueue(
   input: { token?: string | undefined; reason?: string | undefined } = {},
   clinicId = "northstar",
 ) {
-  if (user.role !== (action === "join" || action === "leave" ? "patient" : "admin"))
+  if (["receptionist", "nurse"].includes(user.role)) {
+    await authorizeClinic(db, user, clinicId);
+    if (["join", "leave", "done"].includes(action))
+      throw new ApiError(403, "FORBIDDEN", "This action requires the patient or doctor account.");
+  } else if (user.role !== (action === "join" || action === "leave" ? "patient" : "admin"))
     throw new ApiError(403, "FORBIDDEN", "Your account cannot perform this action.");
   return atomic(db, async () => {
     const stamp = new Date().toISOString(),
@@ -350,6 +355,17 @@ export async function mutateQueue(
           "UPDATE daily_queues SET next_token_number=next_token_number+1,updated_at=? WHERE id=?",
         )
         .run(stamp, q.id);
+      await notification(
+        db,
+        user.id,
+        "token.created",
+        "Queue token created",
+        "Your queue token is ready. Check your queue position in the app.",
+        "queue",
+        id,
+        clinicId,
+      );
+      await operationalNotification(db, clinicId, "patient.checked_in", "Patient checked in", id);
       return tokenValue((await one<TokenRow>(db, tokenSelect + " WHERE t.id=?", id))!);
     }
     let t: TokenRow | undefined;
@@ -464,6 +480,35 @@ export async function mutateQueue(
         .run(stamp, stamp, t.id);
     }
     await db.prepare("UPDATE daily_queues SET updated_at=? WHERE id=?").run(stamp, q.id);
+    await audit(db, user.id, "queue." + action, "token", t.id, clinicId);
+    if (action === "callNext" || action === "call") {
+      await notification(
+        db,
+        t.patient_id,
+        "token.called",
+        "Please proceed",
+        "Your token is being called. Please proceed to the consultation area.",
+        "queue",
+        t.id,
+        clinicId,
+      );
+      const next = await many<TokenRow>(
+        db,
+        "SELECT * FROM tokens WHERE queue_id=? AND status='waiting' ORDER BY queue_order LIMIT 2",
+        q.id,
+      );
+      for (const waiting of next)
+        await notification(
+          db,
+          waiting.patient_id,
+          "token.approaching",
+          "Your turn is approaching",
+          "Please be ready and check your queue position.",
+          "queue",
+          waiting.id,
+          clinicId,
+        );
+    }
     return tokenValue((await one<TokenRow>(db, tokenSelect + " WHERE t.id=?", t.id))!);
   });
 }

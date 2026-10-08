@@ -43,7 +43,14 @@ function Login() {
     setError("");
     try {
       const profile = await login(email, password);
-      await nav({ to: profile.role === "admin" ? "/admin" : "/patient/dashboard" });
+      await nav({
+        to:
+          profile.role === "admin"
+            ? "/admin"
+            : profile.role === "patient"
+              ? "/patient/dashboard"
+              : "/staff",
+      });
     } catch (err) {
       setError(friendlyError(err));
     } finally {

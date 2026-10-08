@@ -1,3 +1,4 @@
+import { audit, notification } from "./operations.ts";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { atomic, one, many, type Database } from "../db/database.ts";
@@ -183,7 +184,13 @@ export async function createAppointment(
   return atomic(db, async () => {
     const clinic = await clinicValue(db, clinicId);
     if (!clinic.active) throw new ApiError(409, "CLINIC_INACTIVE", "This clinic is inactive.");
-    if (!(await one(db, "SELECT id FROM users WHERE id=? AND role='patient'", c.patientId)))
+    if (
+      !(await one(
+        db,
+        "SELECT id FROM users WHERE id=? AND role='patient' AND NOT EXISTS (SELECT 1 FROM staff_profiles sp WHERE sp.user_id=users.id)",
+        c.patientId,
+      ))
+    )
       throw new ApiError(400, "INVALID_PATIENT", "Choose a patient account.");
     const id = randomUUID(),
       stamp = new Date().toISOString();
@@ -193,6 +200,17 @@ export async function createAppointment(
         "INSERT INTO appointments (id,clinic_id,patient_id,scheduled_at,status,reason,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
       )
       .run(id, clinicId, c.patientId, c.scheduledAt, "scheduled", c.reason, adminId, stamp, stamp);
+    await audit(db, adminId, "appointment.booked", "appointment", id, clinicId);
+    await notification(
+      db,
+      c.patientId,
+      "appointment.booked",
+      "Appointment booked",
+      "Your appointment is available in the app.",
+      "appointment",
+      id,
+      clinicId,
+    );
     return { id };
   });
 }

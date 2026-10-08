@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { Bell, CheckCircle2, Clock, AlertCircle, Ticket } from "lucide-react";
+import { type ReactNode } from "react";
+import { CheckCircle2, Clock, AlertCircle, Ticket } from "lucide-react";
 import { useQueue } from "@/lib/queue-store";
 import { Btn } from "@/components/qc";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,14 +14,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import { NotificationCenter } from "@/components/notification-center";
 
 export function ConfirmAction({
   children,
@@ -55,64 +48,8 @@ export function ConfirmAction({
   );
 }
 
-export function Notifications({ role }: { role: "patient" | "admin" }) {
-  const [read, setRead] = useState(false);
-  const q = useQueue();
-  const messages =
-    q.loadState !== "ready"
-      ? ["Queue updates are unavailable."]
-      : role === "patient"
-        ? [
-            q.mine?.status === "serving"
-              ? "Your token is being called."
-              : q.mine?.status === "waiting" && q.ahead <= 2
-                ? "You're almost up."
-                : q.mine
-                  ? "Token " + q.mine.token + ": " + q.mine.status
-                  : "You have no active token.",
-            ...(q.mine?.status === "waiting"
-              ? [q.ahead + " patients ahead · ~" + q.eta + " min wait"]
-              : []),
-          ]
-        : [
-            ...q.notifications,
-            q.waiting.length + " patients waiting",
-            q.serving ? "Now serving " + q.serving.token : "No patient in consultation",
-          ];
-  return (
-    <DropdownMenu
-      onOpenChange={(open) => {
-        if (open) setRead(true);
-      }}
-    >
-      <DropdownMenuTrigger asChild>
-        <button
-          aria-label="Notifications"
-          className="relative grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Bell className="size-[18px]" />
-          {!read && <span className="absolute right-3 top-2.5 size-1.5 rounded-full bg-primary" />}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-2rem)] rounded-xl p-2">
-        <DropdownMenuLabel>
-          Notifications{" "}
-          <span className="ml-2 text-xs font-normal text-muted-foreground">Current queue</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {messages.map((message, index) => (
-          <DropdownMenuItem
-            key={`${index}:${message}`}
-            className="items-start gap-3 whitespace-normal rounded-lg py-3"
-          >
-            <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
-            <span>{message}</span>
-          </DropdownMenuItem>
-        ))}
-        <p className="px-2 py-2 text-xs text-muted-foreground">Current queue updates.</p>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+export function Notifications(_props: { role: "patient" | "admin" }) {
+  return <NotificationCenter />;
 }
 
 export function QueueSkeleton({ kind = "hero" }: { kind?: "hero" | "list" }) {

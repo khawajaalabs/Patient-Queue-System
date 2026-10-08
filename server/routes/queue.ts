@@ -1,3 +1,4 @@
+import { authorizeClinic } from "../services/operations.ts";
 import {
   listClinics,
   saveClinic,
@@ -90,16 +91,19 @@ export function queueRoutes(db: Database, notify: Notify) {
       success: true,
       data: await many(
         db,
-        "SELECT id,full_name AS name FROM users WHERE role='patient' ORDER BY full_name LIMIT 500",
+        "SELECT id,full_name AS name FROM users WHERE role='patient' AND NOT EXISTS (SELECT 1 FROM staff_profiles sp WHERE sp.user_id=users.id) ORDER BY full_name LIMIT 500",
       ),
     }),
   );
   router.get("/public/queue", async (req, res) =>
     res.json({ success: true, data: await publicQueue(db, scope(req)) }),
   );
-  router.get("/clinic", requireRole(db), async (req, res) =>
-    res.json({ success: true, data: await clinicValue(db, scope(req)) }),
-  );
+  router.get("/clinic", requireRole(db), async (req, res) => {
+    const user = res.locals["user"] as UserRow;
+    if (user.role === "receptionist" || user.role === "nurse")
+      await authorizeClinic(db, user, scope(req));
+    res.json({ success: true, data: await clinicValue(db, scope(req)) });
+  });
   router.get("/patient/state", requireRole(db, "patient"), async (req, res) =>
     res.json({
       success: true,

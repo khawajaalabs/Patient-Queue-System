@@ -27,6 +27,10 @@ const nav = [
   { to: "/admin/patients", label: "Patients", icon: Users },
   { to: "/admin/clinics", label: "Clinics", icon: LayoutGrid },
   { to: "/admin/appointments", label: "Appointments", icon: History },
+  { to: "/admin/staff", label: "Staff", icon: Users },
+  { to: "/admin/billing", label: "Billing", icon: ListOrdered },
+  { to: "/admin/documents", label: "Documents", icon: History },
+  { to: "/admin/activity", label: "Activity", icon: History },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ] as const;
 function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
@@ -88,7 +92,7 @@ function AdminLayoutContent() {
   });
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 py-5 lg:flex">
+      <aside className="sticky top-0 hidden h-screen overflow-y-auto w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 py-5 lg:flex">
         <Logo className="px-2" />
         <AdminNavigation />
         <button
@@ -101,7 +105,7 @@ function AdminLayoutContent() {
           </div>
           <div className="text-sm leading-tight">
             <div className="font-medium">{profile?.fullName}</div>
-            <div className="text-xs text-muted-foreground">Reception</div>
+            <div className="text-xs text-muted-foreground">Doctor / Administrator</div>
           </div>
         </button>
       </aside>

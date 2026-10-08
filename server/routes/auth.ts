@@ -4,7 +4,14 @@ import { randomUUID } from "node:crypto";
 import { compare, hash, hashSync } from "bcryptjs";
 import { z } from "zod";
 import { one, type UserRow } from "../db/database.ts";
-import { ApiError, currentUser, startSession, endSession, publicUser } from "../middleware/auth.ts";
+import {
+  ApiError,
+  currentUser,
+  startSession,
+  endSession,
+  publicUser,
+  resolveUser,
+} from "../middleware/auth.ts";
 const password = z
   .string()
   .min(8, "Use a password with at least 8 characters.")
@@ -87,9 +94,15 @@ export function authRoutes(db: Database) {
     const matches = await compare(input.password, user?.password_hash ?? unusedHash);
     if (!user || !matches)
       throw new ApiError(401, "INVALID_CREDENTIALS", "The email or password is incorrect.");
+    const activeUser = await resolveUser(db, user);
+    if (!activeUser)
+      throw new ApiError(401, "INVALID_CREDENTIALS", "The email or password is incorrect.");
+    await db
+      .prepare("UPDATE staff_profiles SET last_activity_at=? WHERE user_id=?")
+      .run(new Date().toISOString(), user.id);
     attempts.delete(key);
     await startSession(db, req, res, user.id);
-    res.json({ success: true, data: publicUser(user) });
+    res.json({ success: true, data: publicUser(activeUser) });
   });
   routes.get("/me", async (req, res) => {
     const user = await currentUser(db, req);

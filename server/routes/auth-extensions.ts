@@ -126,7 +126,11 @@ export function extendedAuthRoutes(db: Database, options: AuthOptions) {
     const newHash = await hash(randomBytes(32).toString("hex"), 12);
     return atomic(db, async () => {
       const sameEmail = await one<UserRow>(db, "SELECT * FROM users WHERE email=?", verifiedEmail);
-      if (sameEmail?.role === "admin")
+      if (
+        sameEmail &&
+        (sameEmail.role === "admin" ||
+          (await one(db, "SELECT user_id FROM staff_profiles WHERE user_id=?", sameEmail.id)))
+      )
         throw new ApiError(403, "PATIENT_ONLY", "Use clinic staff email/password login.");
       const linked = await one<UserRow>(
         db,

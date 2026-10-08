@@ -1,11 +1,12 @@
 import type { DatabaseSync } from "node:sqlite";
 export function migrate(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()?.["user_version"] ?? 0);
-  if (version > 4) throw new Error("This database was created by a newer QueueCare version.");
+  if (version > 5) throw new Error("This database was created by a newer QueueCare version.");
   if (version >= 1) {
     if (version === 1) migrateAuthentication(db);
     if (version < 3) migrateClinics(db);
     if (version < 4) migrateClinical(db);
+    if (version < 5) migrateOperations(db);
     return;
   }
   db.exec(`BEGIN IMMEDIATE;
@@ -45,6 +46,7 @@ export function migrate(db: DatabaseSync) {
   migrateAuthentication(db);
   migrateClinics(db);
   migrateClinical(db);
+  migrateOperations(db);
 }
 
 function migrateAuthentication(db: DatabaseSync) {
@@ -126,4 +128,27 @@ CREATE TABLE prescription_items (
 );
 CREATE INDEX prescription_items_prescription ON prescription_items(prescription_id,position);
 PRAGMA user_version=4; COMMIT;`);
+}
+
+function migrateOperations(db: DatabaseSync) {
+  db.exec(`BEGIN IMMEDIATE;
+CREATE TABLE staff_profiles (user_id TEXT PRIMARY KEY REFERENCES users(id), role TEXT NOT NULL CHECK(role IN ('receptionist','nurse')), active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, last_activity_at TEXT);
+CREATE TABLE staff_clinics (staff_id TEXT NOT NULL REFERENCES staff_profiles(user_id), clinic_id TEXT NOT NULL REFERENCES clinics(id), PRIMARY KEY(staff_id,clinic_id));
+CREATE INDEX staff_clinics_clinic ON staff_clinics(clinic_id,staff_id);
+CREATE UNIQUE INDEX encounters_identity_clinic_patient ON encounters(id,clinic_id,patient_id);
+CREATE TABLE patient_documents (id TEXT PRIMARY KEY, patient_id TEXT NOT NULL REFERENCES users(id), clinic_id TEXT NOT NULL REFERENCES clinics(id), visit_id TEXT, uploaded_by TEXT NOT NULL REFERENCES users(id), document_type TEXT NOT NULL CHECK(document_type IN ('lab_report','imaging_report','referral','medical_document','other')), title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', storage_path TEXT NOT NULL UNIQUE, original_filename TEXT NOT NULL, mime_type TEXT NOT NULL CHECK(mime_type IN ('application/pdf','image/jpeg','image/png')), file_size INTEGER NOT NULL CHECK(file_size>0 AND file_size<=10485760), patient_visible INTEGER NOT NULL DEFAULT 0 CHECK(patient_visible IN(0,1)), status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','ready')), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(visit_id,clinic_id,patient_id) REFERENCES encounters(id,clinic_id,patient_id));
+CREATE INDEX documents_patient ON patient_documents(patient_id,status,patient_visible,created_at);
+CREATE INDEX documents_clinic ON patient_documents(clinic_id,created_at);
+CREATE TABLE invoices (id TEXT PRIMARY KEY, invoice_number TEXT NOT NULL UNIQUE, patient_id TEXT NOT NULL REFERENCES users(id), clinic_id TEXT NOT NULL REFERENCES clinics(id), visit_id TEXT, appointment_id TEXT, status TEXT NOT NULL CHECK(status IN ('draft','unpaid','partially_paid','paid','void')), subtotal INTEGER NOT NULL CHECK(subtotal>=0), discount INTEGER NOT NULL CHECK(discount>=0 AND discount<=subtotal), total INTEGER NOT NULL CHECK(total=subtotal-discount), amount_paid INTEGER NOT NULL DEFAULT 0 CHECK(amount_paid>=0 AND amount_paid<=total), balance INTEGER NOT NULL CHECK(balance=total-amount_paid), issued_at TEXT, due_at TEXT, created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(visit_id,clinic_id,patient_id) REFERENCES encounters(id,clinic_id,patient_id), FOREIGN KEY(appointment_id,clinic_id,patient_id) REFERENCES appointments(id,clinic_id,patient_id));
+CREATE INDEX invoices_clinic ON invoices(clinic_id,created_at);
+CREATE INDEX invoices_patient ON invoices(patient_id,created_at);
+CREATE TABLE invoice_items (id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL REFERENCES invoices(id), position INTEGER NOT NULL, description TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity>0 AND quantity<=1000), unit_price INTEGER NOT NULL CHECK(unit_price>=0), total INTEGER NOT NULL CHECK(total=quantity*unit_price), UNIQUE(invoice_id,position));
+CREATE TABLE payments (id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL REFERENCES invoices(id), amount INTEGER NOT NULL CHECK(amount>0), method TEXT NOT NULL CHECK(method IN ('cash','card','bank_transfer','other')), reference TEXT NOT NULL DEFAULT '', paid_at TEXT NOT NULL, recorded_by TEXT NOT NULL REFERENCES users(id), request_id TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL);
+CREATE INDEX payments_invoice ON payments(invoice_id,paid_at);
+CREATE TABLE notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, clinic_id TEXT REFERENCES clinics(id), read_at TEXT, created_at TEXT NOT NULL, UNIQUE(user_id,type,entity_id));
+CREATE INDEX notifications_user ON notifications(user_id,created_at);
+CREATE TABLE audit_logs (id TEXT PRIMARY KEY, actor_user_id TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, clinic_id TEXT REFERENCES clinics(id), detail TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL);
+CREATE INDEX audit_clinic_date ON audit_logs(clinic_id,created_at);
+CREATE INDEX audit_actor_date ON audit_logs(actor_user_id,created_at);
+PRAGMA user_version=5; COMMIT;`);
 }

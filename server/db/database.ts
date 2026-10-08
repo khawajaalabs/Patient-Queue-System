@@ -10,7 +10,7 @@ export interface UserRow {
   email: string;
   phone: string;
   password_hash: string;
-  role: "admin" | "patient";
+  role: "admin" | "patient" | "receptionist" | "nurse";
 }
 export interface Database {
   prepare(sql: string): {

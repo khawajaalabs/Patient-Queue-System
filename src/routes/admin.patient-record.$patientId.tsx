@@ -1,3 +1,4 @@
+import { DocumentsPanel } from "@/components/documents-panel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "@/api/client";
@@ -107,6 +108,9 @@ function PatientRecord() {
           Save clinical information
         </Btn>
       </form>
+      <div className="mb-8">
+        <DocumentsPanel patientId={p.id} />
+      </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-lg font-semibold">Clinical visit history</h2>
         <select
