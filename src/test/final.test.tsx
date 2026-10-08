@@ -162,3 +162,71 @@ it("unconfigured application email never offers fake delivery", async () => {
   expect(await screen.findByRole("button", { name: "Deliver pending notices" })).toBeDisabled();
   expect(screen.getByText(/No delivery is claimed when unconfigured/)).toBeInTheDocument();
 });
+it("empty patient summary keeps appointment booking and one care-history empty state", async () => {
+  fixture.api.mockResolvedValue({
+    appointment: null,
+    visit: null,
+    prescription: null,
+    document: null,
+    bills: { balance: 0 },
+    followups: [],
+    notifications: [],
+  });
+  render(<PatientSummary />);
+  expect(await screen.findByText("Upcoming appointment")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Book Appointment" })).toHaveAttribute(
+    "href",
+    expect.stringMatching(/^tel:/),
+  );
+  expect(
+    screen.getAllByText(
+      "Your care summary will appear here after your first appointment or clinic visit.",
+    ),
+  ).toHaveLength(1);
+  for (const title of [
+    "Latest visit",
+    "Latest prescription",
+    "Latest released document",
+    "Outstanding bills",
+    "Follow-up recommendations",
+    "Recent notifications",
+  ])
+    expect(screen.queryByText(title)).toBeNull();
+});
+it("patient summary hides empty sections while retaining real visit data", async () => {
+  fixture.api.mockResolvedValue({
+    appointment: null,
+    visit: { visit_at: "2026-10-08T09:00:00Z", clinic_name: "Clinic One" },
+    prescription: null,
+    document: null,
+    bills: { balance: 0 },
+    followups: [],
+    notifications: [],
+  });
+  render(<PatientSummary />);
+  expect(await screen.findByText("Latest visit")).toBeInTheDocument();
+  expect(screen.queryByText("Outstanding bills")).toBeNull();
+  expect(screen.queryByText("Recent notifications")).toBeNull();
+  expect(
+    screen.queryByText(
+      "Your care summary will appear here after your first appointment or clinic visit.",
+    ),
+  ).toBeNull();
+});
+it("upcoming appointment remains visible without an unnecessary booking CTA", async () => {
+  fixture.api.mockResolvedValue({
+    appointment: { scheduled_at: "2026-10-09T10:00", clinic_name: "Clinic One" },
+    visit: null,
+    prescription: null,
+    document: null,
+    bills: { balance: 0 },
+    followups: [],
+    notifications: [],
+  });
+  render(<PatientSummary />);
+  expect(await screen.findByRole("link", { name: /Upcoming appointment/ })).toHaveAttribute(
+    "href",
+    "/patient/appointments",
+  );
+  expect(screen.queryByRole("link", { name: "Book Appointment" })).toBeNull();
+});

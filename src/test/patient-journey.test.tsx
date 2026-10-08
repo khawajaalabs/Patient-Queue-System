@@ -98,3 +98,16 @@ it("demonstrates login, token issuance, anonymous tracking, completion and histo
   expect(screen.getByText("A-024")).toBeInTheDocument();
   await waitFor(() => expect(router.state.location.pathname).toBe("/patient/history"));
 }, 15000);
+it.each(["no-queue", "completed"] as const)(
+  "dashboard hides current queue for %s tokens",
+  async (scenario) => {
+    actions.demo(scenario);
+    const router = renderPatientApp();
+    await act(async () => {
+      await router.navigate({ to: "/patient/dashboard" });
+    });
+    await screen.findByRole("heading", { name: "Good morning, Zain" });
+    expect(screen.queryByText("You don't have an active token.")).toBeNull();
+    expect(screen.queryByText("Your token")).toBeNull();
+  },
+);

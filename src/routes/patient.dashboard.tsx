@@ -26,7 +26,7 @@ export const Route = createFileRoute("/patient/dashboard")({
 
 export function QueueHero() {
   const { mine, serving, ahead, eta, waiting, avgMin, clinic, open } = useQueue();
-  if (!mine) return null;
+  if (!mine || !["waiting", "serving", "skipped"].includes(mine.status)) return null;
   if (!["waiting", "serving"].includes(mine.status))
     return (
       <section className="surface p-7">
@@ -125,7 +125,8 @@ export function QueueHero() {
 }
 
 function Dashboard() {
-  const { mine, serving, open, openedToday, clinic } = useQueue();
+  const { mine, open, clinic } = useQueue();
+  const hasActiveToken = !!mine && ["waiting", "serving", "skipped"].includes(mine.status);
   const { profile } = useAuth();
   return (
     <>
@@ -138,30 +139,11 @@ function Dashboard() {
         </p>
       </div>
 
-      <PatientStatus />
-      {mine ? (
-        <QueueHero />
-      ) : (
-        <section className="surface flex flex-col items-center px-6 py-16 text-center">
-          <div className="grid size-14 place-items-center rounded-full bg-primary-soft text-primary">
-            <Ticket className="size-6" />
-          </div>
-          <h2 className="mt-5 text-xl font-semibold tracking-tight">
-            You don't have an active token.
-          </h2>
-          <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            {open
-              ? `The clinic is open and currently serving ${serving?.token ?? "—"}. Get a token to save your place.`
-              : openedToday
-                ? "The queue is closed right now. Check back during clinic hours."
-                : "No queue has been opened today."}
-          </p>
-          <Link to="/patient/get-token" className="mt-6">
-            <Btn size="lg" disabled={!open}>
-              Get a token <ArrowRight className="size-4" />
-            </Btn>
-          </Link>
-        </section>
+      {hasActiveToken && (
+        <>
+          <PatientStatus />
+          <QueueHero />
+        </>
       )}
 
       <div className="mt-10 grid gap-10 md:grid-cols-3">
@@ -196,7 +178,7 @@ function Dashboard() {
               </li>
             ))}
           </ul>
-          {mine && (
+          {hasActiveToken && (
             <div className="mt-6 flex flex-wrap gap-3">
               <Link to="/patient/live-queue">
                 <Btn>

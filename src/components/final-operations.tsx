@@ -1,3 +1,4 @@
+import { useQueue } from "@/lib/queue-store";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
 import { useClinicContext } from "@/providers/clinic-provider";
@@ -755,6 +756,7 @@ export function AccountSettings() {
   );
 }
 export function PatientSummary() {
+  const { clinic } = useQueue();
   const remote = useClinicalData<{
     appointment: { scheduled_at: string; clinic_name: string } | null;
     visit: { visit_at: string; clinic_name: string } | null;
@@ -771,49 +773,76 @@ export function PatientSummary() {
       </div>
     );
   const d = remote.data;
+  const cards: { title: string; value: string; href: string }[] = [];
+  if (d.visit)
+    cards.push({
+      title: "Latest visit",
+      value: new Date(d.visit.visit_at).toLocaleDateString() + " · " + d.visit.clinic_name,
+      href: "/patient/visits",
+    });
+  if (d.prescription)
+    cards.push({
+      title: "Latest prescription",
+      value: new Date(d.prescription.prescribed_at).toLocaleDateString(),
+      href: "/patient/prescriptions",
+    });
+  if (d.document)
+    cards.push({
+      title: "Latest released document",
+      value: d.document.title,
+      href: "/patient/documents",
+    });
+  if (Number(d.bills.balance) > 0)
+    cards.push({
+      title: "Outstanding bills",
+      value: money(d.bills.balance),
+      href: "/patient/billing",
+    });
+  const hasCareData = cards.length > 0 || d.followups.length > 0 || d.notifications.length > 0;
   return (
     <section className="mt-8">
       <h2 className="mb-4 text-lg font-semibold">Your care summary</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[
-          [
-            "Upcoming appointment",
-            d.appointment
-              ? d.appointment.scheduled_at.replace("T", " ") + " · " + d.appointment.clinic_name
-              : "No upcoming appointment",
-            "/patient/appointments",
-          ],
-          [
-            "Latest visit",
-            d.visit
-              ? new Date(d.visit.visit_at).toLocaleDateString() + " · " + d.visit.clinic_name
-              : "No completed visits",
-            "/patient/visits",
-          ],
-          [
-            "Latest prescription",
-            d.prescription
-              ? new Date(d.prescription.prescribed_at).toLocaleDateString()
-              : "No prescription yet",
-            "/patient/prescriptions",
-          ],
-          [
-            "Latest released document",
-            d.document?.title ?? "No released documents",
-            "/patient/documents",
-          ],
-          ["Outstanding bills", money(d.bills.balance), "/patient/billing"],
-        ].map(([title, value, href]) => (
+        {d.appointment ? (
+          <a
+            href="/patient/appointments"
+            className="surface block p-5 focus:ring-2 focus:ring-primary"
+          >
+            <h3 className="text-sm font-medium">Upcoming appointment</h3>
+            <p className="mt-2 break-words text-sm text-muted-foreground">
+              {d.appointment.scheduled_at.replace("T", " ") + " · " + d.appointment.clinic_name}
+            </p>
+          </a>
+        ) : (
+          <div className="surface p-5">
+            <h3 className="text-sm font-medium">Upcoming appointment</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              No upcoming appointment. Contact {clinic.name} to book a time.
+            </p>
+            <a
+              href={"tel:" + clinic.phone.replace(/[^+0-9]/g, "")}
+              className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-soft transition-all hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Book Appointment
+            </a>
+          </div>
+        )}
+        {cards.map(({ title, value, href }) => (
           <a href={href} key={title} className="surface block p-5 focus:ring-2 focus:ring-primary">
             <h3 className="text-sm font-medium">{title}</h3>
             <p className="mt-2 break-words text-sm text-muted-foreground">{value}</p>
           </a>
         ))}
       </div>
-      <div className="surface mt-4 p-5">
-        <h3 className="font-medium">Follow-up recommendations</h3>
-        {d.followups.length ? (
-          d.followups.map((f) => (
+      {!hasCareData && (
+        <p className="surface mt-4 p-5 text-sm text-muted-foreground">
+          Your care summary will appear here after your first appointment or clinic visit.
+        </p>
+      )}
+      {d.followups.length > 0 && (
+        <div className="surface mt-4 p-5">
+          <h3 className="font-medium">Follow-up recommendations</h3>
+          {d.followups.map((f) => (
             <div key={f.id} className="mt-3 text-sm">
               <p>
                 {String(f.follow_up_date).slice(0, 10)} · {f.clinic_name} · {f.status}
@@ -822,24 +851,20 @@ export function PatientSummary() {
                 {f.instructions || "Follow-up visit recommended."}
               </p>
             </div>
-          ))
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">No follow-up recommendations.</p>
-        )}
-      </div>
-      <div className="surface mt-4 p-5">
-        <h3 className="font-medium">Recent notifications</h3>
-        {d.notifications.length ? (
-          d.notifications.map((n) => (
+          ))}
+        </div>
+      )}
+      {d.notifications.length > 0 && (
+        <div className="surface mt-4 p-5">
+          <h3 className="font-medium">Recent notifications</h3>
+          {d.notifications.map((n) => (
             <div key={n.id} className="mt-3 text-sm">
               <p>{n.title}</p>
               <p className="text-muted-foreground">{n.message}</p>
             </div>
-          ))
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">No notifications yet.</p>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
