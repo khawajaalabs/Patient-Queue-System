@@ -28,6 +28,7 @@ import { Route as AdminBillingRouteImport } from './routes/admin.billing'
 import { Route as AdminBrandingRouteImport } from './routes/admin.branding'
 import { Route as AdminClinicsRouteImport } from './routes/admin.clinics'
 import { Route as AdminDataManagementRouteImport } from './routes/admin.data-management'
+import { Route as AdminDoctorScheduleRouteImport } from './routes/admin.doctor-schedule'
 import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
 import { Route as AdminFollowUpsRouteImport } from './routes/admin.follow-ups'
 import { Route as AdminHistoryRouteImport } from './routes/admin.history'
@@ -148,6 +149,11 @@ const AdminClinicsRoute = AdminClinicsRouteImport.update({
 const AdminDataManagementRoute = AdminDataManagementRouteImport.update({
   id: '/data-management',
   path: '/data-management',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDoctorScheduleRoute = AdminDoctorScheduleRouteImport.update({
+  id: '/doctor-schedule',
+  path: '/doctor-schedule',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDocumentsRoute = AdminDocumentsRouteImport.update({
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clinics': typeof AdminClinicsRoute
   '/admin/data-management': typeof AdminDataManagementRoute
+  '/admin/doctor-schedule': typeof AdminDoctorScheduleRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/follow-ups': typeof AdminFollowUpsRoute
   '/admin/history': typeof AdminHistoryRoute
@@ -347,6 +354,7 @@ export interface FileRoutesByTo {
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clinics': typeof AdminClinicsRoute
   '/admin/data-management': typeof AdminDataManagementRoute
+  '/admin/doctor-schedule': typeof AdminDoctorScheduleRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/follow-ups': typeof AdminFollowUpsRoute
   '/admin/history': typeof AdminHistoryRoute
@@ -395,6 +403,7 @@ export interface FileRoutesById {
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clinics': typeof AdminClinicsRoute
   '/admin/data-management': typeof AdminDataManagementRoute
+  '/admin/doctor-schedule': typeof AdminDoctorScheduleRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/follow-ups': typeof AdminFollowUpsRoute
   '/admin/history': typeof AdminHistoryRoute
@@ -444,6 +453,7 @@ export interface FileRouteTypes {
     | '/admin/branding'
     | '/admin/clinics'
     | '/admin/data-management'
+    | '/admin/doctor-schedule'
     | '/admin/documents'
     | '/admin/follow-ups'
     | '/admin/history'
@@ -489,6 +499,7 @@ export interface FileRouteTypes {
     | '/admin/branding'
     | '/admin/clinics'
     | '/admin/data-management'
+    | '/admin/doctor-schedule'
     | '/admin/documents'
     | '/admin/follow-ups'
     | '/admin/history'
@@ -536,6 +547,7 @@ export interface FileRouteTypes {
     | '/admin/branding'
     | '/admin/clinics'
     | '/admin/data-management'
+    | '/admin/doctor-schedule'
     | '/admin/documents'
     | '/admin/follow-ups'
     | '/admin/history'
@@ -712,6 +724,13 @@ declare module '@tanstack/react-router' {
       path: '/data-management'
       fullPath: '/admin/data-management'
       preLoaderRoute: typeof AdminDataManagementRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/doctor-schedule': {
+      id: '/admin/doctor-schedule'
+      path: '/doctor-schedule'
+      fullPath: '/admin/doctor-schedule'
+      preLoaderRoute: typeof AdminDoctorScheduleRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/documents': {
@@ -907,6 +926,7 @@ interface AdminRouteChildren {
   AdminBrandingRoute: typeof AdminBrandingRoute
   AdminClinicsRoute: typeof AdminClinicsRoute
   AdminDataManagementRoute: typeof AdminDataManagementRoute
+  AdminDoctorScheduleRoute: typeof AdminDoctorScheduleRoute
   AdminDocumentsRoute: typeof AdminDocumentsRoute
   AdminFollowUpsRoute: typeof AdminFollowUpsRoute
   AdminHistoryRoute: typeof AdminHistoryRoute
@@ -929,6 +949,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminBrandingRoute: AdminBrandingRoute,
   AdminClinicsRoute: AdminClinicsRoute,
   AdminDataManagementRoute: AdminDataManagementRoute,
+  AdminDoctorScheduleRoute: AdminDoctorScheduleRoute,
   AdminDocumentsRoute: AdminDocumentsRoute,
   AdminFollowUpsRoute: AdminFollowUpsRoute,
   AdminHistoryRoute: AdminHistoryRoute,

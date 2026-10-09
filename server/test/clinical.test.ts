@@ -1,3 +1,4 @@
+import { testDoctorHours } from "./availability-fixture.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -202,6 +203,7 @@ test("clinical workflow: global profiles, structured notes/vitals/prescriptions,
         consultationFee: null,
       })
     ).data;
+    await testDoctorHours(app.db, clinic.id);
     const appointment = (
       await req("/admin/appointments?clinicId=" + clinic.id, admin.cookie, {
         patientId: uid,
@@ -273,7 +275,7 @@ test("additive clinical migration backfills existing patient profiles without ch
     );
     const original = JSON.stringify(db.prepare("SELECT * FROM users ORDER BY id").all());
     db.exec(
-      "DROP TABLE email_delivery_log; DROP TABLE follow_up_actions; DROP TABLE appointment_workflow; DROP TABLE clinic_branding; DROP TABLE doctor_profiles; DROP TABLE audit_logs; DROP TABLE notifications; DROP TABLE payments; DROP TABLE invoice_items; DROP TABLE invoices; DROP TABLE patient_documents; DROP TABLE staff_clinics; DROP TABLE staff_profiles; DROP TABLE prescription_items; DROP TABLE prescriptions; DROP TABLE visit_vitals; DROP TABLE encounters; DROP TABLE patient_profiles; DROP INDEX appointments_identity_clinic; PRAGMA user_version=3;",
+      "DROP TABLE appointment_slots; DROP TABLE doctor_availability; DROP TABLE email_delivery_log; DROP TABLE follow_up_actions; DROP TABLE appointment_workflow; DROP TABLE clinic_branding; DROP TABLE doctor_profiles; DROP TABLE audit_logs; DROP TABLE notifications; DROP TABLE payments; DROP TABLE invoice_items; DROP TABLE invoices; DROP TABLE patient_documents; DROP TABLE staff_clinics; DROP TABLE staff_profiles; DROP TABLE prescription_items; DROP TABLE prescriptions; DROP TABLE visit_vitals; DROP TABLE encounters; DROP TABLE patient_profiles; DROP INDEX appointments_identity_clinic; PRAGMA user_version=3;",
     );
     migrate(db);
     assert.equal(JSON.stringify(db.prepare("SELECT * FROM users ORDER BY id").all()), original);

@@ -1,3 +1,4 @@
+import { testDoctorHours } from "./availability-fixture.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createDatabase, one, type UserRow } from "../db/database.ts";
@@ -188,6 +189,7 @@ test("clinic API enforces admin access and selected-clinic writes; public and pa
     assert.equal((await request("/public/queue?clinicId=unknown")).status, 404);
     assert.ok(!JSON.stringify(publicState.data).includes("Global API Patient"));
     assert.ok(!JSON.stringify(publicState.data).includes("Private reason"));
+    await testDoctorHours(server.db, branch.data.id);
     const second = await request("/auth/register", "", {
       fullName: "Other Patient",
       email: "otherapi@multi.test",

@@ -21,7 +21,8 @@
     "local:reset": "node --env-file-if-exists=.env.local scripts/local.mjs reset",
     "test:backend": "node --test server/test/*.test.ts",
     "supabase:setup": "node --env-file-if-exists=.env.local scripts/supabase-setup.mjs",
-    "test:supabase": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local --test server/test/supabase.integration.test.ts"
+    "test:supabase": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local --test server/test/supabase.integration.test.ts",
+    "test:availability:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-availability-postgres.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

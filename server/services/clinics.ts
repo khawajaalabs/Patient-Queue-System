@@ -1,3 +1,4 @@
+import { rememberSlot } from "./availability.ts";
 import { validateSlot } from "./final.ts";
 import { audit, notification } from "./operations.ts";
 import { randomUUID } from "node:crypto";
@@ -184,7 +185,7 @@ export async function createAppointment(
     .parse(input);
   return atomic(db, async () => {
     const clinic = await clinicValue(db, clinicId);
-    await validateSlot(db, clinicId, c.scheduledAt);
+    const slot = await validateSlot(db, clinicId, c.scheduledAt);
     if (!clinic.active) throw new ApiError(409, "CLINIC_INACTIVE", "This clinic is inactive.");
     if (
       !(await one(
@@ -202,6 +203,7 @@ export async function createAppointment(
         "INSERT INTO appointments (id,clinic_id,patient_id,scheduled_at,status,reason,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
       )
       .run(id, clinicId, c.patientId, c.scheduledAt, "scheduled", c.reason, adminId, stamp, stamp);
+    await rememberSlot(db, id, slot);
     await audit(db, adminId, "appointment.booked", "appointment", id, clinicId);
     await notification(
       db,

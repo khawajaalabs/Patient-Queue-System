@@ -56,3 +56,9 @@ npm run test:supabase
 ```
 
 PostgreSQL integration tests require the existing CLI administrative session and create/drop disposable schemas; they must never seed dummy records into production. Vercel serves the SPA and `/api/server` Express function, including the existing realtime WebSocket transport. Preserve the production `APP_URL` and required server environment variables when deploying the already-linked personal project.
+
+## Doctor availability and patient booking
+
+Admin → Doctor Schedule configures weekly, split-shift availability for the main doctor at each clinic. Doctor windows must fit clinic opening hours and cannot overlap across clinics. Existing clinic-branding appointment duration is reused. Clinics have no invented default doctor schedule: configure hours before accepting new bookings. Patient Appointments provides self-booking from backend-generated Asia/Karachi slots; admin/staff booking, follow-up booking and rescheduling share the same transactional validator. Existing appointments remain intact and can retain their current time during status updates. New reservations snapshot their duration. Notifications use the existing in-app/email queue foundation.
+
+Apply `supabase/migrations/20261009000100_doctor_availability.sql` additively through authenticated administrative tooling; never reset production. `npm run test:availability:postgres` verifies the feature in a disposable PostgreSQL schema using the saved Supabase CLI session, including the Vercel single-connection configuration. Calendar updates use existing invalidation with a 30-second visible-page fallback.

@@ -1,3 +1,4 @@
+import { testDoctorHours } from "./availability-fixture.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -30,7 +31,7 @@ test("report dates reject impossible, reversed and oversized ranges", () => {
 test(
   "final phase: analytics, search, exports, appointment states, follow-ups, branding, account security and email privacy",
   { timeout: 180000 },
-  async () => {
+  async (t) => {
     const database = process.env["QUEUECARE_FINAL_TEST_SCHEMA"]
       ? await createPostgresDatabase(
           process.env["DATABASE_URL"]!,
@@ -98,6 +99,8 @@ test(
           path,
         );
       }
+      await testDoctorHours(app.db, "northstar");
+      t.mock.method(Date, "now", () => +new Date(clinicDayKey() + "T00:00:00+05:00"));
       const day = clinicDayKey(),
         appointmentBody = {
           patientId: patient.data.id,

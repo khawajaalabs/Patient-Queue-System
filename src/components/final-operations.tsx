@@ -1,4 +1,5 @@
 import { SelectField } from "@/components/form-controls";
+import { AppointmentSlotPicker } from "@/components/appointment-slot-picker";
 import { useQueue } from "@/lib/queue-store";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
@@ -381,6 +382,7 @@ export function GlobalSearch() {
 }
 interface FollowUp {
   id: string;
+  clinic_id: string;
   patient_id: string;
   patient_name: string;
   clinic_name: string;
@@ -502,7 +504,9 @@ export function FollowUps() {
                 void action(editing.id, { action: "book", scheduledAt: d.get("scheduledAt") });
             }}
           >
-            <Field required label="Book appointment" type="datetime-local" name="scheduledAt" />
+            {editing && (
+              <AppointmentSlotPicker clinicId={editing.clinic_id} refresh={error ? 1 : 0} />
+            )}
             <Btn disabled={busy}>Book appointment</Btn>
           </form>
           <form
@@ -818,10 +822,10 @@ export function PatientSummary() {
           <div className="surface p-5">
             <h3 className="text-sm font-medium">Upcoming appointment</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              No upcoming appointment. Contact {clinic.name} to book a time.
+              No upcoming appointment. Choose an available time at {clinic.name}.
             </p>
             <a
-              href={"tel:" + clinic.phone.replace(/[^+0-9]/g, "")}
+              href="/patient/appointments?book=1"
               className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-soft transition-all hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Book Appointment

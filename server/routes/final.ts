@@ -1,3 +1,4 @@
+import { rememberSlot } from "../services/availability.ts";
 import { deliverEmails } from "../services/email.ts";
 import { Router } from "express";
 import { z } from "zod";
@@ -165,17 +166,23 @@ export function finalRoutes(db: Database, notify: Notify) {
       id = idValue.parse(req.params["id"]),
       u = user(res);
     await atomic(db, async () => {
-      const a = await one<{ clinic_id: string; patient_id: string; status: string }>(
-        db,
-        "SELECT clinic_id,patient_id,status FROM appointments WHERE id=?",
-        id,
-      );
+      const a = await one<{
+        clinic_id: string;
+        patient_id: string;
+        status: string;
+        scheduled_at: string;
+      }>(db, "SELECT clinic_id,patient_id,status,scheduled_at FROM appointments WHERE id=?", id);
       if (!a) throw new ApiError(404, "NOT_FOUND", "Appointment not found.");
       await authorizeClinic(db, u, a.clinic_id, ["receptionist"]);
       if (a.status === "completed")
         throw new ApiError(409, "CLOSED", "Completed appointments cannot be changed.");
-      if (!["cancelled", "no_show"].includes(c.status))
-        await validateSlot(db, a.clinic_id, c.scheduledAt, id);
+      if (
+        c.scheduledAt !== a.scheduled_at ||
+        (a.status === "cancelled" && !["cancelled", "no_show"].includes(c.status))
+      ) {
+        const slot = await validateSlot(db, a.clinic_id, c.scheduledAt, id);
+        await rememberSlot(db, id, slot);
+      }
       if (c.status === "checked_in") {
         if (c.scheduledAt.slice(0, 10) !== clinicDayKey())
           throw new ApiError(409, "WRONG_DAY", "Check in on the appointment date.");

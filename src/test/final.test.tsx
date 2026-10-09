@@ -119,13 +119,15 @@ it("follow-ups expose explicit actions and send audited mutations", async () => 
   );
 });
 it("calendar supports all four views and empty scheduling states", async () => {
-  fixture.api.mockResolvedValue([]);
+  fixture.api.mockImplementation((path: string) =>
+    Promise.resolve(path.startsWith("/appointments/available-slots") ? { slots: [] } : []),
+  );
   render(<AppointmentCalendar />);
   expect(await screen.findByRole("button", { name: "month" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "list" }));
   expect(await screen.findByText("No appointments match these filters.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Add appointment" }));
-  expect(await screen.findByLabelText("Date and time")).toBeInTheDocument();
+  expect(await screen.findByLabelText("Appointment date")).toBeInTheDocument();
 });
 it("account settings never show session tokens and reject mismatched confirmation", async () => {
   fixture.api.mockResolvedValue({
@@ -177,7 +179,7 @@ it("empty patient summary keeps appointment booking and one care-history empty s
   expect(await screen.findByText("Upcoming appointment")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Book Appointment" })).toHaveAttribute(
     "href",
-    expect.stringMatching(/^tel:/),
+    "/patient/appointments?book=1",
   );
   expect(
     screen.getAllByText(

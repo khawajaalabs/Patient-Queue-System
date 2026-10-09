@@ -1,6 +1,7 @@
+import { validateAvailableSlot } from "./availability.ts";
 import { z } from "zod";
-import { many, one, type Database } from "../db/database.ts";
 import { ApiError } from "../middleware/auth.ts";
+import { many, type Database } from "../db/database.ts";
 import { clinicDayKey } from "../../src/domain/queue.js";
 export type DataRow = Record<
   | "id"
@@ -28,40 +29,7 @@ export const wallTime = z
   }, "Choose a valid date and time.");
 export async function validateSlot(db: Database, clinicId: string, time: string, exclude = "") {
   wallTime.parse(time);
-  const c = await one<{ opening_time: string; closing_time: string; active: number }>(
-    db,
-    "SELECT opening_time,closing_time,active FROM clinics WHERE id=?",
-    clinicId,
-  );
-  if (!c || !c.active) throw new ApiError(409, "CLINIC_INACTIVE", "Choose an active clinic.");
-  const slot = await one<{ slot_minutes: number }>(
-      db,
-      "SELECT slot_minutes FROM clinic_branding WHERE clinic_id=?",
-      clinicId,
-    ),
-    minutes = slot?.slot_minutes ?? 15;
-  const clock = time.slice(11),
-    end = new Date(new Date(time + ":00Z").getTime() + minutes * 60000).toISOString().slice(11, 16);
-  if (clock < c.opening_time || end > c.closing_time || end <= clock)
-    throw new ApiError(409, "OUTSIDE_HOURS", "Choose a slot within clinic opening hours.");
-  const rows = await many<{ scheduled_at: string }>(
-    db,
-    "SELECT scheduled_at FROM appointments WHERE clinic_id=? AND id<>? AND status NOT IN ('completed','cancelled') AND substr(scheduled_at,1,10)=?",
-    clinicId,
-    exclude,
-    time.slice(0, 10),
-  );
-  if (
-    rows.some(
-      (a) =>
-        Math.abs(+new Date(a.scheduled_at + ":00Z") - +new Date(time + ":00Z")) < minutes * 60000,
-    )
-  )
-    throw new ApiError(
-      409,
-      "SLOT_TAKEN",
-      "This slot overlaps an existing appointment. Choose another time.",
-    );
+  return validateAvailableSlot(db, clinicId, time, exclude);
 }
 export function dateRange(input: Record<string, unknown>) {
   const day = clinicDayKey(),

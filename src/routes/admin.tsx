@@ -27,6 +27,7 @@ const nav = [
   { to: "/admin/patients", label: "Patients", icon: Users },
   { to: "/admin/clinics", label: "Clinics", icon: LayoutGrid },
   { to: "/admin/appointments", label: "Appointments", icon: History },
+  { to: "/admin/doctor-schedule", label: "Doctor Schedule", icon: History },
   { to: "/admin/staff", label: "Staff", icon: Users },
   { to: "/admin/billing", label: "Billing", icon: ListOrdered },
   { to: "/admin/documents", label: "Documents", icon: History },

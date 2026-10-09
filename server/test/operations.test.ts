@@ -1,3 +1,4 @@
+import { testDoctorHours } from "./availability-fixture.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -268,6 +269,7 @@ test(
           /PRIVATE|allergies|chronicConditions|currentMedications|generalNotes/,
         ),
       );
+      await testDoctorHours(app.db, "northstar");
       const appt = await req("/staff/appointments", reception.cookie, {
         patientId: uid,
         scheduledAt: "2026-12-10T10:00",

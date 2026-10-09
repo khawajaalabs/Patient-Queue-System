@@ -1,13 +1,14 @@
 import type { DatabaseSync } from "node:sqlite";
 export function migrate(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()?.["user_version"] ?? 0);
-  if (version > 6) throw new Error("This database was created by a newer QueueCare version.");
+  if (version > 7) throw new Error("This database was created by a newer QueueCare version.");
   if (version >= 1) {
     if (version === 1) migrateAuthentication(db);
     if (version < 3) migrateClinics(db);
     if (version < 4) migrateClinical(db);
     if (version < 5) migrateOperations(db);
     if (version < 6) migrateFinal(db);
+    if (version < 7) migrateAvailability(db);
     return;
   }
   db.exec(`BEGIN IMMEDIATE;
@@ -49,6 +50,7 @@ export function migrate(db: DatabaseSync) {
   migrateClinical(db);
   migrateOperations(db);
   migrateFinal(db);
+  migrateAvailability(db);
 }
 
 function migrateAuthentication(db: DatabaseSync) {
@@ -176,4 +178,18 @@ CREATE INDEX follow_up_date_status ON follow_up_actions(follow_up_date,status);
 CREATE INDEX email_delivery_pending ON email_delivery_log(status,created_at);
 
 PRAGMA user_version=6; COMMIT;`);
+}
+
+function migrateAvailability(db: DatabaseSync) {
+  db.exec(`BEGIN IMMEDIATE;
+ CREATE TABLE doctor_availability (
+ id TEXT PRIMARY KEY, doctor_user_id TEXT NOT NULL REFERENCES users(id), clinic_id TEXT NOT NULL REFERENCES clinics(id),
+ weekday INTEGER NOT NULL CHECK(weekday BETWEEN 0 AND 6), start_time TEXT NOT NULL, end_time TEXT NOT NULL,
+ created_at TEXT NOT NULL, updated_at TEXT NOT NULL, CHECK(start_time<end_time), UNIQUE(doctor_user_id,clinic_id,weekday,start_time));
+ CREATE INDEX doctor_availability_day ON doctor_availability(doctor_user_id,weekday,start_time,end_time);
+ CREATE INDEX doctor_availability_clinic ON doctor_availability(clinic_id,weekday);
+ CREATE TABLE appointment_slots (appointment_id TEXT PRIMARY KEY REFERENCES appointments(id) ON DELETE CASCADE,
+ doctor_user_id TEXT NOT NULL REFERENCES users(id), duration_minutes INTEGER NOT NULL CHECK(duration_minutes BETWEEN 5 AND 120));
+ PRAGMA user_version=7;
+ COMMIT;`);
 }

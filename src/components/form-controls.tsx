@@ -67,6 +67,9 @@ export function SelectField({
         value={selected || emptyOption}
         disabled={!!props.disabled}
         onValueChange={(next) => {
+          // Radix's form backing can emit an empty value on mount. User-cleared
+          // selections use our explicit emptyOption item instead.
+          if (!next) return;
           const nextValue = next === emptyOption ? "" : next;
           if (backing.current) {
             backing.current.value = nextValue;

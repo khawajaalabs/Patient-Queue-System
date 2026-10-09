@@ -1,3 +1,5 @@
+import { appointmentTimeLabel } from "@/lib/appointment-time";
+import { AppointmentSlotPicker } from "@/components/appointment-slot-picker";
 import { SelectField } from "@/components/form-controls";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
@@ -42,7 +44,13 @@ export function AppointmentCalendar() {
   useEffect(() => {
     const fn = () => remote.reload();
     window.addEventListener("queuecare:updated", fn);
-    return () => window.removeEventListener("queuecare:updated", fn);
+    const timer = window.setInterval(() => {
+      if (!document.hidden) fn();
+    }, 30000);
+    return () => {
+      window.removeEventListener("queuecare:updated", fn);
+      window.clearInterval(timer);
+    };
   }, [selected]);
   useEffect(() => setEdit(null), [selected]);
   useEffect(() => {
@@ -102,7 +110,8 @@ export function AppointmentCalendar() {
       >
         <p className="break-words text-sm font-medium">{a.patientName}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {a.scheduledAt.replace("T", " ")} · {a.clinicName}
+          {a.scheduledAt.slice(0, 10)} {appointmentTimeLabel(a.scheduledAt.slice(11))} ·{" "}
+          {a.clinicName}
         </p>
         <p className="mt-1 text-xs">{a.status.replaceAll("_", " ")}</p>
         {!["completed", "cancelled", "no_show"].includes(a.status) && (
@@ -126,7 +135,7 @@ export function AppointmentCalendar() {
     <>
       <PageHeader
         title="Appointments"
-        sub="Schedule in clinic local time. Clinic hours and appointment slot spacing apply."
+        sub="Schedule in clinic local time. Doctor availability and appointment duration apply."
         right={selected !== "all" && <Btn onClick={() => setEdit("new")}>Add appointment</Btn>}
       />
       <div className="surface mb-5 flex flex-wrap items-end gap-3 p-4">
@@ -257,12 +266,11 @@ export function AppointmentCalendar() {
             }}
           >
             {edit === "new" && <PatientPicker />}
-            <Field
-              required
-              label="Date and time"
-              name="scheduledAt"
-              type="datetime-local"
-              defaultValue={edit && edit !== "new" ? edit.scheduledAt : date + "T09:00"}
+            <AppointmentSlotPicker
+              clinicId={edit && edit !== "new" ? edit.clinicId : selected}
+              exclude={edit && edit !== "new" ? edit.id : undefined}
+              defaultValue={edit && edit !== "new" ? edit.scheduledAt : date}
+              refresh={error ? 1 : 0}
             />
             {edit === "new" && <Field label="Reason (optional)" name="reason" maxLength={300} />}
             <Btn disabled={busy}>{edit === "new" ? "Book appointment" : "Reschedule"}</Btn>
