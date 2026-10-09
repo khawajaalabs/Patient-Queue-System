@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Database } from "../db/database.ts";
-import type { Request, Response, NextFunction } from "express";
-import { one, type UserRow } from "../db/database.ts";
+import type { Request, Response, NextFunction, CookieOptions } from "express";
+import { atomic, one, type UserRow } from "../db/database.ts";
 import type { UserProfile } from "../../src/types/local.ts";
 export class ApiError extends Error {
   code: string;
@@ -20,6 +20,16 @@ export const publicUser = (u: UserRow): UserProfile => ({
   phone: u.phone,
   role: u.role,
 });
+const sessionMaxAge = 7 * 86400000;
+export function authCookieOptions(req: Request, path = "/"): CookieOptions {
+  return {
+    httpOnly: true,
+    secure:
+      Boolean(process.env["VERCEL"]) || process.env["NODE_ENV"] === "production" || req.secure,
+    sameSite: "lax",
+    path,
+  };
+}
 export function sessionCookie(req: Request) {
   return (
     req.headers.cookie
@@ -57,24 +67,24 @@ export async function currentUser(db: Database, req: Request) {
 }
 export async function startSession(db: Database, req: Request, res: Response, userId: string) {
   const old = sessionCookie(req);
-  if (old) await db.prepare("DELETE FROM sessions WHERE token_hash=?").run(digest(old));
-  await db.prepare("DELETE FROM sessions WHERE expires_at<=?").run(Date.now());
   const token = randomBytes(32).toString("hex");
-  await db
-    .prepare("INSERT INTO sessions VALUES (?,?,?)")
-    .run(digest(token), userId, Date.now() + 7 * 86400000);
+  const now = Date.now();
+  await atomic(db, async () => {
+    if (old) await db.prepare("DELETE FROM sessions WHERE token_hash=?").run(digest(old));
+    await db.prepare("DELETE FROM sessions WHERE expires_at<=?").run(now);
+    await db
+      .prepare("INSERT INTO sessions VALUES (?,?,?)")
+      .run(digest(token), userId, now + sessionMaxAge);
+  });
   res.cookie("queuecare_session", token, {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: req.secure,
-    maxAge: 7 * 86400000,
-    path: "/",
+    ...authCookieOptions(req),
+    maxAge: sessionMaxAge,
   });
 }
 export async function endSession(db: Database, req: Request, res: Response) {
   const token = sessionCookie(req);
   if (token) await db.prepare("DELETE FROM sessions WHERE token_hash=?").run(digest(token));
-  res.clearCookie("queuecare_session", { httpOnly: true, sameSite: "strict", path: "/" });
+  res.clearCookie("queuecare_session", authCookieOptions(req));
 }
 export function requireRole(db: Database, role?: UserRow["role"]) {
   return async (req: Request, res: Response, next: NextFunction) => {

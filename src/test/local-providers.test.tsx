@@ -213,3 +213,31 @@ it("refetches queue changes through polling without any Socket.IO event", async 
     intervals.mockRestore();
   }
 });
+
+it("keeps an authenticated identity through transient restore errors and restores on remount", async () => {
+  fixture.api.mockResolvedValue(profile);
+  await act(async () => {
+    await login(profile.email, "TestPassword123!");
+  });
+  const { result, unmount } = renderHook(() => useAuth(), {
+    wrapper: ({ children }) => <AuthProvider>{children}</AuthProvider>,
+  });
+  await waitFor(() => expect(result.current.profile?.id).toBe(profile.id));
+  fixture.api.mockRejectedValueOnce(new Error("Temporary API timeout"));
+  await act(async () => {
+    await restoreSession();
+  });
+  expect(result.current.profile?.id).toBe(profile.id);
+  unmount();
+  fixture.api.mockResolvedValue(profile);
+  const reopened = renderHook(() => useAuth(), {
+    wrapper: ({ children }) => <AuthProvider>{children}</AuthProvider>,
+  });
+  await waitFor(() => expect(reopened.result.current.error).toBe(""));
+  expect(reopened.result.current.profile?.id).toBe(profile.id);
+  fixture.api.mockResolvedValue(null);
+  await act(async () => {
+    await restoreSession();
+  });
+  expect(reopened.result.current.profile).toBeNull();
+});

@@ -161,7 +161,7 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
       assert.ok(compareSync(password, row.password_hash));
       assert.match(row.password_hash, /^\$2[ab]\$12\$/);
       assert.match(result.response.headers.get("set-cookie")!, /HttpOnly/);
-      assert.match(result.response.headers.get("set-cookie")!, /SameSite=Strict/);
+      assert.match(result.response.headers.get("set-cookie")!, /SameSite=Lax/);
       const stored = (await one<{ token_hash: string }>(
         server.db,
         "SELECT token_hash FROM sessions WHERE user_id=?",

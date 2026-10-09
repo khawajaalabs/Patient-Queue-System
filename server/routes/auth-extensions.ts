@@ -3,7 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 import { atomic, one, type Database, type UserRow } from "../db/database.ts";
-import { ApiError, publicUser, startSession } from "../middleware/auth.ts";
+import { ApiError, publicUser, startSession, authCookieOptions } from "../middleware/auth.ts";
 import type { AuthOptions, GoogleIdentity } from "../services/identity.ts";
 
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -55,15 +55,12 @@ function cookieValue(req: Request, name: string) {
 }
 function setCookie(req: Request, res: Response, name: string, token: string) {
   res.cookie(name, token, {
-    httpOnly: true,
-    secure: req.secure,
-    sameSite: "lax",
-    path: "/api/auth/google",
+    ...authCookieOptions(req, "/api/auth/google"),
     maxAge: 10 * 60000,
   });
 }
-function clearCookie(res: Response, name: string) {
-  res.clearCookie(name, { httpOnly: true, sameSite: "lax", path: "/api/auth/google" });
+function clearCookie(req: Request, res: Response, name: string) {
+  res.clearCookie(name, authCookieOptions(req, "/api/auth/google"));
 }
 export function extendedAuthRoutes(db: Database, options: AuthOptions) {
   const routes = Router();
@@ -183,7 +180,7 @@ export function extendedAuthRoutes(db: Database, options: AuthOptions) {
   });
   routes.get("/google/callback", async (req, res) => {
     res.setHeader("Referrer-Policy", "no-referrer");
-    clearCookie(res, "queuecare_oauth");
+    clearCookie(req, res, "queuecare_oauth");
     try {
       const state = await ticket(cookieValue(req, "queuecare_oauth"), "oauth", true);
       const code = z.string().min(1).max(4096).parse(req.query["code"]);
@@ -218,7 +215,7 @@ export function extendedAuthRoutes(db: Database, options: AuthOptions) {
     const user = await linkPatient(JSON.parse(pending.payload!), details);
     if (!user) throw invalid();
     await startSession(db, req, res, user.id);
-    clearCookie(res, "queuecare_google_profile");
+    clearCookie(req, res, "queuecare_google_profile");
     res.json({ success: true, data: publicUser(user) });
   });
   routes.post("/forgot-password", async (req, res) => {

@@ -29,7 +29,10 @@ export async function restoreSession() {
     if (request === revision) publish(profile);
   } catch (error) {
     if (request === revision)
-      publish(null, error instanceof Error ? error.message : "Unable to restore your session.");
+      publish(
+        state.profile,
+        error instanceof Error ? error.message : "Unable to restore your session.",
+      );
   }
 }
 export async function login(email: string, password: string) {
