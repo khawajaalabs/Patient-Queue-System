@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { hash } from "bcryptjs";
 import pg from "pg";
+import { attachDatabasePool } from "@vercel/functions";
 import { readFileSync } from "node:fs";
 import { rootCertificates } from "node:tls";
 import type { SQLInputValue } from "node:sqlite";
@@ -22,6 +23,7 @@ export async function createPostgresDatabase(
 ): Promise<Database> {
   if (!/^queuecare(?:_test_[a-f0-9]+)?$/.test(schema)) throw new Error("Invalid QueueCare schema.");
   const url = new URL(connectionString);
+  const serverless = Boolean(process.env["VERCEL"]);
   if (!["postgres:", "postgresql:"].includes(url.protocol))
     throw new Error("DATABASE_URL must be a PostgreSQL connection string.");
   // Credentials stay in the Express process. Never disable certificate verification.
@@ -36,12 +38,14 @@ export async function createPostgresDatabase(
         readFileSync(new URL("../certs/supabase-ca.crt", import.meta.url), "utf8"),
       ],
     },
-    max: process.env["VERCEL"] ? 3 : 10,
+    max: serverless ? 1 : 10,
     connectionTimeoutMillis: 15000,
-    idleTimeoutMillis: 30000,
+    idleTimeoutMillis: serverless ? 1000 : 30000,
     options: `-c search_path=${schema},pg_catalog -c statement_timeout=15000 -c idle_in_transaction_session_timeout=30000`,
   };
   const pool = new pg.Pool(connectionOptions);
+  // Keep Vercel alive until idle connections drain; timers cannot run after suspension.
+  if (serverless) attachDatabasePool(pool);
   const channel = `${schema}_updates`;
   let subscriber: pg.Client | undefined;
   let stopped = false;
@@ -95,6 +99,8 @@ export async function createPostgresDatabase(
       await query(sql);
     },
     async subscribe(listener) {
+      // Vercel uses Socket.IO invalidation plus browser refetch; never holds LISTEN sessions.
+      if (serverless) return;
       listeners.add(listener);
       if (!subscriber) await listen();
     },
@@ -107,20 +113,25 @@ export async function createPostgresDatabase(
     async transaction<T>(action: () => Promise<T>): Promise<T> {
       if (context.getStore()) throw new Error("Nested QueueCare transactions are not supported.");
       const client = await pool.connect();
+      let discard = false;
       try {
         await client.query("BEGIN");
         // Serialize queue mutations across requests/processes, including opening a new daily queue.
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`${schema}:queue`]);
         const value = await context.run(client, action);
-        // Delivered only after commit; contains no patient data. Coordinates Vercel instances.
+        // Delivered only after commit; contains no patient data. Used by persistent servers.
         await client.query("SELECT pg_notify($1, $2)", [channel, "queue:updated"]);
         await client.query("COMMIT");
         return value;
       } catch (error) {
-        await client.query("ROLLBACK");
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          discard = true;
+        }
         throw error;
       } finally {
-        client.release();
+        client.release(discard);
       }
     },
   };

@@ -191,3 +191,25 @@ it("failed queue requests show an error without inventing activity and retry rec
   await waitFor(() => expect(result.current.loadState).toBe("ready"));
   expect(result.current.mine).toBeNull();
 });
+
+it("refetches queue changes through polling without any Socket.IO event", async () => {
+  const intervals = vi.spyOn(globalThis, "setInterval");
+  let state = response;
+  fixture.api.mockImplementation(async (path: string) => (path === "/auth/me" ? profile : state));
+  const { result, unmount } = renderHook(() => useLiveQueue(), { wrapper });
+  try {
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+    const poll = intervals.mock.calls.filter((call) => call[1] === 30000).at(-1)?.[0];
+    expect(poll).toBeTypeOf("function");
+    state = {
+      ...response,
+      mine: token,
+      public: { ...publicState, waitingTokens: [{ tokenCode: token.tokenCode, queueOrder: 1 }] },
+    };
+    act(() => (poll as () => void)());
+    await waitFor(() => expect(result.current.mine?.token).toBe("A-001"));
+  } finally {
+    unmount();
+    intervals.mockRestore();
+  }
+});
