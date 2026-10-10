@@ -39,7 +39,7 @@ export function StatusPill({ status }: { status: Status }) {
   return (
     <span
       className={cn(
-        "status-pill inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
         s.cls,
       )}
     >
@@ -64,13 +64,12 @@ export function Btn({ variant = "primary", size = "md", className, ...p }: BtnPr
       {...p}
       disabled={p.disabled || pending}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all duration-250 ease-[cubic-bezier(.2,.7,.2,1)] hover:-translate-y-0.5 disabled:translate-y-0 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        size === "md" ? "min-h-11 px-5 text-xs" : "h-12 px-5 text-[15px]",
-        variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary-hover",
-        variant === "secondary" &&
-          "border border-foreground bg-transparent text-foreground hover:bg-primary hover:text-primary-foreground",
-        variant === "ghost" &&
-          "border border-foreground bg-transparent text-foreground hover:bg-primary hover:text-primary-foreground",
+        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        size === "md" ? "h-10 px-4 text-sm" : "h-12 px-5 text-[15px]",
+        variant === "primary" &&
+          "bg-primary text-primary-foreground shadow-soft hover:bg-primary-hover",
+        variant === "secondary" && "border border-border bg-card text-foreground hover:bg-muted",
+        variant === "ghost" && "text-muted-foreground hover:bg-muted hover:text-foreground",
         variant === "danger" && "text-destructive hover:bg-destructive/10",
         className,
       )}
@@ -90,16 +89,7 @@ export function PageHeader({
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-[32px] font-extrabold tracking-tight md:text-[40px]">
-          {title.includes(" ") ? (
-            <>
-              {title.slice(0, title.lastIndexOf(" ") + 1)}
-              <span className="signature-emphasis">{title.slice(title.lastIndexOf(" ") + 1)}</span>
-            </>
-          ) : (
-            title
-          )}
-        </h1>
+        <h1 className="text-[28px] font-semibold tracking-tight md:text-[32px]">{title}</h1>
         {sub && <p className="mt-1.5 text-[15px] text-muted-foreground">{sub}</p>}
       </div>
       {right}
@@ -136,7 +126,7 @@ export function Field({
       <span className="mb-1.5 block text-sm font-medium">{label}</span>
       <input
         {...p}
-        className="h-11 w-full rounded-lg border border-input bg-card px-4 text-base outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-0"
+        className="h-11 w-full rounded-lg border border-input bg-card px-3.5 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/10"
       />
     </label>
   );

@@ -165,7 +165,7 @@ function AdminLayoutContent() {
           <GlobalSearch />
           <Notifications role="admin" />
         </header>
-        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1320px] flex-1 px-5 py-8 md:px-8 md:py-10">
+        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1240px] flex-1 px-5 py-8 md:px-8 md:py-10">
           <QueueBoundary kind={pathname === "/admin" || pathname === "/admin/" ? "hero" : "list"}>
             {selected === "all" && (pathname === "/admin" || pathname === "/admin/") ? (
               <OperationalReports />

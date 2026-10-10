@@ -46,7 +46,7 @@ export function AttachmentFields({
           multiple
           accept="application/pdf,image/jpeg,image/png"
           disabled={disabled}
-          className="mt-2 block w-full text-sm file:mr-3 file:rounded-full file:border file:border-border file:bg-muted file:px-4 file:py-3"
+          className="mt-2 block w-full text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-muted file:px-4 file:py-2"
           onChange={(e) => {
             const incoming = Array.from(e.target.files ?? []);
             e.target.value = "";

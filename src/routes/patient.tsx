@@ -69,7 +69,7 @@ function PatientLayoutContent() {
           </div>
         </div>
       </header>
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[1320px] px-5 py-8 md:py-12">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-8 md:py-12">
         <nav aria-label="Patient records" className="mb-6 flex flex-wrap gap-2 print:hidden">
           {[
             { to: "/account", label: "Account & security" },

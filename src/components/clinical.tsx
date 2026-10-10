@@ -179,7 +179,7 @@ export function PrescriptionView({
         <span className="text-muted-foreground">Patient: </span>
         <strong>{visit.patientName}</strong>
       </p>
-      <p className="signature-emphasis mb-3 text-3xl" aria-label="Prescription">
+      <p className="mb-3 text-3xl font-semibold text-primary" aria-label="Prescription">
         Rx
       </p>
       <div className="overflow-x-auto">

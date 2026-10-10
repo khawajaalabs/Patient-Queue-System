@@ -119,7 +119,7 @@ function Workspace() {
         <span className="text-sm text-muted-foreground">
           {profile?.fullName} · {nurse ? "Nurse / Assistant" : "Receptionist"}
         </span>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex max-w-full flex-wrap items-center gap-3">
           <ClinicSwitcher />
           <NotificationCenter />
           <a className="text-sm text-primary" href="/account">
@@ -130,7 +130,7 @@ function Workspace() {
           </Btn>
         </div>
       </header>
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[1320px] px-5 py-8 md:px-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[1240px] px-5 py-8 md:px-8">
         <PageHeader title="Clinic workspace" sub={state?.clinic.name ?? "Assigned clinics only"} />
         <nav className="mb-6 flex flex-wrap gap-2">
           {[
