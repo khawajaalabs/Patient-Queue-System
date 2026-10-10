@@ -18,6 +18,8 @@ export async function listClinics(db: Database, includeInactive = false): Promis
 }
 const clinicSchema = z
   .object({
+    city: z.string().trim().max(120).optional(),
+    area: z.string().trim().max(120).optional(),
     name: z.string().trim().min(1).max(120),
     publicName: z.string().trim().min(1).max(120),
     address: z.string().trim().min(1).max(250),
@@ -26,9 +28,9 @@ const clinicSchema = z
     doctor: z.string().trim().min(1).max(120),
     opening: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
     closing: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-    prefix: z.string().regex(/^[A-Z]{1,5}$/),
+    prefix: z.string().optional(),
     showNext: z.boolean(),
-    avgMin: z.number().int().min(1).max(120),
+    avgMin: z.number().int().min(1).max(120).optional(),
     active: z.boolean(),
     consultationFee: z.number().int().min(0).max(10000000).nullable(),
   })
@@ -43,7 +45,17 @@ export async function saveClinic(
   return atomic(db, async () => {
     const stamp = new Date().toISOString(),
       clinicId = id ?? randomUUID();
-    if (id) await clinicValue(db, id);
+    const existing = id ? await clinicValue(db, id) : null;
+    if (!id && (!c.city || !c.area))
+      throw new ApiError(400, "LOCATION_REQUIRED", "City and area are required for a new clinic.");
+    const prefix = existing?.tokenPrefix ?? (await uniquePrefix(db, c.name));
+    const legacyAverage = id
+      ? (await one<{ average_consultation_minutes: number }>(
+          db,
+          "SELECT average_consultation_minutes FROM clinics WHERE id=?",
+          id,
+        ))!.average_consultation_minutes
+      : 5;
     if (id)
       await db
         .prepare(
@@ -58,8 +70,8 @@ export async function saveClinic(
           c.doctor,
           c.opening,
           c.closing,
-          c.avgMin,
-          c.prefix,
+          legacyAverage,
+          prefix,
           c.showNext ? 1 : 0,
           c.active ? 1 : 0,
           c.consultationFee,
@@ -81,14 +93,21 @@ export async function saveClinic(
           c.doctor,
           c.opening,
           c.closing,
-          c.avgMin,
-          c.prefix,
+          legacyAverage,
+          prefix,
           c.showNext ? 1 : 0,
           c.active ? 1 : 0,
           c.consultationFee,
           stamp,
           stamp,
         );
+    await db
+      .prepare("UPDATE clinics SET city=?,area=? WHERE id=?")
+      .run(
+        c.city === undefined ? (existing?.city ?? null) : c.city || null,
+        c.area === undefined ? (existing?.area ?? null) : c.area || null,
+        clinicId,
+      );
     return (await clinicValue(db, clinicId)) as ManagedClinic;
   });
 }
@@ -136,7 +155,11 @@ export async function allClinicsState(db: Database): Promise<AllClinicsState> {
     },
   };
 }
-export async function appointments(db: Database, clinicId?: string): Promise<Appointment[]> {
+export async function appointments(
+  db: Database,
+  clinicId?: string,
+  date?: string,
+): Promise<Appointment[]> {
   if (clinicId) await clinicValue(db, clinicId);
   const rows = await many<{
     id: string;
@@ -149,8 +172,11 @@ export async function appointments(db: Database, clinicId?: string): Promise<App
     reason: string;
   }>(
     db,
-    `SELECT a.*,CASE WHEN a.status='completed' THEN 'completed' ELSE COALESCE(w.status,a.status) END status,c.name clinic_name,u.full_name FROM appointments a JOIN clinics c ON c.id=a.clinic_id JOIN users u ON u.id=a.patient_id LEFT JOIN appointment_workflow w ON w.appointment_id=a.id ${clinicId ? "WHERE a.clinic_id=?" : ""} ORDER BY a.scheduled_at DESC LIMIT 200`,
-    ...(clinicId ? [clinicId] : []),
+    `SELECT a.*,CASE WHEN a.status='completed' THEN 'completed' ELSE COALESCE(w.status,a.status) END status,c.name clinic_name,u.full_name FROM appointments a JOIN clinics c ON c.id=a.clinic_id JOIN users u ON u.id=a.patient_id LEFT JOIN appointment_workflow w ON w.appointment_id=a.id WHERE (?='' OR a.clinic_id=?) AND (?='' OR substr(a.scheduled_at,1,10)=?) ORDER BY a.scheduled_at DESC LIMIT 200`,
+    clinicId ?? "",
+    clinicId ?? "",
+    date ?? "",
+    date ?? "",
   );
   return rows.map((a) => ({
     id: a.id,
@@ -222,4 +248,31 @@ export async function createAppointment(
     );
     return { id };
   });
+}
+
+async function uniquePrefix(db: Database, name: string) {
+  const letters =
+    name
+      .normalize("NFKD")
+      .replace(/[^a-zA-Z ]/g, "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 3) || "QC";
+  const used = new Set(
+    (await many<{ token_prefix: string }>(db, "SELECT token_prefix FROM clinics")).map(
+      (c) => c.token_prefix,
+    ),
+  );
+  if (!used.has(letters)) return letters;
+  // Letter-only deterministic suffix preserves the existing token format and five-character limit.
+  for (let n = 0; n < 676; n++) {
+    const candidate =
+      letters + String.fromCharCode(65 + Math.floor(n / 26)) + String.fromCharCode(65 + (n % 26));
+    if (!used.has(candidate)) return candidate;
+  }
+  throw new ApiError(409, "PREFIX_EXHAUSTED", "Choose a more distinctive clinic name.");
 }

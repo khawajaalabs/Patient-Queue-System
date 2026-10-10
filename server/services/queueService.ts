@@ -13,6 +13,8 @@ import type {
   PatientRow,
 } from "../../src/types/local.ts";
 interface ClinicRow {
+  city: string | null;
+  area: string | null;
   id: string;
   active: number;
   consultation_fee: number | null;
@@ -93,6 +95,8 @@ export async function clinicValue(db: Database, clinicId = "northstar"): Promise
   if (!c) throw new ApiError(404, "CLINIC_NOT_FOUND", "This clinic is unavailable.");
   return {
     id: c.id,
+    city: c.city,
+    area: c.area,
     active: Boolean(c.active),
     consultationFee: c.consultation_fee,
     name: c.name,
@@ -103,7 +107,7 @@ export async function clinicValue(db: Database, clinicId = "northstar"): Promise
     doctorName: c.doctor_name,
     openingTime: c.opening_time,
     closingTime: c.closing_time,
-    averageConsultationMinutes: c.average_consultation_minutes,
+    averageConsultationMinutes: await consultationEstimate(db, clinicId),
     tokenPrefix: c.token_prefix,
     publicDisplayShowNext: Boolean(c.public_display_show_next),
   };
@@ -552,8 +556,9 @@ export async function saveSettings(
         c.doctor,
         c.opening,
         c.closing,
-        data.avgMin,
-        c.prefix,
+        (await one<ClinicRow>(db, "SELECT * FROM clinics WHERE id=?", clinicId))!
+          .average_consultation_minutes,
+        (await one<ClinicRow>(db, "SELECT * FROM clinics WHERE id=?", clinicId))!.token_prefix,
         c.showNext ? 1 : 0,
         new Date().toISOString(),
         clinicId,
@@ -561,4 +566,23 @@ export async function saveSettings(
     if (actorId) await audit(db, actorId, "clinic.settings_updated", "clinic", clinicId, clinicId);
     return await clinicValue(db, clinicId);
   });
+}
+
+// Last 30 uninterrupted completed consultations; ignore invalid/very long timestamps.
+// Five samples required; median resists outliers, rounded and clamped to 2–30 minutes.
+// Five minutes is the internal fallback; appointment slot duration and legacy setting are unrelated.
+export async function consultationEstimate(db: Database, clinicId: string) {
+  const rows = await many<{ called_at: string; completed_at: string }>(
+    db,
+    "SELECT t.called_at,t.completed_at FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.clinic_id=? AND t.status='completed' AND t.called_at IS NOT NULL AND t.completed_at IS NOT NULL AND t.skipped_at IS NULL ORDER BY t.completed_at DESC LIMIT 30",
+    clinicId,
+  );
+  const minutes = rows
+    .map((t) => (Date.parse(t.completed_at) - Date.parse(t.called_at)) / 60000)
+    .filter((n) => Number.isFinite(n) && n >= 0.5 && n <= 120)
+    .sort((a, b) => a - b);
+  if (minutes.length < 5) return 5;
+  const mid = Math.floor(minutes.length / 2),
+    median = minutes.length % 2 ? minutes[mid]! : (minutes[mid - 1]! + minutes[mid]!) / 2;
+  return Math.min(30, Math.max(2, Math.round(median)));
 }

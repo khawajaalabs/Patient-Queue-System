@@ -87,6 +87,7 @@ test(
         "20261008000400_final_operations.sql",
         "20261009000100_doctor_availability.sql",
         "20261010000100_clinical_workflow.sql",
+        "20261011000100_workflow_simplification.sql",
       ])
         await adminQuery(
           readFileSync("supabase/migrations/" + file, "utf8").replace(/\bqueuecare\b/g, schema),
@@ -232,7 +233,7 @@ test(
       await start();
       assert.equal((await request("/auth/me", first.cookie)).data.id, first.data.id);
       assert.equal((await request("/admin/history", admin.cookie)).data.length, 3);
-      assert.equal((await request("/public/queue")).data.averageConsultationMinutes, 8);
+      assert.equal((await request("/public/queue")).data.averageConsultationMinutes, 5);
       assert.equal((await request("/auth/logout", first.cookie, {})).status, 200);
       assert.equal((await request("/auth/me", first.cookie)).data, null);
       const relogin = await request("/auth/login", "", {

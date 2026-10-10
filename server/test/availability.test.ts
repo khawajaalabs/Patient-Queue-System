@@ -72,6 +72,8 @@ test(
         doctor: "Doctor",
         opening: "09:00",
         closing: "21:00",
+        city: "Karachi",
+        area: "Test area",
         prefix: "E",
         showNext: true,
         avgMin: 5,

@@ -50,6 +50,8 @@ export function queueRoutes(db: Database, notify: Notify) {
       data: (await listClinics(db)).map((c) => ({
         id: c.id,
         name: c.name,
+        city: c.city,
+        area: c.area,
         department: c.department,
       })),
     }),

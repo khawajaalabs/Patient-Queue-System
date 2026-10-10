@@ -1,3 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { DataManagement } from "@/components/final-operations";
-export const Route = createFileRoute("/admin/data-management")({ component: DataManagement });
+import { createFileRoute, redirect } from "@tanstack/react-router";
+export const Route = createFileRoute("/admin/data-management")({
+  beforeLoad: () => {
+    throw redirect({ to: "/admin" });
+  },
+});

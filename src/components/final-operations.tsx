@@ -792,12 +792,6 @@ export function PatientSummary() {
       value: new Date(d.prescription.prescribed_at).toLocaleDateString(),
       href: "/patient/prescriptions",
     });
-  if (d.document)
-    cards.push({
-      title: "Latest released document",
-      value: d.document.title,
-      href: "/patient/documents",
-    });
   if (Number(d.bills.balance) > 0)
     cards.push({
       title: "Outstanding bills",

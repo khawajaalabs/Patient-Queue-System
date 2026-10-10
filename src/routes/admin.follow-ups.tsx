@@ -1,3 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { FollowUps } from "@/components/final-operations";
-export const Route = createFileRoute("/admin/follow-ups")({ component: FollowUps });
+import { createFileRoute, redirect } from "@tanstack/react-router";
+export const Route = createFileRoute("/admin/follow-ups")({
+  beforeLoad: () => {
+    throw redirect({ to: "/admin" });
+  },
+});

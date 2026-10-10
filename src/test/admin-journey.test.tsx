@@ -34,7 +34,7 @@ beforeEach(() => {
   actions.resetDemo();
 });
 afterEach(cleanup);
-it("demonstrates staff login, opening, drawer actions, history, patients and display", async () => {
+it("demonstrates staff login, opening, drawer actions, history and private public display", async () => {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({ component: Outlet });
   const login = createRoute({
     getParentRoute: () => root,
@@ -49,7 +49,7 @@ it("demonstrates staff login, opening, drawer actions, history, patients and dis
   const overview = createRoute({
     getParentRoute: () => admin,
     path: "/",
-    component: OverviewRoute.options.component!,
+    component: LiveQueue,
   });
   const queue = createRoute({
     getParentRoute: () => admin,
@@ -93,12 +93,12 @@ it("demonstrates staff login, opening, drawer actions, history, patients and dis
   });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: "TestPassword123!" } });
   fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-  await screen.findByRole("heading", { name: "Queue overview" });
+  await screen.findByRole("heading", { name: "Live queue" });
   act(() => actions.demo("no-queue"));
   fireEvent.click(screen.getByRole("button", { name: "Open today's queue" }));
   expect(screen.getByText("Queue open")).toBeInTheDocument();
   act(() => actions.resetDemo());
-  fireEvent.click(screen.getByRole("link", { name: "Manage full queue" }));
+  fireEvent.click(screen.getByRole("link", { name: "Live Queue" }));
   await screen.findByRole("heading", { name: "Live queue" });
   fireEvent.click(screen.getByRole("button", { name: "A-020 Sara Ali" }));
   const drawer = await screen.findByRole("dialog");
@@ -109,28 +109,25 @@ it("demonstrates staff login, opening, drawer actions, history, patients and dis
   fireEvent.click(within(drawer).getByRole("button", { name: "Close" }));
   fireEvent.click(screen.getByRole("button", { name: "Call next" }));
   expect(screen.getByText("A-021", { selector: "dd" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("link", { name: "Queue History" }));
+  await act(async () => {
+    await router.navigate({ to: "/admin/history" });
+  });
   await screen.findByRole("heading", { name: "Queue history" });
   expect(screen.getByText("Sara Ali")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
-  const navigation = await screen.findByRole("dialog");
-  fireEvent.click(within(navigation).getByRole("link", { name: "Patients" }));
-  await screen.findByRole("heading", { name: "Patients" });
-  fireEvent.change(screen.getByRole("textbox", { name: "Search patients" }), {
-    target: { value: "Sara" },
-  });
-  expect(screen.getByText("Sara Ali")).toBeInTheDocument();
-  expect(screen.queryByText("Ahmed Khan")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("link", { name: "Settings" }));
-  await screen.findByRole("heading", { name: "Settings" });
-  fireEvent.change(screen.getByRole("textbox", { name: "Public clinic name" }), {
-    target: { value: "Northstar Reception" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+  for (const name of [
+    "Activity",
+    "Follow-ups",
+    "Branding",
+    "Account",
+    "Data Management",
+    "Settings",
+  ]) {
+    expect(screen.queryByRole("link", { name })).toBeNull();
+  }
   await act(async () => {
     await router.navigate({ to: "/public-display" });
   });
-  expect(screen.getByText("Northstar Reception")).toBeInTheDocument();
+  expect(screen.getByText("Northstar Medical Clinic")).toBeInTheDocument();
   expect(screen.getByText("A-021")).toBeInTheDocument();
   expect(screen.queryByText("Usman Ahmed")).not.toBeInTheDocument();
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();

@@ -1,3 +1,4 @@
+import { NextPatient } from "@/components/next-patient";
 import { DoctorSnapshot } from "@/components/doctor-snapshot";
 import { PrescriptionPreview } from "@/components/prescription-preview";
 import { DocumentsPanel } from "@/components/documents-panel";
@@ -67,6 +68,12 @@ function Consultation() {
           />
         ) : (
           <>
+            <div className="mb-6 flex flex-wrap items-center gap-4">
+              <a href={"/admin?clinicId=" + v.clinicId}>
+                <Btn>Back to today’s queue</Btn>
+              </a>
+              <NextPatient clinicId={v.clinicId} patientId={v.patientId} />
+            </div>
             <div className="surface grid gap-5 p-6 md:grid-cols-2">
               {noteFields.map(([key, label]) => (
                 <div key={key}>

@@ -1,27 +1,27 @@
+import { AppointmentRows, todayKey } from "@/components/appointment-rows";
+import type { FlowAppointment } from "@/types/workflow";
 import { DoctorSnapshot } from "@/components/doctor-snapshot";
-import { appointmentTimeLabel } from "@/lib/appointment-time";
 import { AppointmentSlotPicker } from "@/components/appointment-slot-picker";
 import { SelectField } from "@/components/form-controls";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
 import { useAuth } from "@/providers/auth-provider";
 import { useClinicContext } from "@/providers/clinic-provider";
-import { ClinicalLoading, StartConsultation, useClinicalData } from "@/components/clinical";
+import { ClinicalLoading, useClinicalData } from "@/components/clinical";
 import { Btn, Field, PageHeader } from "@/components/qc";
 import { PatientPicker } from "@/components/patient-picker";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { friendlyError } from "@/services/errors";
 import type { Appointment } from "@/types/local";
-const dayKey = (d: Date) =>
-  [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-");
 export function AppointmentCalendar() {
   const { selected } = useClinicContext(),
     { profile } = useAuth(),
-    [view, setView] = useState("week"),
+    [view, setView] = useState(() =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("view") === "upcoming"
+        ? "upcoming"
+        : "day",
+    ),
     [date, setDate] = useState(() =>
       new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Karachi",
@@ -38,8 +38,8 @@ export function AppointmentCalendar() {
     typeof window === "undefined"
       ? null
       : new URLSearchParams(window.location.search).get("appointmentId");
-  const remote = useClinicalData<Appointment[]>(
-      "/schedule?clinicId=" + encodeURIComponent(selected),
+  const remote = useClinicalData<FlowAppointment[]>(
+      "/admin/appointment-flow?clinicId=" + encodeURIComponent(selected),
     ),
     admin = profile?.role === "admin";
   useEffect(() => {
@@ -57,31 +57,22 @@ export function AppointmentCalendar() {
   useEffect(() => {
     const found = remote.data?.find((a) => a.id === target);
     if (found) {
-      setView("list");
+      setView("day");
       setDate(found.scheduledAt.slice(0, 10));
     }
   }, [remote.data, target]);
-  const start = new Date(date + "T12:00:00"),
-    end = new Date(start);
-  if (view === "week") {
-    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-    end.setTime(+start);
-    end.setDate(end.getDate() + 6);
-  } else if (view === "month") {
-    start.setDate(1);
-    end.setMonth(end.getMonth() + 1, 0);
-  }
   const filtered = remote.data
     ?.filter(
       (a) =>
         (!status || a.status === status) &&
-        (view === "list" ||
-          (a.scheduledAt.slice(0, 10) >= dayKey(start) &&
-            a.scheduledAt.slice(0, 10) <= dayKey(end))),
+        (view === "day"
+          ? a.scheduledAt.startsWith(date)
+          : view === "upcoming"
+            ? a.scheduledAt.slice(0, 10) > todayKey()
+            : a.scheduledAt.slice(0, 10) < todayKey() ||
+              ["completed", "cancelled", "no_show"].includes(a.status)),
     )
     .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
-  const days: Date[] = [];
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) days.push(new Date(d));
   async function action(a: Appointment, target: string, time = a.scheduledAt) {
     setBusy(true);
     setError("");
@@ -99,78 +90,65 @@ export function AppointmentCalendar() {
       setBusy(false);
     }
   }
-  function card(a: Appointment) {
-    return (
-      <article
-        key={a.id}
-        id={"appointment-" + a.id}
-        className={
-          "min-w-0 rounded-lg border bg-card p-3 " +
-          (a.id === target ? "border-primary ring-1 ring-primary" : "border-border")
-        }
-      >
-        <p className="break-words text-sm font-medium">{a.patientName}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {a.scheduledAt.slice(0, 10)} {appointmentTimeLabel(a.scheduledAt.slice(11))} ·{" "}
-          {a.clinicName}
-        </p>
-        <p className="mt-1 text-xs">{a.status.replaceAll("_", " ")}</p>
-        {!["completed", "cancelled", "no_show"].includes(a.status) && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Btn variant="secondary" disabled={busy} onClick={() => setEdit(a)}>
-              Manage
-            </Btn>
-            {admin && (
-              <StartConsultation
-                patientId={a.patientId}
-                clinicId={a.clinicId}
-                appointmentId={a.id}
-              />
-            )}
-          </div>
-        )}
-      </article>
-    );
-  }
   return (
     <>
       <PageHeader
         title="Appointments"
-        sub="Schedule in clinic local time. Doctor availability and appointment duration apply."
+        sub="Today → patient → consultation."
         right={selected !== "all" && <Btn onClick={() => setEdit("new")}>Add appointment</Btn>}
       />
-      <div className="surface mb-5 flex flex-wrap items-end gap-3 p-4">
-        {["day", "week", "month", "list"].map((v) => (
-          <Btn variant={view === v ? "primary" : "secondary"} key={v} onClick={() => setView(v)}>
-            {v}
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        {[
+          ["day", "Today"],
+          ["upcoming", "Upcoming"],
+          ["past", "Past / completed"],
+        ].map(([v, label]) => (
+          <Btn
+            key={v}
+            variant={view === v ? "secondary" : "ghost"}
+            onClick={() => {
+              setView(v!);
+              if (v === "day") setDate(todayKey());
+            }}
+          >
+            {label}
           </Btn>
         ))}
-        <Field
-          label="Date"
-          type="date"
-          value={date}
-          onChange={(e) => {
-            if (e.target.value) setDate(e.target.value);
-          }}
-        />
-        <label className="text-sm">
-          Status
-          <SelectField
-            className="ml-2 rounded-lg border border-input bg-card p-2"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="">All statuses</option>
-            {["scheduled", "confirmed", "checked_in", "completed", "cancelled", "no_show"].map(
-              (s) => (
-                <option key={s}>{s}</option>
-              ),
+        <details className="w-full">
+          <summary className="cursor-pointer text-sm text-primary">Date and status filters</summary>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            {view === "day" && (
+              <Field
+                label="Date"
+                type="date"
+                value={date}
+                onChange={(e) => {
+                  if (e.target.value) setDate(e.target.value);
+                }}
+              />
             )}
-          </SelectField>
-        </label>
-        <Btn variant="secondary" onClick={remote.reload}>
-          Refresh
-        </Btn>
+            <label className="text-sm">
+              Status
+              <SelectField
+                aria-label="Appointment status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">All statuses</option>
+                {["scheduled", "confirmed", "checked_in", "completed", "cancelled", "no_show"].map(
+                  (v) => (
+                    <option key={v} value={v}>
+                      {v.replaceAll("_", " ")}
+                    </option>
+                  ),
+                )}
+              </SelectField>
+            </label>
+            <Btn variant="ghost" onClick={remote.reload}>
+              Refresh
+            </Btn>
+          </div>
+        </details>
       </div>
       {error && (
         <p role="alert" className="mb-4 text-sm text-destructive">
@@ -179,40 +157,24 @@ export function AppointmentCalendar() {
       )}
       {!remote.data ? (
         <ClinicalLoading error={remote.error} retry={remote.reload} />
-      ) : view === "list" ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {filtered?.map(card)}
+      ) : (
+        <div className="surface">
+          <AppointmentRows items={filtered ?? []} onChanged={remote.reload} onOpen={setEdit} />
           {!filtered?.length && (
-            <p className="surface p-6 text-sm">No appointments match these filters.</p>
+            <div className="p-6 text-sm text-muted-foreground">
+              <p>
+                {view === "day"
+                  ? "No appointments are scheduled for this date."
+                  : "No appointments match these filters."}
+              </p>
+              {view === "day" && (
+                <button className="mt-3 text-primary" onClick={() => setView("upcoming")}>
+                  View upcoming →
+                </button>
+              )}
+            </div>
           )}
         </div>
-      ) : (
-        <>
-          <div
-            className={
-              "grid gap-3 " +
-              (view === "day" ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-7")
-            }
-          >
-            {days.map((d) => (
-              <section key={dayKey(d)} className="surface min-w-0 p-3">
-                <h2 className="mb-3 text-sm font-semibold">
-                  {d.toLocaleDateString("en-GB", {
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                  })}
-                </h2>
-                <div className="space-y-2">
-                  {filtered?.filter((a) => a.scheduledAt.startsWith(dayKey(d))).map(card)}
-                  {!filtered?.some((a) => a.scheduledAt.startsWith(dayKey(d))) && (
-                    <p className="text-xs text-muted-foreground">No appointments</p>
-                  )}
-                </div>
-              </section>
-            ))}
-          </div>
-        </>
       )}
       <Dialog
         open={!!edit}
@@ -235,50 +197,54 @@ export function AppointmentCalendar() {
               {error}
             </p>
           )}
-          <form
-            key={edit === "new" ? "new" : edit?.id}
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget),
-                time = String(f.get("scheduledAt"));
-              if (edit && edit !== "new") {
-                void action(edit, "scheduled", time);
-                return;
-              }
-              setBusy(true);
-              setError("");
-              void api(
-                (admin ? "/admin/appointments" : "/staff/appointments") +
-                  "?clinicId=" +
-                  encodeURIComponent(selected),
-                {
-                  method: "POST",
-                  body: {
-                    patientId: String(f.get("patientId")),
-                    scheduledAt: time,
-                    reason: String(f.get("reason") ?? ""),
+          {(edit === "new" ||
+            (edit &&
+              !["completed", "cancelled", "no_show", "checked_in"].includes(edit.status))) && (
+            <form
+              key={edit === "new" ? "new" : edit?.id}
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget),
+                  time = String(f.get("scheduledAt"));
+                if (edit && edit !== "new") {
+                  void action(edit, "scheduled", time);
+                  return;
+                }
+                setBusy(true);
+                setError("");
+                void api(
+                  (admin ? "/admin/appointments" : "/staff/appointments") +
+                    "?clinicId=" +
+                    encodeURIComponent(selected),
+                  {
+                    method: "POST",
+                    body: {
+                      patientId: String(f.get("patientId")),
+                      scheduledAt: time,
+                      reason: String(f.get("reason") ?? ""),
+                    },
                   },
-                },
-              )
-                .then(() => {
-                  setEdit(null);
-                  remote.reload();
-                })
-                .catch((e) => setError(friendlyError(e)))
-                .finally(() => setBusy(false));
-            }}
-          >
-            {edit === "new" && <PatientPicker />}
-            <AppointmentSlotPicker
-              clinicId={edit && edit !== "new" ? edit.clinicId : selected}
-              exclude={edit && edit !== "new" ? edit.id : undefined}
-              defaultValue={edit && edit !== "new" ? edit.scheduledAt : date}
-              refresh={error ? 1 : 0}
-            />
-            {edit === "new" && <Field label="Reason (optional)" name="reason" maxLength={300} />}
-            <Btn disabled={busy}>{edit === "new" ? "Book appointment" : "Reschedule"}</Btn>
-          </form>
+                )
+                  .then(() => {
+                    setEdit(null);
+                    remote.reload();
+                  })
+                  .catch((e) => setError(friendlyError(e)))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              {edit === "new" && <PatientPicker />}
+              <AppointmentSlotPicker
+                clinicId={edit && edit !== "new" ? edit.clinicId : selected}
+                exclude={edit && edit !== "new" ? edit.id : undefined}
+                defaultValue={edit && edit !== "new" ? edit.scheduledAt : date}
+                refresh={error ? 1 : 0}
+              />
+              {edit === "new" && <Field label="Reason (optional)" name="reason" maxLength={300} />}
+              <Btn disabled={busy}>{edit === "new" ? "Book appointment" : "Reschedule"}</Btn>
+            </form>
+          )}
           {edit && edit !== "new" && (
             <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
               {[
@@ -286,16 +252,28 @@ export function AppointmentCalendar() {
                 ["checked_in", "Check in"],
                 ["no_show", "Mark no-show"],
                 ["cancelled", "Cancel appointment"],
-              ].map(([s, label]) => (
-                <Btn
-                  variant="secondary"
-                  disabled={busy}
-                  key={s}
-                  onClick={() => void action(edit, s!)}
-                >
-                  {label}
-                </Btn>
-              ))}
+              ]
+                .filter(([state]) =>
+                  state === "confirmed"
+                    ? edit.status === "scheduled"
+                    : state === "checked_in"
+                      ? ["scheduled", "confirmed"].includes(edit.status) &&
+                        edit.scheduledAt.startsWith(todayKey())
+                      : state === "no_show"
+                        ? ["scheduled", "confirmed"].includes(edit.status) &&
+                          edit.scheduledAt.slice(0, 10) <= todayKey()
+                        : !["completed", "cancelled", "no_show"].includes(edit.status),
+                )
+                .map(([s, label]) => (
+                  <Btn
+                    variant="secondary"
+                    disabled={busy}
+                    key={s}
+                    onClick={() => void action(edit, s!)}
+                  >
+                    {label}
+                  </Btn>
+                ))}
             </div>
           )}
         </DialogContent>

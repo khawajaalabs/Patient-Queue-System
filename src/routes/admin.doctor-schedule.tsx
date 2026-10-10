@@ -185,8 +185,14 @@ export function DoctorSchedule() {
           )}
           {saved && (
             <p role="status" className="text-sm text-primary">
-              Doctor schedule saved.
+              Patients can now book available appointment times.
             </p>
+          )}
+          {saved && (
+            <div className="flex flex-wrap gap-4 text-sm text-primary">
+              <a href={"/admin/appointments?clinicId=" + selected}>View appointments</a>
+              <a href="/admin">Back to dashboard</a>
+            </div>
           )}
           <Btn disabled={busy}>{busy ? "Saving…" : "Save schedule"}</Btn>
         </form>

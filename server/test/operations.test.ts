@@ -134,6 +134,8 @@ test(
         opening: "09:00",
         closing: "17:00",
         avgMin: 10,
+        city: "Karachi",
+        area: "Test area",
         prefix: "B",
         showNext: true,
         consultationFee: 1500,

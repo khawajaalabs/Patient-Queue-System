@@ -1,0 +1,15 @@
+SET search_path TO queuecare,pg_catalog;
+ALTER TABLE clinics ADD COLUMN city TEXT CHECK(city IS NULL OR length(city)<=120);
+ALTER TABLE clinics ADD COLUMN area TEXT CHECK(area IS NULL OR length(area)<=120);
+CREATE INDEX clinics_location ON clinics(city,area,active);
+CREATE TABLE conditions (id TEXT PRIMARY KEY, name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 120), normalized_name TEXT NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)), created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE patient_conditions (id TEXT PRIMARY KEY, patient_id TEXT NOT NULL REFERENCES users(id), condition_id TEXT NOT NULL REFERENCES conditions(id), source TEXT NOT NULL DEFAULT 'manual' CHECK(source='manual'), recorded_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(patient_id,condition_id));
+CREATE INDEX patient_conditions_condition ON patient_conditions(condition_id,patient_id);
+CREATE INDEX patient_conditions_patient ON patient_conditions(patient_id,created_at);
+ALTER TABLE conditions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_conditions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON conditions,patient_conditions FROM PUBLIC,anon,authenticated;
+CREATE POLICY express_backend ON conditions FOR ALL TO queuecare_backend USING(true) WITH CHECK(true);
+CREATE POLICY express_backend ON patient_conditions FOR ALL TO queuecare_backend USING(true) WITH CHECK(true);
+GRANT SELECT,INSERT,UPDATE,DELETE ON conditions,patient_conditions TO queuecare_backend;
+RESET search_path;

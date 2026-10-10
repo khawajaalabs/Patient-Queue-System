@@ -452,7 +452,7 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
       },
     );
     await t.test(
-      "settings validate and update private/public data and future token prefix",
+      "settings validate and update private/public data and preserve internal token prefix",
       async () => {
         const current = (await request<ClinicConfig>("/clinic", admin)).data;
         const clinic = {
@@ -479,7 +479,7 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
         assert.equal(pub.displayName, "Updated Reception");
         assert.deepEqual(pub.nextTokens, []);
         const issued = (await request<QueueToken>("/patient/token", patient, {})).data;
-        assert.equal(issued.tokenCode, "QC-008");
+        assert.equal(issued.tokenCode, "A-008");
         assert.equal(issued.department, "Local OPD");
       },
     );
@@ -513,7 +513,7 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
         const state = (await request<QueueResponse>("/admin/state", admin)).data;
         assert.equal(state.queue.length, 8);
         assert.equal(state.clinic.name, "Updated Local Clinic");
-        assert.equal(state.clinic.averageConsultationMinutes, 8);
+        assert.equal(state.clinic.averageConsultationMinutes, 5);
         assert.equal((await request<UserProfile>("/auth/me", patient)).data.id, user.id);
       },
     );

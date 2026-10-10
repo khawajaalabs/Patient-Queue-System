@@ -196,6 +196,8 @@ test("clinical workflow: global profiles, structured notes/vitals/prescriptions,
         doctor: "Main Doctor",
         opening: "09:00",
         closing: "17:00",
+        city: "Karachi",
+        area: "Test area",
         prefix: "B",
         showNext: true,
         avgMin: 5,
@@ -275,7 +277,7 @@ test("additive clinical migration backfills existing patient profiles without ch
     );
     const original = JSON.stringify(db.prepare("SELECT * FROM users ORDER BY id").all());
     db.exec(
-      "DROP TABLE prescription_item_details; DROP TABLE medicine_catalog; DROP TABLE appointment_attachments; DROP TABLE appointment_context; DROP TABLE appointment_slots; DROP TABLE doctor_availability; DROP TABLE email_delivery_log; DROP TABLE follow_up_actions; DROP TABLE appointment_workflow; DROP TABLE clinic_branding; DROP TABLE doctor_profiles; DROP TABLE audit_logs; DROP TABLE notifications; DROP TABLE payments; DROP TABLE invoice_items; DROP TABLE invoices; DROP TABLE patient_documents; DROP TABLE staff_clinics; DROP TABLE staff_profiles; DROP TABLE prescription_items; DROP TABLE prescriptions; DROP TABLE visit_vitals; DROP TABLE encounters; DROP TABLE patient_profiles; DROP INDEX appointments_identity_clinic; PRAGMA user_version=3;",
+      "DROP TABLE patient_conditions; DROP TABLE conditions; DROP INDEX clinics_location; ALTER TABLE clinics DROP COLUMN city; ALTER TABLE clinics DROP COLUMN area; DROP TABLE prescription_item_details; DROP TABLE medicine_catalog; DROP TABLE appointment_attachments; DROP TABLE appointment_context; DROP TABLE appointment_slots; DROP TABLE doctor_availability; DROP TABLE email_delivery_log; DROP TABLE follow_up_actions; DROP TABLE appointment_workflow; DROP TABLE clinic_branding; DROP TABLE doctor_profiles; DROP TABLE audit_logs; DROP TABLE notifications; DROP TABLE payments; DROP TABLE invoice_items; DROP TABLE invoices; DROP TABLE patient_documents; DROP TABLE staff_clinics; DROP TABLE staff_profiles; DROP TABLE prescription_items; DROP TABLE prescriptions; DROP TABLE visit_vitals; DROP TABLE encounters; DROP TABLE patient_profiles; DROP INDEX appointments_identity_clinic; PRAGMA user_version=3;",
     );
     migrate(db);
     assert.equal(JSON.stringify(db.prepare("SELECT * FROM users ORDER BY id").all()), original);

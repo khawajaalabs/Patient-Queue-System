@@ -1,12 +1,7 @@
-import {
-  AttachmentFields,
-  uploadAppointmentFiles,
-  type SelectedAttachment,
-} from "@/components/appointment-files";
+import { ClinicLocationPicker } from "@/components/clinic-location-picker";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, Btn, Field } from "@/components/qc";
 import { useState } from "react";
-import { SelectField } from "@/components/form-controls";
 import { appointmentTimeLabel } from "@/lib/appointment-time";
 import { AppointmentSlotPicker } from "@/components/appointment-slot-picker";
 import { useClinicContext } from "@/providers/clinic-provider";
@@ -25,10 +20,8 @@ export function Appointments() {
       new URLSearchParams(window.location.search).get("book") === "1",
   );
   const [clinicId, setClinicId] = useState(selected === "all" ? "" : selected);
-  const [files, setFiles] = useState<SelectedAttachment[]>([]),
-    [notes, setNotes] = useState(""),
-    [review, setReview] = useState<{ scheduledAt: string; reason: string } | null>(null),
-    [createdId, setCreatedId] = useState("");
+  const [notes, setNotes] = useState(""),
+    [review, setReview] = useState<{ scheduledAt: string; reason: string } | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0);
@@ -41,8 +34,6 @@ export function Appointments() {
             setBooking(true);
             setError("");
             setReview(null);
-            setCreatedId("");
-            setFiles([]);
             setNotes("");
           }}
         >
@@ -93,38 +84,22 @@ export function Appointments() {
               setBusy(true);
               setError("");
               void (async () => {
-                const id =
-                  createdId ||
-                  (
-                    await api<{ id: string }>("/patient/appointments", {
-                      method: "POST",
-                      body: {
-                        clinicId,
-                        scheduledAt: review.scheduledAt,
-                        reason: review.reason,
-                        patientNotes: notes,
-                      },
-                    })
-                  ).id;
-                setCreatedId(id);
-                const failed = await uploadAppointmentFiles(id, files, (key, state, error = "") =>
-                  setFiles((current) =>
-                    current.map((file) => (file.key === key ? { ...file, state, error } : file)),
-                  ),
-                );
+                await api("/patient/appointments", {
+                  method: "POST",
+                  body: {
+                    clinicId,
+                    scheduledAt: review.scheduledAt,
+                    reason: review.reason,
+                    patientNotes: notes,
+                  },
+                });
                 remote.reload();
                 window.dispatchEvent(new Event("queuecare:refresh"));
-                if (failed) {
-                  setError(
-                    "Your appointment is booked. Retry the files that failed, or open its details later.",
-                  );
-                  return;
-                }
                 setBooking(false);
               })()
                 .catch((e) => {
                   setError(friendlyError(e));
-                  if (!createdId) {
+                  {
                     setReview(null);
                     setRefresh((n) => n + 1);
                   }
@@ -133,28 +108,13 @@ export function Appointments() {
             }}
           >
             <div hidden={!!review}>
-              <label className="block space-y-1.5 text-sm font-medium">
-                Clinic
-                <SelectField
-                  className="w-full"
-                  required
-                  aria-label="Clinic"
-                  value={clinicId}
-                  onChange={(e) => {
-                    setClinicId(e.target.value);
-                    setError("");
-                  }}
-                >
-                  <option value="">Select a clinic</option>
-                  {clinics
-                    .filter((c) => c.active !== false)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                </SelectField>
-              </label>
+              <ClinicLocationPicker
+                value={clinicId}
+                onChange={(v) => {
+                  setClinicId(v);
+                  setError("");
+                }}
+              />
               {clinicId && <AppointmentSlotPicker clinicId={clinicId} refresh={refresh} />}
               <Field label="Reason for appointment (optional)" name="reason" maxLength={300} />
               <label className="mt-4 block text-sm">
@@ -178,7 +138,7 @@ export function Appointments() {
                 </p>
                 <p className="break-words">{review.reason || "No reason provided"}</p>
                 <p className="whitespace-pre-wrap break-words">{notes}</p>
-                {!createdId && (
+                {
                   <Btn
                     type="button"
                     variant="ghost"
@@ -187,28 +147,16 @@ export function Appointments() {
                   >
                     Back to edit
                   </Btn>
-                )}
-                {createdId && (
-                  <a href={`/patient/appointment/${createdId}`} className="underline">
-                    Open booked appointment
-                  </a>
-                )}
+                }
               </section>
             )}
-            <AttachmentFields files={files} onChange={setFiles} disabled={busy || !!createdId} />
             {error && (
               <p role="alert" className="text-sm text-destructive">
                 {error}
               </p>
             )}
             <Btn disabled={busy || !clinicId}>
-              {busy
-                ? "Booking and uploading…"
-                : createdId
-                  ? "Retry failed files"
-                  : review
-                    ? "Confirm booking"
-                    : "Review booking"}
+              {busy ? "Booking…" : review ? "Confirm booking" : "Review booking"}
             </Btn>
           </form>
         </DialogContent>

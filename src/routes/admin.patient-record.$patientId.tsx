@@ -1,3 +1,4 @@
+import { PatientConditions } from "@/components/patient-conditions";
 import { SelectField } from "@/components/form-controls";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -27,6 +28,14 @@ function PatientRecord() {
     [error, setError] = useState("");
   if (!record.data) return <ClinicalLoading error={record.error} retry={record.reload} />;
   const { profile: p, visits, queueHistory } = record.data;
+  const search =
+      typeof window === "undefined"
+        ? new URLSearchParams()
+        : new URLSearchParams(window.location.search),
+    appointmentId = search.get("appointmentId") ?? undefined,
+    tokenId = search.get("tokenId") ?? undefined;
+  const current = visits.find((v) => v.status === "in_progress" && v.clinicId === selected),
+    token = queueHistory.find((t) => t.id === tokenId);
   const save = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -55,7 +64,24 @@ function PatientRecord() {
       <PageHeader
         title={p.fullName}
         sub="Global patient record · history across all clinics"
-        right={<StartConsultation patientId={p.id} clinicId={selected} />}
+        right={
+          current ? (
+            <a href={"/admin/visits/" + current.id}>
+              <Btn>Continue consultation</Btn>
+            </a>
+          ) : token && token.status !== "serving" ? (
+            <a href={"/admin/live-queue?clinicId=" + selected}>
+              <Btn>Open queue to call patient</Btn>
+            </a>
+          ) : (
+            <StartConsultation
+              patientId={p.id}
+              clinicId={selected}
+              tokenId={tokenId}
+              appointmentId={appointmentId}
+            />
+          )
+        }
       />
       <section className="surface mb-6 p-6">
         <h2 className="mb-4 text-lg font-semibold">Patient overview</h2>
@@ -76,6 +102,7 @@ function PatientRecord() {
           ))}
         </dl>
       </section>
+      <PatientConditions patientId={p.id} />
       <form onSubmit={save} className="surface mb-8 p-6">
         <h2 className="mb-5 text-lg font-semibold">Relevant clinical information</h2>
         <div className="grid gap-5 md:grid-cols-2">
@@ -105,7 +132,7 @@ function PatientRecord() {
             {error}
           </p>
         )}
-        <Btn className="mt-5" disabled={busy}>
+        <Btn variant="secondary" className="mt-5" disabled={busy}>
           Save clinical information
         </Btn>
       </form>

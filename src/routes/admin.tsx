@@ -1,4 +1,4 @@
-import { GlobalSearch, OperationalReports } from "@/components/final-operations";
+import { GlobalSearch } from "@/components/final-operations";
 import { ClinicSwitcher, useClinicContext } from "@/providers/clinic-provider";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/providers/auth-provider";
@@ -21,24 +21,16 @@ import {
 
 export const Route = createFileRoute("/admin")({ component: AdminLayout });
 const nav = [
-  { to: "/admin", label: "Overview", icon: LayoutGrid, exact: true },
-  { to: "/admin/live-queue", label: "Live Queue", icon: ListOrdered },
-  { to: "/admin/history", label: "Queue History", icon: History },
-  { to: "/admin/patients", label: "Patients", icon: Users },
-  { to: "/admin/clinics", label: "Clinics", icon: LayoutGrid },
+  { to: "/admin", label: "Home", icon: LayoutGrid, exact: true },
   { to: "/admin/appointments", label: "Appointments", icon: History },
+  { to: "/admin/live-queue", label: "Live Queue", icon: ListOrdered },
+  { to: "/admin/patients", label: "Patients", icon: Users },
+  { to: "/admin/medicine-library", label: "Medicine Library", icon: ListOrdered },
+  { to: "/admin/clinics", label: "Clinics", icon: LayoutGrid },
   { to: "/admin/doctor-schedule", label: "Doctor Schedule", icon: History },
   { to: "/admin/staff", label: "Staff", icon: Users },
   { to: "/admin/billing", label: "Billing", icon: ListOrdered },
-  { to: "/admin/medicine-library", label: "Medicine Library", icon: ListOrdered },
-  { to: "/admin/documents", label: "Documents", icon: History },
-  { to: "/admin/activity", label: "Activity", icon: History },
-  { to: "/admin/follow-ups", label: "follow ups", icon: Settings },
-  { to: "/admin/reports", label: "reports", icon: Settings },
-  { to: "/admin/branding", label: "branding", icon: Settings },
-  { to: "/admin/account", label: "account", icon: Settings },
-  { to: "/admin/data-management", label: "data management", icon: Settings },
-  { to: "/admin/settings", label: "Settings", icon: Settings },
+  { to: "/admin/reports", label: "Reports", icon: Settings },
 ] as const;
 function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
   const { selected } = useClinicContext();
@@ -164,27 +156,30 @@ function AdminLayoutContent() {
           </span>
           <GlobalSearch />
           <Notifications role="admin" />
+          <button
+            aria-label="Logout"
+            className="shrink-0 rounded-lg px-2 py-2 text-sm hover:bg-muted"
+            onClick={() => void runAction(logout, "Signed out.")}
+          >
+            Logout
+          </button>
         </header>
-        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1240px] flex-1 px-5 py-8 md:px-8 md:py-10">
-          <QueueBoundary kind={pathname === "/admin" || pathname === "/admin/" ? "hero" : "list"}>
-            {selected === "all" && (pathname === "/admin" || pathname === "/admin/") ? (
-              <OperationalReports />
-            ) : selected === "all" &&
-              ["/admin/queue", "/admin/live-queue", "/admin/settings"].includes(pathname) ? (
-              <p className="surface p-8 text-sm text-muted-foreground">
-                Choose a clinic above to manage its queue or settings.
-              </p>
-            ) : (
-              <>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-[1240px] flex-1 px-5 py-8 md:px-8 md:py-10"
+        >
+          {pathname === "/admin" || pathname === "/admin/" ? (
+            <Outlet />
+          ) : (
+            <QueueBoundary kind={pathname === "/admin" || pathname === "/admin/" ? "hero" : "list"}>
+              {selected === "all" && ["/admin/queue", "/admin/live-queue"].includes(pathname) ? (
+                <p className="surface p-6">Choose a clinic above to manage its queue.</p>
+              ) : (
                 <Outlet />
-                {(pathname === "/admin" || pathname === "/admin/") && (
-                  <section className="mt-10">
-                    <OperationalReports />
-                  </section>
-                )}
-              </>
-            )}
-          </QueueBoundary>
+              )}
+            </QueueBoundary>
+          )}
         </main>
       </div>
     </div>

@@ -11,6 +11,8 @@ export interface UserProfile {
   clinicId?: string;
 }
 export interface ClinicConfig {
+  city?: string | null;
+  area?: string | null;
   id?: string;
   active?: boolean;
   consultationFee?: number | null;

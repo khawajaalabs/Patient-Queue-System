@@ -40,6 +40,8 @@ test("clinics isolate queues, retain global patients/history, and deactivate wit
       doctor: "Main Doctor",
       opening: "09:00",
       closing: "17:00",
+      city: "Karachi",
+      area: "Test area",
       prefix: "A",
       showNext: true,
       avgMin: 10,
@@ -52,10 +54,10 @@ test("clinics isolate queues, retain global patients/history, and deactivate wit
     const first = await mutateQueue(db, patient, "join", { reason: "First" }, "northstar");
     const second = await mutateQueue(db, patient, "join", { reason: "Second" }, branch.id);
     assert.equal("tokenCode" in first && first.tokenCode, "A-001");
-    assert.equal("tokenCode" in second && second.tokenCode, "A-001");
+    assert.equal("tokenCode" in second && second.tokenCode, `${branch.tokenPrefix}-001`);
     await mutateQueue(db, admin, "callNext", {}, branch.id);
     assert.equal((await publicQueue(db, "northstar")).currentToken, null);
-    assert.equal((await publicQueue(db, branch.id)).currentToken, "A-001");
+    assert.equal((await publicQueue(db, branch.id)).currentToken, `${branch.tokenPrefix}-001`);
     await mutateQueue(db, admin, "done", {}, branch.id);
     const history = (await patientState(db, patient.id, branch.id)).history;
     assert.equal(history.length, 2);
@@ -87,6 +89,8 @@ test("clinics isolate queues, retain global patients/history, and deactivate wit
         doctor: "Main Doctor",
         opening: "09:00",
         closing: "17:00",
+        city: "Karachi",
+        area: "Test area",
         prefix: "A",
         showNext: true,
         avgMin: 10,
@@ -155,6 +159,8 @@ test("clinic API enforces admin access and selected-clinic writes; public and pa
       doctor: "Main Doctor",
       opening: "09:00",
       closing: "17:00",
+      city: "Karachi",
+      area: "Test area",
       prefix: "D",
       showNext: true,
       avgMin: 7,
@@ -176,7 +182,7 @@ test("clinic API enforces admin access and selected-clinic writes; public and pa
     assert.equal(
       (await request("/patient/token" + scope, patient.cookie, { reason: "Private reason" })).data
         .tokenCode,
-      "D-001",
+      `${branch.data.tokenPrefix}-001`,
     );
     assert.equal(
       (await request("/admin/queue/call-next?clinicId=northstar", admin.cookie, {})).status,
@@ -184,7 +190,7 @@ test("clinic API enforces admin access and selected-clinic writes; public and pa
     );
     assert.equal((await request("/admin/queue/call-next" + scope, admin.cookie, {})).status, 200);
     const publicState = await request("/public/queue" + scope);
-    assert.equal(publicState.data.currentToken, "D-001");
+    assert.equal(publicState.data.currentToken, `${branch.data.tokenPrefix}-001`);
     assert.equal((await request("/public/queue?clinicId=northstar")).data.currentToken, null);
     assert.equal((await request("/public/queue?clinicId=unknown")).status, 404);
     assert.ok(!JSON.stringify(publicState.data).includes("Global API Patient"));

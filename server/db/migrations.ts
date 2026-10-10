@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 export function migrate(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()?.["user_version"] ?? 0);
-  if (version > 8) throw new Error("This database was created by a newer QueueCare version.");
+  if (version > 9) throw new Error("This database was created by a newer QueueCare version.");
   if (version >= 1) {
     if (version === 1) migrateAuthentication(db);
     if (version < 3) migrateClinics(db);
@@ -10,6 +10,7 @@ export function migrate(db: DatabaseSync) {
     if (version < 6) migrateFinal(db);
     if (version < 7) migrateAvailability(db);
     if (version < 8) migrateClinicalWorkflow(db);
+    if (version < 9) migrateSimplification(db);
     return;
   }
   db.exec(`BEGIN IMMEDIATE;
@@ -53,6 +54,7 @@ export function migrate(db: DatabaseSync) {
   migrateFinal(db);
   migrateAvailability(db);
   migrateClinicalWorkflow(db);
+  migrateSimplification(db);
 }
 
 function migrateAuthentication(db: DatabaseSync) {
@@ -213,4 +215,16 @@ CREATE TABLE medicine_catalog (
 CREATE INDEX medicine_catalog_clinic ON medicine_catalog(clinic_id,active,name);
 CREATE TABLE prescription_item_details (item_id TEXT PRIMARY KEY REFERENCES prescription_items(id) ON DELETE CASCADE, strength TEXT NOT NULL DEFAULT '', dosage_form TEXT NOT NULL DEFAULT '', catalog_id TEXT REFERENCES medicine_catalog(id));
 PRAGMA user_version=8; COMMIT;`);
+}
+
+function migrateSimplification(db: DatabaseSync) {
+  db.exec(`BEGIN IMMEDIATE;
+ALTER TABLE clinics ADD COLUMN city TEXT CHECK(city IS NULL OR length(city)<=120);
+ALTER TABLE clinics ADD COLUMN area TEXT CHECK(area IS NULL OR length(area)<=120);
+CREATE INDEX clinics_location ON clinics(city,area,active);
+CREATE TABLE conditions (id TEXT PRIMARY KEY, name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 120), normalized_name TEXT NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)), created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE patient_conditions (id TEXT PRIMARY KEY, patient_id TEXT NOT NULL REFERENCES users(id), condition_id TEXT NOT NULL REFERENCES conditions(id), source TEXT NOT NULL DEFAULT 'manual' CHECK(source='manual'), recorded_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(patient_id,condition_id));
+CREATE INDEX patient_conditions_condition ON patient_conditions(condition_id,patient_id);
+CREATE INDEX patient_conditions_patient ON patient_conditions(patient_id,created_at);
+PRAGMA user_version=9; COMMIT;`);
 }

@@ -3,7 +3,9 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { api } from "@/api/client";
 import { useAuth } from "./auth-provider";
 import type { ManagedClinic } from "@/types/local";
-export type ClinicOption = Pick<ManagedClinic, "id" | "name"> & { active?: boolean };
+export type ClinicOption = Pick<ManagedClinic, "id" | "name" | "city" | "area"> & {
+  active?: boolean;
+};
 let commandClinic = "northstar";
 export function currentCommandClinic() {
   return commandClinic;

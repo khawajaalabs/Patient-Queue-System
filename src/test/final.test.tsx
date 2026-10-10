@@ -25,7 +25,7 @@ beforeEach(() => {
   fixture.role = "admin";
 });
 afterEach(cleanup);
-it("patient summary shows released care, outstanding balance and doctor follow-up", async () => {
+it("patient summary preserves bills and follow-up while omitting documents", async () => {
   fixture.api.mockResolvedValue({
     appointment: { scheduled_at: "2026-10-09T10:00", clinic_name: "Clinic One" },
     visit: null,
@@ -44,7 +44,8 @@ it("patient summary shows released care, outstanding balance and doctor follow-u
     notifications: [],
   });
   render(<PatientSummary />);
-  expect(await screen.findByText("Released report")).toBeInTheDocument();
+  expect(await screen.findByText("Return for review")).toBeInTheDocument();
+  expect(screen.queryByText("Released report")).toBeNull();
   expect(screen.getByText("Return for review")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: /Outstanding bills/ })).toHaveAttribute(
     "href",
@@ -118,13 +119,13 @@ it("follow-ups expose explicit actions and send audited mutations", async () => 
     }),
   );
 });
-it("calendar supports all four views and empty scheduling states", async () => {
+it("appointments default to Today with Upcoming and Past filters", async () => {
   fixture.api.mockImplementation((path: string) =>
     Promise.resolve(path.startsWith("/appointments/available-slots") ? { slots: [] } : []),
   );
   render(<AppointmentCalendar />);
-  expect(await screen.findByRole("button", { name: "month" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "list" }));
+  expect(await screen.findByRole("button", { name: "Today" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Upcoming" }));
   expect(await screen.findByText("No appointments match these filters.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Add appointment" }));
   expect(await screen.findByLabelText("Appointment date")).toBeInTheDocument();

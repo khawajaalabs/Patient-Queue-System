@@ -1,3 +1,4 @@
+import { SearchableChoice } from "@/components/searchable-choice";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
@@ -13,7 +14,10 @@ export function Clinics() {
   const [clinics, setClinics] = useState<ManagedClinic[]>([]),
     [editing, setEditing] = useState<ManagedClinic | null | undefined>(undefined),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [city, setCity] = useState(""),
+    [area, setArea] = useState(""),
+    [created, setCreated] = useState<ManagedClinic | null>(null);
   const load = async () => {
     try {
       setClinics(await api<ManagedClinic[]>("/admin/clinics"));
@@ -29,27 +33,32 @@ export function Clinics() {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
     const value = (key: string) => String(data.get(key) ?? "");
+    if (!editing && (!city.trim() || !area.trim())) {
+      setError("Select or enter a city and area before creating this clinic.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      await api(`/admin/clinics${editing ? `/${editing.id}` : ""}`, {
+      const result = await api<ManagedClinic>(`/admin/clinics${editing ? `/${editing.id}` : ""}`, {
         method: editing ? "PUT" : "POST",
         body: {
+          city,
+          area,
           name: value("name"),
-          publicName: value("publicName"),
+          publicName: editing?.publicDisplayName ?? value("name"),
           address: value("address"),
           phone: value("phone"),
-          department: value("department"),
-          doctor: value("doctor"),
+          department: editing?.department ?? "General",
+          doctor: editing?.doctorName ?? profile?.fullName ?? "Doctor",
           opening: value("opening"),
           closing: value("closing"),
-          avgMin: Number(value("avgMin")),
-          prefix: value("prefix"),
-          showNext: data.get("showNext") === "on",
+          showNext: editing?.publicDisplayShowNext ?? true,
           active: data.get("active") === "on",
           consultationFee: value("fee") === "" ? null : Number(value("fee")),
         },
       });
+      if (!editing) setCreated(result);
       setEditing(undefined);
       await load();
       window.dispatchEvent(new Event("queuecare:refresh"));
@@ -64,8 +73,35 @@ export function Clinics() {
       <PageHeader
         title="Clinics"
         sub="Manage your clinic locations. Patient profiles stay shared across clinics."
-        right={<Btn onClick={() => setEditing(null)}>Add clinic</Btn>}
+        right={
+          editing === undefined && (
+            <Btn
+              onClick={() => {
+                setEditing(null);
+                setCity("");
+                setArea("");
+                setCreated(null);
+              }}
+            >
+              Add clinic
+            </Btn>
+          )
+        }
       />
+      {created && (
+        <div className="surface mb-6 p-5">
+          <p className="font-medium">Clinic created.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Next: set when you are available at this clinic.
+          </p>
+          <a
+            className="mt-4 inline-block text-primary"
+            href={"/admin/doctor-schedule?clinicId=" + created.id}
+          >
+            Set doctor schedule →
+          </a>
+        </div>
+      )}
       {error && (
         <p role="alert" className="mb-5 text-sm text-destructive">
           {error}
@@ -75,19 +111,30 @@ export function Clinics() {
         <form onSubmit={save} key={editing?.id ?? "new"} className="surface mb-8 space-y-5 p-6">
           <h2 className="text-lg font-semibold">{editing ? "Edit clinic" : "New clinic"}</h2>
           <div className="grid gap-5 sm:grid-cols-2">
+            <SearchableChoice
+              label="City"
+              value={city}
+              allowCreate
+              options={clinics.map((c) => c.city || "")}
+              onChange={(v) => {
+                setCity(v);
+                setArea("");
+              }}
+            />
+            <SearchableChoice
+              label="Area"
+              value={area}
+              allowCreate
+              disabled={!city}
+              options={clinics.filter((c) => c.city === city).map((c) => c.area || "")}
+              onChange={setArea}
+            />
             <Field
               label="Clinic name"
               name="name"
               required
               maxLength={120}
               defaultValue={editing?.name ?? ""}
-            />
-            <Field
-              label="Display name"
-              name="publicName"
-              required
-              maxLength={120}
-              defaultValue={editing?.publicDisplayName ?? ""}
             />
             <Field
               label="Address"
@@ -104,20 +151,6 @@ export function Clinics() {
               defaultValue={editing?.phone ?? ""}
             />
             <Field
-              label="Department / specialty"
-              name="department"
-              required
-              maxLength={120}
-              defaultValue={editing?.department ?? ""}
-            />
-            <Field
-              label="Doctor"
-              name="doctor"
-              required
-              maxLength={120}
-              defaultValue={editing?.doctorName ?? profile?.fullName ?? ""}
-            />
-            <Field
               label="Opening time"
               name="opening"
               type="time"
@@ -132,29 +165,12 @@ export function Clinics() {
               defaultValue={editing?.closingTime ?? "17:00"}
             />
             <Field
-              label="Average consultation minutes"
-              name="avgMin"
-              type="number"
-              required
-              min={1}
-              max={120}
-              defaultValue={editing?.averageConsultationMinutes ?? 5}
-            />
-            <Field
               label="Consultation fee (optional)"
               name="fee"
               type="number"
               min={0}
               max={10000000}
               defaultValue={editing?.consultationFee ?? ""}
-            />
-            <Field
-              label="Token prefix"
-              name="prefix"
-              required
-              pattern="[A-Z]{1,5}"
-              maxLength={5}
-              defaultValue={editing?.tokenPrefix ?? "A"}
             />
           </div>
           <div className="flex flex-wrap gap-6 text-sm">
@@ -166,15 +182,6 @@ export function Clinics() {
                 className="mr-2 accent-primary"
               />
               Active clinic
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                name="showNext"
-                defaultChecked={editing?.publicDisplayShowNext ?? true}
-                className="mr-2 accent-primary"
-              />
-              Show next tokens on public display
             </label>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -193,24 +200,40 @@ export function Clinics() {
           </div>
         </form>
       )}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="surface divide-y divide-border">
+        {!clinics.length && (
+          <p className="p-6 text-sm text-muted-foreground">
+            Add your first clinic to start scheduling patients.
+          </p>
+        )}
         {clinics.map((c) => (
-          <article key={c.id} className="surface p-6">
+          <article key={c.id} className="p-5">
             <div className="flex justify-between gap-3">
               <h2 className="font-semibold">{c.name}</h2>
               <span className={c.active ? "text-xs text-success" : "text-xs text-muted-foreground"}>
                 {c.active ? "Active" : "Inactive"}
               </span>
             </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {c.city && c.area ? `${c.area} · ${c.city}` : "Location details incomplete"}
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">{c.address}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {c.department} · {c.phone}
             </p>
             <p className="mt-3 text-sm">
-              {c.openingTime} – {c.closingTime} · {c.averageConsultationMinutes} min / consultation
+              {c.openingTime} – {c.closingTime}
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Btn variant="secondary" onClick={() => setEditing(c)}>
+              <Btn
+                variant="secondary"
+                onClick={() => {
+                  setEditing(c);
+                  setCity(c.city || "");
+                  setArea(c.area || "");
+                  setCreated(null);
+                }}
+              >
                 Edit clinic
               </Btn>
               <Btn variant="ghost" onClick={() => select(c.id)}>

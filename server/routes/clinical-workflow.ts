@@ -87,6 +87,21 @@ export function clinicalWorkflowRoutes(db: Database, provided?: DocumentStorage)
     admin = requireRole(db, "admin"),
     patient = requireRole(db, "patient"),
     storage = provided ?? new SupabaseDocumentStorage();
+  r.use((req, _res, next) => {
+    if (
+      req.method !== "GET" &&
+      (/^\/appointments\/[^/]+\/attachments$/.test(req.path) ||
+        /^\/appointment-attachments\/[^/]+(?:\/complete)?$/.test(req.path))
+    )
+      return next(
+        new ApiError(
+          403,
+          "UPLOAD_DISABLED",
+          "Patient appointment uploads are no longer available.",
+        ),
+      );
+    next();
+  });
   r.get("/appointments/:id/context", auth, async (req, res) => {
     const a = await access(db, res.locals["user"], idValue.parse(req.params["id"]));
     const files = await many<Row>(

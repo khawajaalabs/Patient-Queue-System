@@ -123,23 +123,41 @@ test(
         mime: "application/pdf",
         size: 8,
       };
-      assert.equal(
-        (await req(`/appointments/${id}/attachments`, p.cookie, { ...metadata, size: 10485761 }))
-          .status,
-        400,
-      );
-      assert.equal(
-        (await req(`/appointments/${id}/attachments`, other.cookie, metadata)).status,
-        404,
-      );
-      const prepared = await req(`/appointments/${id}/attachments`, p.cookie, metadata);
-      assert.equal(prepared.status, 201);
-      files.set(prepared.data.uploadUrl.slice(9), Buffer.from("%PDF-1.7"));
-      const fid = prepared.data.id;
-      assert.equal((await req(`/appointment-attachments/${fid}/download`, p.cookie)).status, 404);
+      // Historical files are seeded as existing data; all new patient upload paths are disabled.
+      assert.equal((await req(`/appointments/${id}/attachments`, p.cookie, metadata)).status, 403);
+      const fid = "historical-ready",
+        bad = { data: { id: "historical-failed" } };
+      const stamp = new Date().toISOString();
+      for (const [fileId, state] of [
+        [fid, "ready"],
+        [bad.data.id, "failed"],
+      ] as const)
+        await app.db
+          .prepare("INSERT INTO appointment_attachments VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+          .run(
+            fileId,
+            id,
+            p.data.id,
+            "northstar",
+            p.data.id,
+            "Historical report",
+            "lab_report",
+            "lab.pdf",
+            "application/pdf",
+            8,
+            "historical/" + fileId,
+            state,
+            Date.now() + 100000,
+            stamp,
+            stamp,
+          );
       assert.equal(
         (await req(`/appointment-attachments/${fid}/complete`, p.cookie, {})).status,
-        200,
+        403,
+      );
+      assert.equal(
+        (await req(`/appointment-attachments/${fid}`, p.cookie, {}, "DELETE")).status,
+        403,
       );
       assert.equal(
         (await req(`/appointment-attachments/${fid}/download`, other.cookie)).status,
@@ -157,31 +175,6 @@ test(
         (await req(`/appointment-attachments/${fid}/download`, admin.cookie)).status,
         200,
       );
-      assert.equal(
-        (await req(`/appointment-attachments/${fid}`, p.cookie, {}, "DELETE")).status,
-        409,
-      );
-      assert.equal((await req(`/appointments/${id}/attachments`,nurse.cookie)).data.length,1);
-      assert.equal((await req(`/appointments/${id}/attachments`,reception.cookie)).status,403);
-      const bad = await req(`/appointments/${id}/attachments`, p.cookie, {
-        ...metadata,
-        title: "Invalid file",
-      });
-      files.set(bad.data.uploadUrl.slice(9), Buffer.from("badbytes"));
-      failRemove = true;
-      assert.equal(
-        (await req(`/appointment-attachments/${bad.data.id}/complete`, p.cookie, {})).status,
-        400,
-      );
-      assert.equal(
-        (await one<{ status: string }>(
-          app.db,
-          "SELECT status FROM appointment_attachments WHERE id=?",
-          bad.data.id,
-        ))!.status,
-        "failed",
-      );
-      failRemove = false;
       assert.equal((await req(`/appointments/${id}/context`, p.cookie)).data.attachments.length, 2);
       assert.equal((await req("/admin/medicine-library?clinicId=northstar", p.cookie)).status, 403);
       const med = await req("/admin/medicine-library?clinicId=northstar", admin.cookie, {
@@ -260,10 +253,12 @@ test(
       assert.ok(!JSON.stringify(own.data).includes("private history"));
       assert.equal((await req("/patient/visits/" + v.id, other.cookie)).status, 404);
       assert.equal(
-        (await req(`/appointments/${id}/context`, p.cookie)).data.attachments[0].status,
+        (await req(`/appointments/${id}/context`, p.cookie)).data.attachments.find(
+          (f: { id: string }) => f.id === fid,
+        ).status,
         "ready",
       );
-      assert.equal((await req(`/appointments/${id}/attachments`, p.cookie, metadata)).status, 409);
+      assert.equal((await req(`/appointments/${id}/attachments`, p.cookie, metadata)).status, 403);
       const before = JSON.stringify(own.data.prescription);
       await req(
         "/admin/medicine-library/" + med.data.id,
