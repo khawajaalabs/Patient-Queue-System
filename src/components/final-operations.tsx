@@ -1,3 +1,4 @@
+import type { PrintBrandingData } from "@/types/clinical-workflow";
 import { SelectField } from "@/components/form-controls";
 import { AppointmentSlotPicker } from "@/components/appointment-slot-picker";
 import { useQueue } from "@/lib/queue-store";
@@ -873,20 +874,17 @@ export function PatientSummary() {
     </section>
   );
 }
-export function PrintBranding({ clinicId }: { clinicId: string }) {
-  const remote = useClinicalData<{
-    clinic: { display_name: string; logo_url: string; footer: string; email: string };
-    doctor: {
-      full_name: string;
-      title: string;
-      specialty: string;
-      license: string;
-      phone: string;
-      email: string;
-      photo_url: string;
-    } | null;
-  }>("/branding?clinicId=" + encodeURIComponent(clinicId));
-  const d = remote.data;
+export function PrintBranding({
+  clinicId,
+  data: provided,
+}: {
+  clinicId: string;
+  data?: PrintBrandingData | null;
+}) {
+  const remote = useClinicalData<PrintBrandingData>(
+    provided === undefined ? "/branding?clinicId=" + encodeURIComponent(clinicId) : null,
+  );
+  const d = provided === undefined ? remote.data : provided;
   if (!d?.clinic?.display_name) return null;
   return (
     <div className="mb-4 border-b border-border pb-3 text-sm">
@@ -941,6 +939,29 @@ export function DataManagement() {
           restrict access, and test restores in a separate project. Database backups do not include
           Storage file contents.
         </p>
+        <h2 className="font-semibold">Private upload cleanup</h2>
+        <p className="text-sm text-muted-foreground">
+          Retry removal of expired, unfinished appointment uploads. Completed files are retained.
+        </p>
+        <Btn
+          disabled={busy}
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            setBusy(true);
+            void api<{ removed: number; failed: number }>(
+              "/admin/appointment-attachments/cleanup",
+              { method: "POST", body: {} },
+            )
+              .then((x) =>
+                setResult(`Cleaned ${x.removed} unfinished files; ${x.failed} require retry.`),
+              )
+              .catch((e) => setResult(friendlyError(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          Clean expired uploads
+        </Btn>
         <h2 className="font-semibold">Application email delivery</h2>
         {!remote.data ? (
           <ClinicalLoading error={remote.error} retry={remote.reload} />
@@ -990,12 +1011,17 @@ export function DataManagement() {
   );
 }
 
-export function DoctorSignature() {
-  const remote = useClinicalData<{ signature_url?: string }>("/branding/signature");
-  return remote.data?.signature_url ? (
+export function DoctorSignature({
+  data: provided,
+}: { data?: { signature_url?: string } | null } = {}) {
+  const remote = useClinicalData<{ signature_url?: string }>(
+    provided === undefined ? "/branding/signature" : null,
+  );
+  const data = provided === undefined ? remote.data : provided;
+  return data?.signature_url ? (
     <img
       className="mt-6 h-12 max-w-48 object-contain"
-      src={remote.data.signature_url}
+      src={data.signature_url}
       alt="Doctor signature"
       referrerPolicy="no-referrer"
     />

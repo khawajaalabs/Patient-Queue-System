@@ -30,6 +30,7 @@ const nav = [
   { to: "/admin/doctor-schedule", label: "Doctor Schedule", icon: History },
   { to: "/admin/staff", label: "Staff", icon: Users },
   { to: "/admin/billing", label: "Billing", icon: ListOrdered },
+  { to: "/admin/medicine-library", label: "Medicine Library", icon: ListOrdered },
   { to: "/admin/documents", label: "Documents", icon: History },
   { to: "/admin/activity", label: "Activity", icon: History },
   { to: "/admin/follow-ups", label: "follow ups", icon: Settings },
@@ -164,7 +165,7 @@ function AdminLayoutContent() {
           <GlobalSearch />
           <Notifications role="admin" />
         </header>
-        <main className="mx-auto w-full max-w-[1240px] flex-1 px-5 py-8 md:px-8 md:py-10">
+        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1320px] flex-1 px-5 py-8 md:px-8 md:py-10">
           <QueueBoundary kind={pathname === "/admin" || pathname === "/admin/" ? "hero" : "list"}>
             {selected === "all" && (pathname === "/admin" || pathname === "/admin/") ? (
               <OperationalReports />

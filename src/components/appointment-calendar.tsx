@@ -1,3 +1,4 @@
+import { DoctorSnapshot } from "@/components/doctor-snapshot";
 import { appointmentTimeLabel } from "@/lib/appointment-time";
 import { AppointmentSlotPicker } from "@/components/appointment-slot-picker";
 import { SelectField } from "@/components/form-controls";
@@ -221,6 +222,9 @@ export function AppointmentCalendar() {
       >
         <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogTitle>{edit === "new" ? "Book appointment" : "Manage appointment"}</DialogTitle>
+          {admin && edit && edit !== "new" && (
+            <DoctorSnapshot patientId={edit.patientId} appointmentId={edit.id} />
+          )}
           <DialogDescription>
             {edit && edit !== "new"
               ? edit.patientName + " · " + edit.clinicName

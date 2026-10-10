@@ -179,6 +179,7 @@ export async function createAppointment(
           const d = new Date(s + ":00Z");
           return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 16) === s;
         }),
+      patientNotes: z.string().trim().max(2000).optional(),
       reason: z.string().trim().max(300),
     })
     .strict()
@@ -203,6 +204,10 @@ export async function createAppointment(
         "INSERT INTO appointments (id,clinic_id,patient_id,scheduled_at,status,reason,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
       )
       .run(id, clinicId, c.patientId, c.scheduledAt, "scheduled", c.reason, adminId, stamp, stamp);
+    if (c.patientNotes)
+      await db
+        .prepare("INSERT INTO appointment_context VALUES (?,?,?,?)")
+        .run(id, c.patientNotes, stamp, stamp);
     await rememberSlot(db, id, slot);
     await audit(db, adminId, "appointment.booked", "appointment", id, clinicId);
     await notification(

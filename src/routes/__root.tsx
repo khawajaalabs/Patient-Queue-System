@@ -124,6 +124,7 @@ function RootComponent() {
       <AuthProvider>
         <ClinicProvider publicOnly={publicOnly}>
           <QueueProvider publicOnly={publicOnly}>
+            <a href="#main-content" className="skip-link">Skip to content</a>
             <Outlet />
             <Toaster position="top-center" />
           </QueueProvider>

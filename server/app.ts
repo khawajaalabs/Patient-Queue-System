@@ -1,3 +1,4 @@
+import { clinicalWorkflowRoutes } from "./routes/clinical-workflow.ts";
 import { availabilityRoutes } from "./routes/availability.ts";
 import { finalRoutes } from "./routes/final.ts";
 import { operationsRoutes } from "./routes/operations.ts";
@@ -80,6 +81,7 @@ export function createLocalApp(options: {
       ...options.auth,
     }),
   );
+  app.use("/api", clinicalWorkflowRoutes(db, options.storage));
   app.use("/api", availabilityRoutes(db, notify));
   app.use("/api", finalRoutes(db, notify));
   app.use("/api", operationsRoutes(db, notify, options.storage));

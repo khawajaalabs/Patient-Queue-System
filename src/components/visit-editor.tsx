@@ -1,3 +1,5 @@
+import { PrescriptionItems } from "@/components/prescription-items";
+import { PrescriptionPreview } from "@/components/prescription-preview";
 import { useState } from "react";
 import { api } from "@/api/client";
 import { Btn, Field } from "@/components/qc";
@@ -27,8 +29,10 @@ const vitalFields = [
 export function VisitEditor({
   visit,
   onSaved,
+  previous = [],
 }: {
   visit: ClinicalVisit;
+  previous?: ClinicalVisit[];
   onSaved: (v: ClinicalVisit) => void;
 }) {
   const [draft, setDraft] = useState(() => ({
@@ -166,58 +170,14 @@ export function VisitEditor({
             Add medicine
           </Btn>
         </div>
-        <div className="space-y-5">
-          {draft.prescription.items.map((m, index) => (
-            <div key={index} className="rounded-lg border border-border p-4">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {(
-                  [
-                    ["medicine", "Medicine name", 160],
-                    ["dose", "Strength / dose", 120],
-                    ["frequency", "Frequency", 120],
-                    ["duration", "Duration", 120],
-                    ["instructions", "Instructions", 300],
-                  ] as const
-                ).map(([key, label, max]) => (
-                  <Field
-                    key={key}
-                    label={`${label} ${index + 1}`}
-                    maxLength={max}
-                    required={key === "medicine"}
-                    value={m[key]}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        prescription: {
-                          ...d.prescription,
-                          items: d.prescription.items.map((item, i) =>
-                            i === index ? { ...item, [key]: e.target.value } : item,
-                          ),
-                        },
-                      }))
-                    }
-                  />
-                ))}
-              </div>
-              <Btn
-                type="button"
-                variant="ghost"
-                className="mt-2"
-                onClick={() =>
-                  setDraft((d) => ({
-                    ...d,
-                    prescription: {
-                      ...d.prescription,
-                      items: d.prescription.items.filter((_, i) => i !== index),
-                    },
-                  }))
-                }
-              >
-                Remove medicine {index + 1}
-              </Btn>
-            </div>
-          ))}
-        </div>
+        <PrescriptionItems
+          clinicId={visit.clinicId}
+          items={draft.prescription.items}
+          previous={previous}
+          onChange={(items) =>
+            setDraft((d) => ({ ...d, prescription: { ...d.prescription, items } }))
+          }
+        />
         <label className="mt-5 block text-sm font-medium">
           General prescription instructions
           <textarea
@@ -245,6 +205,13 @@ export function VisitEditor({
         </p>
       )}
       <div className="sticky bottom-4 flex flex-wrap gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-soft">
+        <PrescriptionPreview
+          visit={{
+            ...visit,
+            ...draft,
+            prescription: { ...visit.prescription, ...draft.prescription },
+          }}
+        />
         <Btn type="submit" variant="secondary" disabled={busy}>
           Save draft
         </Btn>

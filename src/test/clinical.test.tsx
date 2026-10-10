@@ -52,7 +52,9 @@ afterEach(() => {
   fixture.api.mockReset();
 });
 it("adds/removes free-text medicine rows and saves structured vitals and notes", async () => {
-  fixture.api.mockResolvedValue(visit);
+  fixture.api.mockImplementation((path: string) =>
+    Promise.resolve(path.includes("medicine-library") ? [] : visit),
+  );
   const saved = vi.fn();
   render(<VisitEditor visit={visit} onSaved={saved} />);
   fireEvent.change(screen.getByLabelText("Pulse (bpm)"), { target: { value: "72" } });
@@ -85,7 +87,9 @@ it("adds/removes free-text medicine rows and saves structured vitals and notes",
   );
 });
 it("completes a visit through the dedicated transactional endpoint", async () => {
-  fixture.api.mockResolvedValue({ ...visit, status: "completed" });
+  fixture.api.mockImplementation((path: string) =>
+    Promise.resolve(path.includes("medicine-library") ? [] : { ...visit, status: "completed" }),
+  );
   render(<VisitEditor visit={visit} onSaved={() => {}} />);
   fireEvent.click(screen.getByRole("button", { name: "Complete Visit" }));
   await waitFor(() =>

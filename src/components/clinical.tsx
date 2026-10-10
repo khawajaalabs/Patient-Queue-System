@@ -1,3 +1,5 @@
+import type { PrintIdentity } from "@/types/clinical-workflow";
+import { PrescriptionPreview } from "@/components/prescription-preview";
 import { DoctorSignature, PrintBranding } from "@/components/final-operations";
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "@tanstack/react-router";
@@ -143,10 +145,19 @@ export function VisitTimeline({
     </div>
   );
 }
-export function PrescriptionView({ visit }: { visit: PatientVisit }) {
+export function PrescriptionView({
+  visit,
+  printIdentity,
+}: {
+  visit: PatientVisit;
+  printIdentity?: PrintIdentity;
+}) {
   return (
     <section className="prescription-sheet surface mt-6 p-6 md:p-9">
-      <PrintBranding clinicId={visit.clinicId} />
+      <PrintBranding
+        clinicId={visit.clinicId}
+        {...(printIdentity ? { data: printIdentity.branding } : {})}
+      />
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
         <div>
           <h2 className="text-2xl font-semibold">{visit.clinicName}</h2>
@@ -168,6 +179,9 @@ export function PrescriptionView({ visit }: { visit: PatientVisit }) {
         <span className="text-muted-foreground">Patient: </span>
         <strong>{visit.patientName}</strong>
       </p>
+      <p className="signature-emphasis mb-3 text-3xl" aria-label="Prescription">
+        Rx
+      </p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[540px] text-left text-sm">
           <thead className="border-b border-border text-muted-foreground">
@@ -182,7 +196,13 @@ export function PrescriptionView({ visit }: { visit: PatientVisit }) {
           <tbody>
             {visit.prescription.items.map((m, i) => (
               <tr key={i} className="border-b border-border">
-                {[m.medicine, m.dose, m.frequency, m.duration, m.instructions].map((v, j) => (
+                {[
+                  [m.medicine, m.strength, m.dosageForm].filter(Boolean).join(" "),
+                  m.dose,
+                  m.frequency,
+                  m.duration,
+                  m.instructions,
+                ].map((v, j) => (
                   <td key={j} className="whitespace-pre-wrap px-2 py-4 align-top">
                     {v || "—"}
                   </td>
@@ -200,7 +220,7 @@ export function PrescriptionView({ visit }: { visit: PatientVisit }) {
       )}
       {visit.followUpDate && <p className="mt-5 text-sm">Follow-up: {visit.followUpDate}</p>}
       <p className="mt-2 whitespace-pre-wrap text-sm">{visit.followUpInstructions}</p>
-      <DoctorSignature />
+      <DoctorSignature {...(printIdentity ? { data: printIdentity.signature } : {})} />
     </section>
   );
 }
@@ -219,9 +239,13 @@ export function PatientVisitView({
             title={prescriptionOnly ? "Prescription" : "Visit details"}
             sub={`${visit.clinicName} · ${new Date(visit.visitAt).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })}`}
             right={
-              <Btn variant="secondary" onClick={() => window.print()}>
-                {prescriptionOnly ? "Print prescription" : "Print visit summary"}
-              </Btn>
+              prescriptionOnly ? (
+                <PrescriptionPreview visit={visit} />
+              ) : (
+                <Btn variant="secondary" onClick={() => window.print()}>
+                  Print visit summary
+                </Btn>
+              )
             }
           />
         </div>

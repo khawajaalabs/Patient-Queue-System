@@ -1,3 +1,5 @@
+import { DoctorSnapshot } from "@/components/doctor-snapshot";
+import { PrescriptionPreview } from "@/components/prescription-preview";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -21,13 +23,6 @@ function Consultation() {
     v ? `/admin/patients/${encodeURIComponent(v.patientId)}/record` : null,
   );
   if (!v) return <ClinicalLoading error={remote.error} retry={remote.reload} />;
-  const p = record.data?.profile;
-  const today = new Date();
-  const age = p?.dateOfBirth
-    ? today.getFullYear() -
-      Number(p.dateOfBirth.slice(0, 4)) -
-      (today.toISOString().slice(5, 10) < p.dateOfBirth.slice(5, 10) ? 1 : 0)
-    : null;
   return (
     <>
       <div className="print:hidden">
@@ -54,48 +49,16 @@ function Consultation() {
             </div>
           }
         />
-        <section className="surface mb-6 p-6">
-          <div className="flex flex-wrap justify-between gap-4">
-            <div>
-              <h2 className="font-semibold">{v.patientName}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {age === null ? "Age not provided" : `${age} years`} ·{" "}
-                {p?.gender || "Gender not provided"} · {v.clinicName}
-              </p>
-            </div>
-            <div className="text-sm">
-              <p>{v.tokenCode ? `Queue token: ${v.tokenCode}` : "No queue token"}</p>
-              <p className="mt-1 text-muted-foreground">
-                {v.appointmentAt
-                  ? `Appointment: ${v.appointmentAt.replace("T", " ")}`
-                  : "No linked appointment"}
-              </p>
-            </div>
-          </div>
-          <dl className="mt-5 grid gap-4 text-sm md:grid-cols-3">
-            {[
-              ["Allergies", p?.allergies],
-              ["Conditions", p?.chronicConditions],
-              ["Current medications", p?.currentMedications],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <dt className="font-medium">{label}</dt>
-                <dd className="mt-1 whitespace-pre-wrap text-muted-foreground">
-                  {p ? value || "None recorded" : "Loading patient information…"}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          {record.error && (
-            <p role="alert" className="mt-4 text-sm text-destructive">
-              {record.error}
-            </p>
-          )}
-        </section>
+        <DoctorSnapshot
+          patientId={v.patientId}
+          appointmentId={v.appointmentId}
+          record={record.data ?? undefined}
+        />
         {v.status === "in_progress" ? (
           <VisitEditor
             key={v.id + v.updatedAt}
             visit={v}
+            previous={record.data?.visits.filter((item) => item.id !== v.id) ?? []}
             onSaved={(value) => {
               setSaved(value);
               record.reload();
@@ -126,9 +89,7 @@ function Consultation() {
                 Follow-up: {v.followUpDate ?? "Not scheduled"} · Completed records are read-only.
               </p>
             </div>
-            <Btn className="mt-5" variant="secondary" onClick={() => window.print()}>
-              Print prescription
-            </Btn>
+            <PrescriptionPreview visit={v} />
           </>
         )}
         <div className="mt-6 print:hidden">

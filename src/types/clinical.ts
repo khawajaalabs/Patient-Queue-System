@@ -25,6 +25,9 @@ export interface Vitals {
   height: number | null;
 }
 export interface Medicine {
+  strength?: string;
+  dosageForm?: string;
+  catalogId?: string | null;
   medicine: string;
   dose: string;
   frequency: string;

@@ -55,10 +55,18 @@ npm run build
 npm run test:supabase
 ```
 
-PostgreSQL integration tests require the existing CLI administrative session and create/drop disposable schemas; they must never seed dummy records into production. Vercel serves the SPA and `/api/server` Express function, including the existing realtime WebSocket transport. Preserve the production `APP_URL` and required server environment variables when deploying the already-linked personal project.
+PostgreSQL integration tests require the existing CLI administrative session and create/drop disposable schemas; they must never seed dummy records into production. Vercel serves the SPA and `/api/server` Express function, with local Socket.IO invalidation and a visible-page polling fallback on Vercel. Preserve the production `APP_URL` and required server environment variables when deploying the already-linked personal project.
 
 ## Doctor availability and patient booking
 
 Admin → Doctor Schedule configures weekly, split-shift availability for the main doctor at each clinic. Doctor windows must fit clinic opening hours and cannot overlap across clinics. Existing clinic-branding appointment duration is reused. Clinics have no invented default doctor schedule: configure hours before accepting new bookings. Patient Appointments provides self-booking from backend-generated Asia/Karachi slots; admin/staff booking, follow-up booking and rescheduling share the same transactional validator. Existing appointments remain intact and can retain their current time during status updates. New reservations snapshot their duration. Notifications use the existing in-app/email queue foundation.
 
 Apply `supabase/migrations/20261009000100_doctor_availability.sql` additively through authenticated administrative tooling; never reset production. `npm run test:availability:postgres` verifies the feature in a disposable PostgreSQL schema using the saved Supabase CLI session, including the Vercel single-connection configuration. Calendar updates use existing invalidation with a 30-second visible-page fallback.
+
+## Clinical booking and prescribing
+
+Patient booking supports optional notes and up to ten named PDF/JPEG/PNG attachments (10 MB each). Booking is committed before uploads; per-file failures can be retried without duplicating appointments. Appointment Details shows the owner's notes and file status. Files use signed uploads to the existing private bucket; the backend checks ownership, actual bytes and declared size/type before accepting them. Downloads expire after 60 seconds. Receptionists cannot access clinical files; nurses require their existing clinic assignment. Admin Data Management retries cleanup of expired unfinished uploads after their upload authorization expires.
+
+Doctor consultations show appointment context and the latest completed clinical visit. The clinic-specific Medicine Library is administrator-only. Selecting a library medicine fills editable structured fields; custom medicine entry never implicitly adds a library record. Previous prescriptions copy into the current unsaved draft only, with repeated-copy protection and the existing 20-item limit. Preview and A4 printing do not save or complete consultations. Completed prescriptions retain their historical structured values independently of library edits.
+
+`20261010000100_clinical_workflow.sql` adds four companion tables, backend-only RLS and indexes without changing existing rows. Apply it additively and record/compare existing table counts and checksums. `npm run test:clinical-workflow:postgres` runs the feature against a disposable PostgreSQL schema with Vercel's maximum-one connection setting. Company presentation tokens and locally bundled open-license fonts are shared across the app; prescription printing uses a separate document-only print surface.

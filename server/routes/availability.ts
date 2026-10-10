@@ -53,6 +53,7 @@ export function availabilityRoutes(db: Database, notify: Notify) {
       .object({
         clinicId: idValue,
         scheduledAt: z.string(),
+        patientNotes: z.string().trim().max(2000).optional(),
         reason: z.string().trim().max(300).default(""),
       })
       .strict()
@@ -61,6 +62,7 @@ export function availabilityRoutes(db: Database, notify: Notify) {
       patientId: res.locals["user"].id,
       scheduledAt: c.scheduledAt,
       reason: c.reason,
+      patientNotes: c.patientNotes,
     });
     notify("appointment:updated");
     res.status(201).json({ success: true, data });

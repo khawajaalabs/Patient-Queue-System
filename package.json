@@ -22,12 +22,17 @@
     "test:backend": "node --test server/test/*.test.ts",
     "supabase:setup": "node --env-file-if-exists=.env.local scripts/supabase-setup.mjs",
     "test:supabase": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local --test server/test/supabase.integration.test.ts",
-    "test:availability:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-availability-postgres.mjs"
+    "test:availability:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-availability-postgres.mjs",
+    "test:clinical-workflow:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-clinical-workflow-postgres.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"
   },
   "dependencies": {
+    "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/hanken-grotesk": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/manrope": "^5.3.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",

@@ -130,7 +130,7 @@ function Workspace() {
           </Btn>
         </div>
       </header>
-      <main className="mx-auto max-w-[1240px] px-5 py-8 md:px-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[1320px] px-5 py-8 md:px-8">
         <PageHeader title="Clinic workspace" sub={state?.clinic.name ?? "Assigned clinics only"} />
         <nav className="mb-6 flex flex-wrap gap-2">
           {[

@@ -1,11 +1,13 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
-@import "@fontsource/manrope/latin-400.css";
-@import "@fontsource/manrope/latin-500.css";
-@import "@fontsource/manrope/latin-600.css";
-@import "@fontsource/manrope/latin-700.css";
-@import "@fontsource/manrope/latin-800.css";
+@import "@fontsource/bricolage-grotesque/latin-600.css";
+@import "@fontsource/bricolage-grotesque/latin-800.css";
+@import "@fontsource/instrument-serif/latin-400-italic.css";
+@import "@fontsource/hanken-grotesk/latin-400.css";
+@import "@fontsource/hanken-grotesk/latin-600.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -82,54 +84,66 @@
 }
 
 :root {
-  --radius: 0.75rem;
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --background: oklch(0.985 0.004 85);
-  --foreground: oklch(0.24 0.012 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.012 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.012 250);
-  --primary: oklch(0.51 0.09 186);
-  --primary-hover: oklch(0.44 0.08 186);
-  --primary-foreground: oklch(0.99 0.005 180);
-  --primary-soft: oklch(0.96 0.025 186);
-  --secondary: oklch(0.96 0.005 85);
-  --secondary-foreground: oklch(0.28 0.012 250);
-  --muted: oklch(0.965 0.004 85);
-  --muted-foreground: oklch(0.54 0.015 250);
-  --accent: oklch(0.955 0.02 186);
-  --accent-foreground: oklch(0.35 0.07 186);
-  --destructive: oklch(0.56 0.18 27);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.58 0.12 155);
-  --success-soft: oklch(0.96 0.035 155);
-  --warning: oklch(0.66 0.13 70);
-  --warning-soft: oklch(0.965 0.04 85);
-  --info: oklch(0.52 0.1 230);
-  --info-soft: oklch(0.96 0.025 230);
-  --border: oklch(0.915 0.006 85);
-  --input: oklch(0.9 0.006 85);
-  --ring: oklch(0.51 0.09 186);
-  --display: oklch(0.2 0.025 200);
-  --display-foreground: oklch(0.97 0.01 180);
-  --display-muted: oklch(0.68 0.03 190);
-  --display-accent: oklch(0.82 0.1 180);
-  --shadow-soft: 0 1px 2px oklch(0.2 0.02 250 / 0.04), 0 8px 24px -12px oklch(0.2 0.02 250 / 0.12);
-  --shadow-lift: 0 1px 2px oklch(0.2 0.02 250 / 0.05), 0 20px 40px -20px oklch(0.3 0.05 186 / 0.25);
-  --chart-1: oklch(0.51 0.09 186);
-  --chart-2: oklch(0.58 0.12 155);
-  --chart-3: oklch(0.66 0.13 70);
-  --chart-4: oklch(0.52 0.1 230);
-  --chart-5: oklch(0.54 0.015 250);
-  --sidebar: oklch(0.975 0.004 85);
-  --sidebar-foreground: oklch(0.3 0.012 250);
-  --sidebar-primary: oklch(0.51 0.09 186);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.945 0.006 85);
-  --sidebar-accent-foreground: oklch(0.24 0.012 250);
-  --sidebar-border: oklch(0.915 0.006 85);
-  --sidebar-ring: oklch(0.51 0.09 186);
+  --radius: 0.5rem;
+  --canvas: #f3efe6;
+  --canvas-sunken: #e9e3d4;
+  --ink: #16140f;
+  --ink-muted: #4a463c;
+  --line: rgb(22 20 15 / 16%);
+  --line-strong: var(--ink);
+  --signature-accent: #2a23ff;
+  --signal: #ff4d2e;
+  --signal-success: #1fae5a;
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", sans-serif;
+  --font-emphasis: "Instrument Serif", serif;
+  --font-metadata: "JetBrains Mono", monospace;
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--canvas);
+  --card-foreground: var(--ink);
+  --popover: var(--canvas);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-hover: var(--signature-accent);
+  --primary-foreground: var(--canvas);
+  --primary-soft: var(--canvas-sunken);
+  --secondary: var(--canvas-sunken);
+  --secondary-foreground: var(--ink);
+  --muted: var(--canvas-sunken);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--signature-accent);
+  --accent-foreground: var(--canvas);
+  --destructive: var(--signal);
+  --destructive-foreground: var(--ink);
+  --success: #16723c;
+  --success-soft: rgb(31 174 90 / 22%);
+  --warning: #a3341d;
+  --warning-soft: rgb(255 77 46 / 22%);
+  --info: var(--signature-accent);
+  --info-soft: rgb(42 35 255 / 10%);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--signature-accent);
+  --display: var(--ink);
+  --display-foreground: var(--canvas);
+  --display-muted: var(--canvas-sunken);
+  --display-accent: var(--canvas);
+  --shadow-soft: none;
+  --shadow-lift: 0 16px 48px rgb(22 20 15 / 18%);
+  --chart-1: var(--signature-accent);
+  --chart-2: var(--ink-muted);
+  --chart-3: #b7ad94;
+  --chart-4: #d5ccb8;
+  --chart-5: var(--signal);
+  --sidebar: var(--ink);
+  --sidebar-foreground: var(--canvas);
+  --sidebar-primary: var(--canvas);
+  --sidebar-primary-foreground: var(--ink);
+  --sidebar-accent: #353127;
+  --sidebar-accent-foreground: var(--canvas);
+  --sidebar-border: rgb(243 239 230 / 16%);
+  --sidebar-ring: var(--canvas);
 }
 
 @layer base {
@@ -185,8 +199,8 @@
 @utility surface {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: calc(var(--radius) + 4px);
-  box-shadow: var(--shadow-soft);
+  border-radius: 10px;
+  box-shadow: none;
 }
 
 @media print {
@@ -246,4 +260,188 @@
   .visit-summary-sheet p {
     overflow-wrap: anywhere;
   }
+}
+
+/* Shared company signature; application roles and stored values are unchanged. */
+body {
+  font-size: 16px;
+  line-height: 1.5;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  overflow-wrap: anywhere;
+}
+h1 {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+h2,
+h3 {
+  font-weight: 600;
+}
+.signature-emphasis {
+  font-family: var(--font-emphasis);
+  font-style: italic;
+  font-weight: 400;
+}
+label,
+button,
+nav a,
+[role="tab"],
+th,
+.tabular {
+  font-family: var(--font-metadata);
+  font-size: 0.75rem;
+  letter-spacing: 0.035em;
+}
+label,
+button,
+nav a,
+[role="tab"],
+th {
+  text-transform: uppercase;
+}
+input,
+textarea {
+  font-family: var(--font-sans);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 16px;
+}
+textarea {
+  resize: vertical;
+}
+:focus-visible {
+  outline: 2px solid var(--signature-accent);
+  outline-offset: 3px;
+}
+aside :focus-visible,
+[class*="bg-sidebar"] :focus-visible {
+  outline-color: var(--canvas);
+}
+nav a[aria-current="page"] {
+  box-shadow: inset 3px 0 var(--signal);
+}
+[class*="bg-sidebar"] .text-muted-foreground {
+  color: var(--canvas-sunken);
+}
+th,
+td {
+  padding: 10px 12px;
+}
+tbody tr:hover {
+  background: var(--canvas-sunken);
+}
+.skip-link {
+  position: fixed;
+  left: 20px;
+  top: 12px;
+  z-index: 100;
+  transform: translateY(-200%);
+  background: var(--ink);
+  color: var(--canvas);
+  padding: 12px 20px;
+  border-radius: 999px;
+}
+.skip-link:focus {
+  transform: none;
+}
+main {
+  min-width: 0;
+}
+.prescription-sheet {
+  background: #fff;
+  box-shadow: none;
+  overflow-wrap: anywhere;
+}
+.prescription-sheet table {
+  table-layout: fixed;
+}
+.prescription-sheet td {
+  overflow-wrap: anywhere;
+}
+#prescription-print-root {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media print {
+  body.printing-prescription > :not(#prescription-print-root) {
+    display: none !important;
+  }
+  body.printing-prescription #prescription-print-root {
+    display: block !important;
+    visibility: visible !important;
+  }
+  body.printing-prescription #prescription-print-root * {
+    visibility: visible !important;
+  }
+  body.printing-prescription #prescription-print-root .prescription-sheet {
+    display: block;
+    position: static;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    font-size: 11pt;
+    background: #fff;
+    color: var(--ink);
+  }
+  body.printing-prescription #prescription-print-root .overflow-x-auto {
+    overflow: visible;
+  }
+  .prescription-sheet table {
+    width: 100%;
+    min-width: 0 !important;
+    table-layout: fixed;
+  }
+  .prescription-sheet thead {
+    display: table-header-group;
+  }
+  .prescription-sheet tr,
+  .prescription-sheet img {
+    break-inside: avoid;
+  }
+  .prescription-sheet th,
+  .prescription-sheet td {
+    font-size: 10pt;
+    letter-spacing: 0;
+    padding: 8px 6px;
+  }
+  .prescription-sheet p {
+    orphans: 3;
+    widows: 3;
+  }
+}
+
+.bg-primary-soft {
+  color: var(--ink);
+}
+.bg-primary-soft .text-accent-foreground {
+  color: var(--ink);
+}
+[role="dialog"] {
+  scrollbar-gutter: stable;
+}
+
+.bg-sidebar {
+  color: var(--sidebar-foreground);
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--signature-accent);
+}
+
+.status-pill {
+  font-family: var(--font-metadata);
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
 }

@@ -90,6 +90,9 @@ export const recordSchema = z
           .array(
             z
               .object({
+                strength: z.string().trim().max(120).optional(),
+                dosageForm: z.string().trim().max(120).optional(),
+                catalogId: z.string().max(100).nullable().optional(),
                 medicine: z.string().trim().min(1).max(160),
                 dose: z.string().trim().max(120),
                 frequency: z.string().trim().max(120),
@@ -201,7 +204,7 @@ export async function visitDetail(
   const items = p
     ? await many<Row>(
         db,
-        "SELECT medicine,dose,frequency,duration,instructions FROM prescription_items WHERE prescription_id=? ORDER BY position",
+        "SELECT i.medicine,i.dose,i.frequency,i.duration,i.instructions,d.strength,d.dosage_form,d.catalog_id FROM prescription_items i LEFT JOIN prescription_item_details d ON d.item_id=i.id WHERE i.prescription_id=? ORDER BY i.position",
         str(p, "id"),
       )
     : [];
@@ -226,6 +229,13 @@ export async function visitDetail(
       ...(p ? { id: str(p, "id"), prescribedAt: str(p, "prescribed_at") } : {}),
       instructions: p ? str(p, "instructions") : "",
       items: items.map((i) => ({
+        ...(i["strength"] == null
+          ? {}
+          : {
+              strength: str(i, "strength"),
+              dosageForm: str(i, "dosage_form"),
+              catalogId: nullable(i, "catalog_id"),
+            }),
         medicine: str(i, "medicine"),
         dose: str(i, "dose"),
         frequency: str(i, "frequency"),
@@ -495,13 +505,24 @@ export async function saveVisit(db: Database, id: string, input: unknown, comple
       )
       .run(pid, id, str(e, "doctor_id"), stamp, c.prescription.instructions);
     await db.prepare("DELETE FROM prescription_items WHERE prescription_id=?").run(pid);
-    for (const [index, item] of c.prescription.items.entries())
+    for (const [index, item] of c.prescription.items.entries()) {
+      const itemId = randomUUID();
+      if (
+        item.catalogId &&
+        !(await one(
+          db,
+          "SELECT id FROM medicine_catalog WHERE id=? AND clinic_id=?",
+          item.catalogId,
+          str(e, "clinic_id"),
+        ))
+      )
+        throw new ApiError(400, "INVALID_MEDICINE", "Choose a medicine from this clinic library.");
       await db
         .prepare(
           "INSERT INTO prescription_items(id,prescription_id,position,medicine,dose,frequency,duration,instructions) VALUES (?,?,?,?,?,?,?,?)",
         )
         .run(
-          randomUUID(),
+          itemId,
           pid,
           index + 1,
           item.medicine,
@@ -510,6 +531,11 @@ export async function saveVisit(db: Database, id: string, input: unknown, comple
           item.duration,
           item.instructions,
         );
+      if (item.strength !== undefined || item.dosageForm !== undefined || item.catalogId)
+        await db
+          .prepare("INSERT INTO prescription_item_details VALUES (?,?,?,?)")
+          .run(itemId, item.strength ?? "", item.dosageForm ?? "", item.catalogId ?? null);
+    }
     await audit(
       db,
       str(e, "doctor_id"),

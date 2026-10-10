@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 const emptyOption = "__queuecare_empty_option__";
 const fieldClass =
-  "h-11 rounded-lg border border-input bg-card px-3.5 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:opacity-50";
+  "h-11 rounded-lg border border-input bg-card px-4 text-base outline-none transition focus:border-ring focus:ring-0 disabled:opacity-60";
 
 function optionsFrom(
   children: React.ReactNode,
