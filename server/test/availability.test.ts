@@ -221,8 +221,8 @@ test(
       );
       assert.equal((await update("11:00", "cancelled")).status, 200);
       assert.ok((await readSlots()).includes("2030-01-07T11:00"));
-      assert.equal((await update("11:00", "scheduled")).status, 200);
-      assert.equal((await update("11:00", "no_show")).status, 200);
+      assert.equal((await update("11:00", "scheduled")).status, 409);
+      assert.equal((await update("11:00", "no_show")).status, 409);
       assert.ok((await readSlots()).includes("2030-01-07T11:00"));
       assert.equal((await booking("11:00")).status, 201);
       // Duration changes cannot shrink already reserved appointments.

@@ -1,3 +1,4 @@
+import { bookedToken } from "./appointment-token-fixture.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -253,8 +254,13 @@ test(
         a = (await one<UserRow>(app.db, "SELECT * FROM users WHERE role='admin'"))!;
       assert.equal(await consultationEstimate(app.db, "northstar"), 5);
       await mutateQueue(app.db, a, "open", {}, "northstar");
+      await app.db
+        .prepare(
+          "UPDATE appointments SET status='cancelled' WHERE id IN (SELECT appointment_id FROM tokens WHERE status='waiting')",
+        )
+        .run();
       for (let i = 0; i < 5; i++) {
-        const token = await mutateQueue(app.db, u, "join", {}, "northstar");
+        const token = await bookedToken(app.db, u, "northstar", "", false);
         await mutateQueue(app.db, a, "callNext", {}, "northstar");
         await mutateQueue(app.db, a, "done", {}, "northstar");
         if ("id" in token)

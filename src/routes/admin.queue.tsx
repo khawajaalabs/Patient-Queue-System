@@ -1,9 +1,9 @@
-import { SelectField } from "@/components/form-controls";
+import { TemporalInput, SelectField } from "@/components/form-controls";
 import { StartConsultation } from "@/components/clinical";
 import { useClinicContext } from "@/providers/clinic-provider";
 import { runAction } from "@/services/queue";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowRight, Search, MoreHorizontal } from "lucide-react";
 import { actions, formatTime, useQueue, type Entry, type Status } from "@/lib/queue-store";
 import { Btn, PageHeader, StatusPill } from "@/components/qc";
@@ -24,7 +24,21 @@ export const Route = createFileRoute("/admin/queue")({
 function RowActions({ entry, onDetails }: { entry: Entry; onDetails: () => void }) {
   const q = useQueue();
   const { selected } = useClinicContext();
-  const mayCall = !q.serving && q.waiting[0]?.token === entry.token;
+  const currentDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(
+    new Date(),
+  );
+  if (q.queueDate !== currentDate)
+    return (
+      <Btn variant="secondary" onClick={onDetails}>
+        Details
+      </Btn>
+    );
+  const mayCall =
+    q.open &&
+    q.queueDate ===
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()) &&
+    !q.serving &&
+    q.waiting[0]?.token === entry.token;
   const active = entry.status === "waiting" || entry.status === "serving";
   return (
     <div className="flex flex-wrap items-center justify-end gap-1">
@@ -102,6 +116,15 @@ function RowActions({ entry, onDetails }: { entry: Entry; onDetails: () => void 
 }
 export function LiveQueue() {
   const q = useQueue();
+  useEffect(() => {
+    q.setQueueDate(
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()),
+    );
+    return () =>
+      q.setQueueDate(
+        new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()),
+      );
+  }, [q.setQueueDate]);
   const [filter, setFilter] = useState<"all" | Status>("all");
   const [term, setTerm] = useState("");
   const [selected, setSelected] = useState<Entry | null>(null);
@@ -111,13 +134,6 @@ export function LiveQueue() {
       `${e.token} ${e.name}`.toLowerCase().includes(term.trim().toLowerCase()),
   );
   const next = q.waiting[0];
-  if (!q.openedToday)
-    return (
-      <>
-        <PageHeader title="Live queue" sub="Manage today's patient flow." />
-        <NoQueue />
-      </>
-    );
   return (
     <>
       <PageHeader
@@ -125,9 +141,18 @@ export function LiveQueue() {
         sub="Manage today's patient flow."
         right={
           <div className="flex flex-wrap gap-2">
-            <QueueToggle />
+            {q.queueDate ===
+              new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()) && (
+              <QueueToggle />
+            )}
             <Btn
-              disabled={!next || Boolean(q.serving)}
+              disabled={
+                !next ||
+                Boolean(q.serving) ||
+                !q.open ||
+                q.queueDate !==
+                  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date())
+              }
               title={q.serving ? "Mark done or skip the current patient first." : undefined}
               onClick={() => {
                 void runAction(
@@ -141,6 +166,15 @@ export function LiveQueue() {
           </div>
         }
       />
+      <label className="mb-5 block max-w-xs text-sm">
+        Queue date
+        <TemporalInput
+          type="date"
+          value={q.queueDate}
+          onChange={(e) => q.setQueueDate(e.target.value)}
+          className="mt-2"
+        />
+      </label>
       <dl className="mb-7 grid grid-cols-2 gap-4 rounded-xl border border-border bg-card px-5 py-5 lg:grid-cols-4">
         {[
           ["Queue status", q.open ? "Queue Open" : "Queue Closed"],
@@ -189,8 +223,8 @@ export function LiveQueue() {
         </label>
       </div>
       <div className="surface overflow-hidden">
-        <div className="hidden grid-cols-[80px_minmax(120px,1fr)_95px_75px_100px_120px] gap-3 border-b border-border px-5 py-3 text-xs text-muted-foreground xl:grid">
-          {["Token", "Patient", "Joined", "Waiting", "Status", "Actions"].map((label) => (
+        <div className="hidden grid-cols-[90px_80px_minmax(120px,1fr)_100px_180px] gap-3 border-b border-border px-5 py-3 text-xs text-muted-foreground xl:grid">
+          {["Time", "Token", "Patient", "Status", "Actions"].map((label) => (
             <span key={label}>{label}</span>
           ))}
         </div>
@@ -210,6 +244,9 @@ export function LiveQueue() {
               entry.status === "serving" && "bg-info-soft/60",
             )}
           >
+            <p className="tabular text-sm text-muted-foreground">
+              {entry.scheduledAt ? formatTime(entry.scheduledAt.slice(11)) : "—"}
+            </p>
             <button
               onClick={() => setSelected(entry)}
               className="text-left font-semibold text-primary hover:underline"
@@ -225,14 +262,6 @@ export function LiveQueue() {
             >
               {entry.name}
             </button>
-            <p className="tabular text-sm text-muted-foreground sm:col-start-1 xl:col-auto">
-              <span className="xl:hidden">Joined </span>
-              {entry.joinedAt}
-            </p>
-            <p className="tabular text-sm text-muted-foreground">
-              <span className="xl:hidden">Waiting </span>
-              {entry.waitMin ?? 0} min
-            </p>
             <div>
               <StatusPill status={entry.status} />
             </div>

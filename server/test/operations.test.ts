@@ -1,3 +1,5 @@
+import { one } from "../db/database.ts";
+import { bookedToken } from "./appointment-token-fixture.ts";
 import { testDoctorHours } from "./availability-fixture.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,7 +10,7 @@ import { createPostgresDatabase } from "../db/postgres.ts";
 import type { DocumentStorage } from "../services/document-storage.ts";
 test(
   "Phase 3: staff clinic boundaries, preparation, private documents, atomic billing, notifications and audit",
-  { timeout: 180000 },
+  { timeout: process.env["QUEUECARE_OPERATIONS_TEST_SCHEMA"] ? 300000 : 180000 },
   async () => {
     const files = new Map<string, Uint8Array>();
     const storage: DocumentStorage = {
@@ -180,6 +182,7 @@ test(
       );
       assert.equal(looked.data.id, uid);
       assert.deepEqual(Object.keys(looked.data).sort(), ["id", "name"]);
+      await bookedToken(app.db, (await one<any>(app.db, "SELECT * FROM users WHERE id=?", uid))!);
       const token = await req("/staff/check-in?clinicId=northstar", reception.cookie, {
         patientId: uid,
         reason: "Review",
@@ -278,7 +281,7 @@ test(
         reason: "Follow-up",
       });
       assert.equal(appt.status, 201);
-      assert.equal((await req("/patient/appointments", patient.cookie)).data.length, 1);
+      assert.equal((await req("/patient/appointments", patient.cookie)).data.length, 2);
       assert.equal(
         (
           await req(

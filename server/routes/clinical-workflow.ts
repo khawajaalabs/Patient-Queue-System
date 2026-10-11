@@ -113,6 +113,11 @@ export function clinicalWorkflowRoutes(db: Database, provided?: DocumentStorage)
       success: true,
       data: {
         id: a["id"],
+        token: await one(
+          db,
+          'SELECT id,token_code AS "tokenCode",status FROM tokens WHERE appointment_id=?',
+          String(a["id"]),
+        ),
         clinicId: a["clinic_id"],
         clinicName: a["clinic_name"],
         patientId: a["patient_id"],

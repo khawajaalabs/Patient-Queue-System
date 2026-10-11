@@ -1,3 +1,5 @@
+import { giveUpToken } from "../services/appointment-tokens.ts";
+import { clinicRemoval } from "../services/clinics.ts";
 import { audit, authorizeClinic } from "../services/operations.ts";
 import {
   listClinics,
@@ -59,6 +61,26 @@ export function queueRoutes(db: Database, notify: Notify) {
   router.get("/admin/clinics", requireRole(db, "admin"), async (_req, res) =>
     res.json({ success: true, data: await listClinics(db, true) }),
   );
+  router.delete("/admin/clinics/:id", requireRole(db, "admin"), async (req, res) => {
+    const data = await clinicRemoval(
+      db,
+      z.string().min(1).max(100).parse(req.params["id"]),
+      res.locals["user"].id,
+      req.query["archive"] === "1",
+    );
+    notify("clinics:updated");
+    res.json({ success: true, data });
+  });
+  router.post("/patient/tokens/:id/give-up", requireRole(db, "patient"), async (req, res) => {
+    z.object({}).strict().parse(req.body);
+    const data = await giveUpToken(
+      db,
+      res.locals["user"].id,
+      z.string().min(1).max(100).parse(req.params["id"]),
+    );
+    notify("token:cancelled");
+    res.json({ success: true, data });
+  });
   router.get("/admin/clinics/summary", requireRole(db, "admin"), async (_req, res) =>
     res.json({ success: true, data: await allClinicsState(db) }),
   );
@@ -122,7 +144,7 @@ export function queueRoutes(db: Database, notify: Notify) {
   router.get("/admin/state", requireRole(db, "admin"), async (req, res) =>
     res.json({
       success: true,
-      data: await adminState(db, dateValue(req.query["historyDate"]), scope(req)),
+      data: await adminState(db, dateValue(req.query["historyDate"]), scope(req), dateValue(req.query["queueDate"])),
     }),
   );
   router.get("/admin/history", requireRole(db, "admin"), async (req, res) =>
@@ -144,8 +166,11 @@ export function queueRoutes(db: Database, notify: Notify) {
     res.json({ success: true, data: result });
   });
   router.post("/patient/token/cancel", requireRole(db, "patient"), async (req, res) => {
-    z.object({}).strict().parse(req.body);
-    const result = await mutateQueue(db, res.locals["user"] as UserRow, "leave", {}, scope(req));
+    const { tokenId } = z
+      .object({ tokenId: z.string().min(1).max(100) })
+      .strict()
+      .parse(req.body);
+    const result = await giveUpToken(db, res.locals["user"].id, tokenId);
     notify("token:cancelled");
     res.json({ success: true, data: result });
   });

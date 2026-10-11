@@ -1,3 +1,4 @@
+import { TokenActions } from "@/components/appointment-tokens";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageHeader, Btn } from "@/components/qc";
@@ -21,6 +22,13 @@ function AppointmentDetail() {
         sub={`${a.clinicName} · ${a.scheduledAt.replace("T", " ")} · ${a.status}`}
       />
       <section className="surface space-y-5 p-6">
+        {a.token && (
+          <div>
+            <p className="text-xs text-muted-foreground">Appointment token</p>
+            <p className="tabular mt-2 text-4xl font-semibold text-primary">{a.token.tokenCode}</p>
+            <TokenActions token={a.token} onChanged={remote.reload} />
+          </div>
+        )}
         <div>
           <h2>Reason for appointment</h2>
           <p className="whitespace-pre-wrap break-words">{a.reason || "Not provided"}</p>

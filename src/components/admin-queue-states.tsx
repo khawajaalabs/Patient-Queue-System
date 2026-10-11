@@ -7,10 +7,10 @@ export function QueueToggle() {
   return open ? (
     <ConfirmAction
       title="Close today's queue?"
-      description="Patients will no longer be able to request new tokens."
+      description="Calling patients will pause. Booked appointment tokens are preserved."
       confirm="Close queue"
       onConfirm={() => {
-        void runAction(() => actions.closeQueue(), "Queue closed to new tokens.");
+        void runAction(() => actions.closeQueue(), "Queue calls paused.");
       }}
     >
       <Btn variant="secondary">Close queue</Btn>
@@ -31,7 +31,7 @@ export function NoQueue() {
     <section className="surface flex min-h-80 flex-col items-center justify-center p-7 text-center">
       <h2 className="text-xl font-semibold tracking-tight">No queue has been opened today.</h2>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">
-        Open today's queue before patients can start taking tokens.
+        Appointment tokens appear automatically when patients book.
       </p>
       <Btn
         className="mt-6"
@@ -49,7 +49,7 @@ export function EmptyQueue() {
     <div className="px-6 py-14 text-center">
       <h2 className="text-lg font-semibold">No patients waiting</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        New tokens will appear here when patients join the queue.
+        Booked appointments for this date will appear here automatically.
       </p>
     </div>
   );

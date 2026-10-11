@@ -1,5 +1,6 @@
 export type Role = "patient" | "admin" | "receptionist" | "nurse";
-export type TokenStatus = "waiting" | "serving" | "skipped" | "completed" | "cancelled";
+export type TokenStatus =
+  "reserved" | "waiting" | "serving" | "skipped" | "completed" | "cancelled";
 export type QueueStatus = "open" | "closed";
 export interface UserProfile {
   id: string;
@@ -37,6 +38,8 @@ export interface DailyQueue {
   currentTokenId: string | null;
 }
 export interface QueueToken {
+  appointmentId?: string | null;
+  scheduledAt?: string | null;
   clinicId?: string;
   clinicName?: string;
   id: string;
@@ -84,8 +87,10 @@ export interface QueueResponse {
   history: QueueToken[];
   patients: PatientRow[];
 }
-export type Status = "waiting" | "serving" | "done" | "skipped" | "left";
+export type Status = "reserved" | "waiting" | "serving" | "done" | "skipped" | "left";
 export type Entry = {
+  appointmentId?: string | null | undefined;
+  scheduledAt?: string | null | undefined;
   clinicId?: string | undefined;
   clinicName?: string | undefined;
   department?: string | undefined;
@@ -145,6 +150,7 @@ export interface AllClinicsState {
   };
 }
 export interface Appointment {
+  token?: { id: string; tokenCode: string; status: string } | null;
   id: string;
   clinicId: string;
   clinicName: string;

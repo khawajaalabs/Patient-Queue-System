@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/queue-feedback";
 import { SearchableChoice } from "@/components/searchable-choice";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -236,6 +237,38 @@ export function Clinics() {
               >
                 Edit clinic
               </Btn>
+              <ConfirmAction
+                title="Delete or archive clinic?"
+                description="An empty clinic can be deleted. A clinic with records or schedules must be archived to preserve its history."
+                confirm="Delete empty clinic"
+                onConfirm={() =>
+                  void api("/admin/clinics/" + c.id, { method: "DELETE" })
+                    .then(() => {
+                      void load();
+                      window.dispatchEvent(new Event("queuecare:refresh"));
+                    })
+                    .catch((e) => setError(friendlyError(e)))
+                }
+              >
+                <Btn variant="ghost">Delete clinic</Btn>
+              </ConfirmAction>
+              {c.active && (
+                <ConfirmAction
+                  title="Archive this clinic?"
+                  description="Existing records will be preserved. This clinic will no longer accept bookings or queue actions."
+                  confirm="Archive clinic"
+                  onConfirm={() =>
+                    void api("/admin/clinics/" + c.id + "?archive=1", { method: "DELETE" })
+                      .then(() => {
+                        void load();
+                        window.dispatchEvent(new Event("queuecare:refresh"));
+                      })
+                      .catch((e) => setError(friendlyError(e)))
+                  }
+                >
+                  <Btn variant="ghost">Archive clinic</Btn>
+                </ConfirmAction>
+              )}
               <Btn variant="ghost" onClick={() => select(c.id)}>
                 Select clinic
               </Btn>

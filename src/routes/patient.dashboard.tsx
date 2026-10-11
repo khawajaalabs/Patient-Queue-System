@@ -1,3 +1,4 @@
+import { AppointmentTokens } from "@/components/appointment-tokens";
 import { PatientSummary } from "@/components/final-operations";
 import { useAuth } from "@/providers/auth-provider";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -35,11 +36,6 @@ export function QueueHero() {
         <div className="mt-4">
           <StatusPill status={mine.status} />
         </div>
-        {["done", "left"].includes(mine.status) && (
-          <Link to="/patient/get-token" className="mt-5 inline-block">
-            <Btn disabled={!open}>Get another token</Btn>
-          </Link>
-        )}
       </section>
     );
   const isServing = mine.status === "serving";
@@ -138,30 +134,12 @@ function Dashboard() {
         </p>
       </div>
 
-      <PatientStatus />
-      {mine ? (
-        <QueueHero />
-      ) : (
-        <section className="surface flex flex-col items-center px-6 py-16 text-center">
-          <div className="grid size-14 place-items-center rounded-full bg-primary-soft text-primary">
-            <Ticket className="size-6" />
-          </div>
-          <h2 className="mt-5 text-xl font-semibold tracking-tight">
-            You don't have an active token.
-          </h2>
-          <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            {open
-              ? `The clinic is open and currently serving ${serving?.token ?? "—"}. Get a token to save your place.`
-              : openedToday
-                ? "The queue is closed right now. Check back during clinic hours."
-                : "No queue has been opened today."}
-          </p>
-          <Link to="/patient/get-token" className="mt-6">
-            <Btn size="lg" disabled={!open}>
-              Get a token <ArrowRight className="size-4" />
-            </Btn>
-          </Link>
-        </section>
+      <AppointmentTokens />
+      {mine && (
+        <>
+          <PatientStatus />
+          <QueueHero />
+        </>
       )}
 
       <div className="mt-10 grid gap-10 md:grid-cols-3">
@@ -204,7 +182,7 @@ function Dashboard() {
                 </Btn>
               </Link>
               <Link to="/patient/get-token">
-                <Btn variant="secondary">Get token</Btn>
+                <Btn variant="secondary">Appointments</Btn>
               </Link>
               <Link to="/patient/history">
                 <Btn variant="secondary">Visit history</Btn>

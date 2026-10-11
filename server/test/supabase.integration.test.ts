@@ -1,3 +1,5 @@
+import { bookedToken } from "./appointment-token-fixture.ts";
+import { one } from "../db/database.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -11,7 +13,7 @@ import { createPostgresDatabase } from "../db/postgres.ts";
 const connection = process.env["DATABASE_URL"];
 test(
   "Supabase PostgreSQL: auth, queue lifecycle, concurrency, privacy, realtime and restart",
-  { skip: !connection || !process.env["SUPABASE_ACCESS_TOKEN"], timeout: 180000 },
+  { skip: !connection || !process.env["SUPABASE_ACCESS_TOKEN"], timeout: 300000 },
   async () => {
     const schema = `queuecare_test_${randomBytes(8).toString("hex")}`;
     async function adminQuery(query: string) {
@@ -53,6 +55,13 @@ test(
       body?: unknown,
       method = body === undefined ? "GET" : "POST",
     ) {
+      if (path === "__book-appointment") {
+        const me = (await request("/auth/me", cookie)).data;
+        const p = (await one<any>(instance!.db, "SELECT * FROM users WHERE id=?", me.id))!;
+        const data = await bookedToken(instance!.db, p);
+        instance!.io.emit("queue:updated");
+        return { status: 200, data, error: undefined, cookie: "" };
+      }
       const response = await fetch(base + "/api" + path, {
         method,
         headers: {
@@ -88,6 +97,7 @@ test(
         "20261009000100_doctor_availability.sql",
         "20261010000100_clinical_workflow.sql",
         "20261011000100_workflow_simplification.sql",
+        "20261011000200_appointment_tokens.sql",
       ])
         await adminQuery(
           readFileSync("supabase/migrations/" + file, "utf8").replace(/\bqueuecare\b/g, schema),
@@ -146,14 +156,18 @@ test(
         socket!.once("queue:updated", (...args: unknown[]) => resolve(args)),
       );
       const duplicates = await Promise.all([
-        request("/patient/token", first.cookie, {}),
+        request("__book-appointment", first.cookie, {}),
         request("/patient/token", first.cookie, {}),
       ]);
       assert.equal(duplicates[0]!.status, 200);
-      assert.equal(duplicates[0]!.data.id, duplicates[1]!.data.id);
+      assert.equal(duplicates[1]!.status, 409);
+      assert.equal(
+        (await request("/patient/state", first.cookie)).data.mine.id,
+        duplicates[0]!.data.id,
+      );
       assert.deepEqual(await event, []);
       const token1 = duplicates[0]!.data;
-      const token2 = (await request("/patient/token", second.cookie, {})).data;
+      const token2 = (await request("__book-appointment", second.cookie, {})).data;
       assert.equal(token1.tokenNumber, 1);
       assert.equal(token2.tokenNumber, 2);
       const patientState = (await request("/patient/state", second.cookie)).data;
@@ -170,17 +184,21 @@ test(
       );
       assert.equal((await action("skip", { token: token1.tokenCode })).status, 200);
       assert.equal((await action("requeue", { token: token1.tokenCode })).status, 200);
-      assert.equal((await action("call", { token: token1.tokenCode })).status, 409);
-      assert.equal((await action("call", { token: token2.tokenCode })).status, 200);
+      assert.equal((await action("call", { token: token2.tokenCode })).status, 409);
+      assert.equal((await action("call", { token: token1.tokenCode })).status, 200);
       assert.equal((await action("complete")).status, 200);
       assert.equal(
-        (await request("/patient/token/cancel", first.cookie, {})).data.status,
+        (await request("/patient/token/cancel", second.cookie, { tokenId: token2.id })).status,
+        200,
+      );
+      assert.equal(
+        (await one<any>(instance!.db, "SELECT status FROM tokens WHERE id=?", token2.id)).status,
         "cancelled",
       );
       assert.equal((await action("close")).status, 200);
       assert.equal((await request("/patient/token", first.cookie, {})).status, 409);
       assert.equal((await action("open")).status, 200);
-      const third = (await request("/patient/token", first.cookie, {})).data;
+      const third = (await request("__book-appointment", first.cookie, {})).data;
       assert.equal(third.tokenNumber, 3);
       assert.equal((await action("call-next")).data.id, third.id);
       assert.equal((await action("complete")).status, 200);

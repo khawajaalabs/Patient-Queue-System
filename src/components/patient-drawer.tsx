@@ -1,3 +1,4 @@
+import { clinicDayKey } from "@/utils/clinic-date";
 import { Link } from "@tanstack/react-router";
 import { StartConsultation } from "@/components/clinical";
 import { useClinicContext } from "@/providers/clinic-provider";
@@ -22,7 +23,10 @@ export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose
           : e.token === entry.token && e.date === entry.date && e.clinicId === entry.clinicId,
       ) ?? entry)
     : null;
-  const canManage = selected !== "all" && (!current?.clinicId || current.clinicId === selected);
+  const canManage =
+    Boolean(current?.appointmentId) &&
+    selected !== "all" &&
+    (!current?.clinicId || current.clinicId === selected);
   return (
     <Sheet
       open={!!current}
@@ -108,32 +112,39 @@ export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose
                 </ol>
               </section>
               <div className="flex flex-wrap gap-2 border-t border-border pt-6">
-                {canManage && current.date === queueDate && current.status === "waiting" && (
-                  <Btn
-                    onClick={() => {
-                      void runAction(
-                        () => actions.call(current.token),
-                        `Token ${current.token} is now being served.`,
-                      );
-                    }}
-                  >
-                    Call patient
-                  </Btn>
-                )}
-                {canManage && current.date === queueDate && current.status === "serving" && (
-                  <Btn
-                    onClick={() => {
-                      void runAction(
-                        () => actions.markDone(current.token),
-                        "Patient marked as completed.",
-                      );
-                    }}
-                  >
-                    Mark as done
-                  </Btn>
-                )}
                 {canManage &&
                   current.date === queueDate &&
+                  queueDate === clinicDayKey() &&
+                  current.status === "waiting" && (
+                    <Btn
+                      onClick={() => {
+                        void runAction(
+                          () => actions.call(current.token),
+                          `Token ${current.token} is now being served.`,
+                        );
+                      }}
+                    >
+                      Call patient
+                    </Btn>
+                  )}
+                {canManage &&
+                  current.date === queueDate &&
+                  queueDate === clinicDayKey() &&
+                  current.status === "serving" && (
+                    <Btn
+                      onClick={() => {
+                        void runAction(
+                          () => actions.markDone(current.token),
+                          "Patient marked as completed.",
+                        );
+                      }}
+                    >
+                      Mark as done
+                    </Btn>
+                  )}
+                {canManage &&
+                  current.date === queueDate &&
+                  queueDate === clinicDayKey() &&
                   ["waiting", "serving"].includes(current.status) && (
                     <Btn
                       variant="secondary"
@@ -144,19 +155,22 @@ export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose
                       Skip
                     </Btn>
                   )}
-                {canManage && current.date === queueDate && current.status === "skipped" && (
-                  <Btn
-                    variant="secondary"
-                    onClick={() => {
-                      void runAction(
-                        () => actions.requeue(current.token),
-                        "Patient moved back to queue.",
-                      );
-                    }}
-                  >
-                    Move back to queue
-                  </Btn>
-                )}
+                {canManage &&
+                  current.date === queueDate &&
+                  queueDate === clinicDayKey() &&
+                  current.status === "skipped" && (
+                    <Btn
+                      variant="secondary"
+                      onClick={() => {
+                        void runAction(
+                          () => actions.requeue(current.token),
+                          "Patient moved back to queue.",
+                        );
+                      }}
+                    >
+                      Move back to queue
+                    </Btn>
+                  )}
               </div>
             </div>
           </>

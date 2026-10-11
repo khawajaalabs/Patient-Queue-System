@@ -1,3 +1,4 @@
+import { TokenActions } from "@/components/appointment-tokens";
 import { runAction } from "@/services/queue";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Info } from "lucide-react";
@@ -18,10 +19,10 @@ export function QueuePage() {
       <div className="mx-auto max-w-md py-16 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">No active token</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Get a token to see your live position here.
+          Your live position appears on the date of your booked appointment.
         </p>
-        <Link to="/patient/get-token" className="mt-6 inline-block">
-          <Btn>Get a token</Btn>
+        <Link to="/patient/appointments" className="mt-6 inline-block">
+          <Btn>View appointments</Btn>
         </Link>
       </div>
     );
@@ -105,23 +106,11 @@ export function QueuePage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 Leaving frees your spot for the next patient.
               </p>
-              <ConfirmAction
-                title="Leave this queue?"
-                description="Your current token will be released."
-                cancel="Stay in queue"
-                confirm="Leave queue"
-                onConfirm={() => {
-                  void runAction(() => actions.leave(), "You left the queue.");
-                }}
-              >
-                <Btn
-                  variant="danger"
-                  className="-ml-4 mt-2"
-                  disabled={q.mine?.status !== "waiting"}
-                >
-                  Leave queue
-                </Btn>
-              </ConfirmAction>
+              {q.mine.id && (
+                <TokenActions
+                  token={{ id: q.mine.id, tokenCode: q.mine.token, status: q.mine.status }}
+                />
+              )}
             </div>
           </aside>
         </div>

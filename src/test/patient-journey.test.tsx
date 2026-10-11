@@ -1,3 +1,18 @@
+vi.mock("@/api/client", () => ({
+  api: vi.fn(async (path: string) =>
+    path === "/patient/summary"
+      ? {
+          appointment: null,
+          visit: null,
+          prescription: null,
+          document: null,
+          bills: { balance: 0 },
+          followups: [],
+          notifications: [],
+        }
+      : [],
+  ),
+}));
 vi.mock("@/components/protected-route", () => ({
   ProtectedRoute: ({ children }: { children: import("react").ReactNode }) => children,
 }));
@@ -68,7 +83,7 @@ function renderPatientApp() {
   render(<RouterProvider router={router} />);
   return router;
 }
-it("demonstrates login, token issuance, anonymous tracking, completion and history", async () => {
+it("preserves login, anonymous appointment-token tracking, completion and history", async () => {
   const router = renderPatientApp();
   await screen.findByRole("heading", { name: "Welcome back" });
   fireEvent.change(screen.getByRole("textbox", { name: "Email" }), {
@@ -78,11 +93,9 @@ it("demonstrates login, token issuance, anonymous tracking, completion and histo
   fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
   await screen.findByRole("heading", { name: "Good morning, Zain" });
   expect(screen.getByText("~20 min")).toBeInTheDocument();
-  fireEvent.click(within(screen.getByRole("main")).getByRole("link", { name: "Get token" }));
-  await screen.findByRole("heading", { name: "Join today's queue" });
-  fireEvent.click(screen.getByRole("button", { name: "Get my token" }));
-  await screen.findByRole("heading", { name: "You're in the queue" });
-  fireEvent.click(screen.getByRole("link", { name: "Track my queue" }));
+  await act(async () => {
+    await router.navigate({ to: "/patient/live-queue" });
+  });
   await screen.findByRole("heading", { name: "Live queue" });
   expect(screen.queryByText("Sara Ali")).not.toBeInTheDocument();
   expect(screen.queryByText("Ahmed Khan")).not.toBeInTheDocument();
@@ -107,18 +120,12 @@ it.each(["no-queue", "completed"] as const)(
       await router.navigate({ to: "/patient/dashboard" });
     });
     await screen.findByRole("heading", { name: "Good morning, Zain" });
-    if (scenario === "no-queue") {
-      const heading = screen.getByRole("heading", { name: "You don't have an active token." });
-      const card = heading.closest("section")!;
-      expect(within(card).getByRole("link", { name: /Get a token/ })).toHaveAttribute(
-        "href",
-        "/patient/get-token",
-      );
-      expect(within(card).getByRole("button", { name: /Get a token/ })).toBeDisabled();
-    } else {
-      expect(screen.getByText("Your token")).toBeInTheDocument();
-      expect(screen.getByText("Visit completed.")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Get another token" })).toBeInTheDocument();
-    }
+    expect(screen.queryByRole("button", { name: /Get.*token/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Get.*token/ })).toBeNull();
+    if (scenario === "no-queue")
+      expect(
+        await screen.findByRole("heading", { name: "Book your next appointment" }),
+      ).toBeInTheDocument();
+    else expect(screen.getByText("Visit completed.")).toBeInTheDocument();
   },
 );

@@ -24,7 +24,8 @@
     "test:supabase": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local --test server/test/supabase.integration.test.ts",
     "test:availability:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-availability-postgres.mjs",
     "test:clinical-workflow:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-clinical-workflow-postgres.mjs",
-    "test:workflow:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-workflow-postgres.mjs"
+    "test:workflow:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-workflow-postgres.mjs",
+    "test:appointment-tokens:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-appointment-tokens-postgres.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -73,6 +74,7 @@
     "express": "^5.2.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
+    "pdfkit": "^0.20.2",
     "pg": "^8.23.1",
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",
@@ -96,6 +98,7 @@
     "@testing-library/react": "^16.0.0",
     "@types/express": "^5.0.6",
     "@types/node": "^22.16.5",
+    "@types/pdfkit": "^0.17.6",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

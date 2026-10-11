@@ -27,6 +27,7 @@ export function Logo({ className }: { className?: string }) {
 }
 
 const statusMap: Record<Status, { label: string; cls: string }> = {
+  reserved: { label: "Reserved", cls: "bg-primary-soft text-primary" },
   waiting: { label: "Waiting", cls: "bg-warning-soft text-warning" },
   serving: { label: "Serving", cls: "bg-info-soft text-info" },
   done: { label: "Completed", cls: "bg-success-soft text-success" },

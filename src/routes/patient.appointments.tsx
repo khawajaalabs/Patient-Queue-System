@@ -1,3 +1,4 @@
+import { TokenActions } from "@/components/appointment-tokens";
 import { ClinicLocationPicker } from "@/components/clinic-location-picker";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, Btn, Field } from "@/components/qc";
@@ -22,6 +23,11 @@ export function Appointments() {
   const [clinicId, setClinicId] = useState(selected === "all" ? "" : selected);
   const [notes, setNotes] = useState(""),
     [review, setReview] = useState<{ scheduledAt: string; reason: string } | null>(null);
+  const [confirmed, setConfirmed] = useState<{
+    id: string;
+    token: { id: string; tokenCode: string; status: string };
+    scheduledAt: string;
+  } | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0);
@@ -40,6 +46,22 @@ export function Appointments() {
           Book appointment
         </Btn>
       </div>
+      {confirmed && (
+        <section className="surface mb-5 p-6" role="status">
+          <h2 className="font-semibold">Appointment confirmed</h2>
+          <p className="mt-2 text-sm">{confirmed.scheduledAt.replace("T", " ")}</p>
+          <p className="tabular mt-3 text-4xl font-semibold text-primary">
+            {confirmed.token.tokenCode}
+          </p>
+          <a
+            className="mt-4 inline-block text-primary"
+            href={"/patient/appointment/" + confirmed.id}
+          >
+            View appointment →
+          </a>
+          <TokenActions token={confirmed.token} onChanged={remote.reload} />
+        </section>
+      )}
       {!remote.data ? (
         <ClinicalLoading error={remote.error} retry={remote.reload} />
       ) : (
@@ -52,6 +74,9 @@ export function Appointments() {
                 {a.status}
               </p>
               <p className="mt-1 text-sm">{a.reason}</p>
+              {a.token && (
+                <p className="mt-2 text-sm font-semibold text-primary">Token {a.token.tokenCode}</p>
+              )}
               <a
                 className="mt-3 inline-block text-sm underline"
                 href={`/patient/appointment/${a.id}`}
@@ -84,14 +109,22 @@ export function Appointments() {
               setBusy(true);
               setError("");
               void (async () => {
-                await api("/patient/appointments", {
-                  method: "POST",
-                  body: {
-                    clinicId,
-                    scheduledAt: review.scheduledAt,
-                    reason: review.reason,
-                    patientNotes: notes,
+                const booked = await api<{ id: string; token: { id: string; tokenCode: string } }>(
+                  "/patient/appointments",
+                  {
+                    method: "POST",
+                    body: {
+                      clinicId,
+                      scheduledAt: review.scheduledAt,
+                      reason: review.reason,
+                      patientNotes: notes,
+                    },
                   },
+                );
+                setConfirmed({
+                  ...booked,
+                  token: { ...booked.token, status: "waiting" },
+                  scheduledAt: review.scheduledAt,
                 });
                 remote.reload();
                 window.dispatchEvent(new Event("queuecare:refresh"));

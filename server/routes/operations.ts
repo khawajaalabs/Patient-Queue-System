@@ -51,13 +51,16 @@ export function operationsRoutes(
   r.get("/patient/appointments", requireRole(db, "patient"), async (_req, res) => {
     const rows = await many<Record<string, unknown>>(
       db,
-      "SELECT a.*,CASE WHEN a.status='completed' THEN 'completed' ELSE COALESCE(w.status,a.status) END status,c.name clinic_name FROM appointments a JOIN clinics c ON c.id=a.clinic_id LEFT JOIN appointment_workflow w ON w.appointment_id=a.id WHERE a.patient_id=? ORDER BY a.scheduled_at DESC LIMIT 200",
+      "SELECT a.*,CASE WHEN a.status='completed' THEN 'completed' ELSE COALESCE(w.status,a.status) END status,c.name clinic_name,t.id token_id,t.token_code,t.status token_status FROM appointments a JOIN clinics c ON c.id=a.clinic_id LEFT JOIN appointment_workflow w ON w.appointment_id=a.id LEFT JOIN tokens t ON t.appointment_id=a.id WHERE a.patient_id=? ORDER BY a.scheduled_at DESC LIMIT 200",
       user(res).id,
     );
     res.json({
       success: true,
       data: rows.map((a) => ({
         id: a["id"],
+        token: a["token_id"]
+          ? { id: a["token_id"], tokenCode: a["token_code"], status: a["token_status"] }
+          : null,
         clinicId: a["clinic_id"],
         clinicName: a["clinic_name"],
         patientId: a["patient_id"],
@@ -156,48 +159,6 @@ export function operationsRoutes(
     await patientInClinic(db, u, idValue.parse(req.body.patientId), scope(req));
     send(res, await createAppointment(db, scope(req), u.id, req.body), 201);
   });
-  r.put("/operations/appointments/:id", requireRole(db), async (req, res) => {
-    const u = user(res),
-      c = z
-        .object({
-          status: z.enum(["scheduled", "cancelled"]),
-          scheduledAt: z
-            .string()
-            .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
-            .refine((s) => {
-              const d = new Date(s + ":00Z");
-              return !isNaN(d.getTime()) && d.toISOString().slice(0, 16) === s;
-            }),
-        })
-        .strict()
-        .parse(req.body);
-    const a = await one<{ clinic_id: string; patient_id: string; status: string }>(
-      db,
-      "SELECT clinic_id,patient_id,status FROM appointments WHERE id=?",
-      id(req),
-    );
-    if (!a) throw new ApiError(404, "NOT_FOUND", "Appointment not found.");
-    await authorizeClinic(db, u, a.clinic_id, ["receptionist"]);
-    if (a.status === "completed")
-      throw new ApiError(409, "CLOSED", "Completed appointments cannot be changed.");
-    await atomic(db, async () => {
-      await db
-        .prepare("UPDATE appointments SET status=?,scheduled_at=?,updated_at=? WHERE id=?")
-        .run(c.status, c.scheduledAt, stamp(), id(req));
-      await audit(db, u.id, "appointment." + c.status, "appointment", id(req), a.clinic_id);
-      await notification(
-        db,
-        a.patient_id,
-        "appointment." + c.status + "." + c.scheduledAt,
-        "Appointment updated",
-        "Your appointment schedule has changed.",
-        "appointment",
-        id(req),
-        a.clinic_id,
-      );
-    });
-    send(res, { id: id(req) });
-  });
   r.post("/staff/check-in", requireRole(db), async (req, res) => {
     const c = z
         .object({ patientId: idValue, reason: z.string().trim().max(300) })
@@ -212,7 +173,16 @@ export function operationsRoutes(
       c.patientId,
     );
     if (!patient) throw new ApiError(404, "NOT_FOUND", "Patient not found.");
-    const result = await mutateQueue(db, patient!, "join", { reason: c.reason }, clinic);
+    const linked = await one<{ id: string }>(
+      db,
+      "SELECT t.id FROM tokens t JOIN appointments a ON a.id=t.appointment_id WHERE a.patient_id=? AND a.clinic_id=? AND substr(a.scheduled_at,1,10)=? AND a.status='scheduled' AND t.status='waiting' ORDER BY a.scheduled_at LIMIT 1",
+      c.patientId,
+      clinic,
+      clinicDayKey(),
+    );
+    if (!linked)
+      throw new ApiError(409, "APPOINTMENT_REQUIRED", "Book an appointment before checking in.");
+    const result = { id: linked.id };
     await audit(db, u.id, "patient.checked_in", "token", result.id, clinic);
     send(res, result);
   });

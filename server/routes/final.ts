@@ -1,3 +1,4 @@
+import { ensureAppointmentQueue } from "../services/appointment-tokens.ts";
 import { rememberSlot } from "../services/availability.ts";
 import { deliverEmails } from "../services/email.ts";
 import { Router } from "express";
@@ -174,6 +175,40 @@ export function finalRoutes(db: Database, notify: Notify) {
       }>(db, "SELECT clinic_id,patient_id,status,scheduled_at FROM appointments WHERE id=?", id);
       if (!a) throw new ApiError(404, "NOT_FOUND", "Appointment not found.");
       await authorizeClinic(db, u, a.clinic_id, ["receptionist"]);
+      const linked = await one<{ status: string }>(
+        db,
+        "SELECT status FROM tokens WHERE appointment_id=?",
+        id,
+      );
+      if (a.status === "cancelled" && c.status !== "cancelled")
+        throw new ApiError(
+          409,
+          "CLOSED",
+          "Book a new appointment instead of restoring a cancelled token.",
+        );
+      if (
+        (await one(
+          db,
+          "SELECT id FROM encounters WHERE appointment_id=? AND status='in_progress'",
+          id,
+        )) &&
+        (c.scheduledAt !== a.scheduled_at || ["cancelled", "no_show"].includes(c.status))
+      )
+        throw new ApiError(
+          409,
+          "CONSULTATION_ACTIVE",
+          "Finish the consultation before changing this appointment.",
+        );
+      if (
+        linked &&
+        ["serving", "completed"].includes(linked.status) &&
+        (c.scheduledAt !== a.scheduled_at || ["cancelled", "no_show"].includes(c.status))
+      )
+        throw new ApiError(
+          409,
+          "CLOSED",
+          "An active or completed consultation cannot be rescheduled or cancelled.",
+        );
       if (a.status === "completed")
         throw new ApiError(409, "CLOSED", "Completed appointments cannot be changed.");
       if (
@@ -188,8 +223,14 @@ export function finalRoutes(db: Database, notify: Notify) {
           throw new ApiError(409, "WRONG_DAY", "Check in on the appointment date.");
         const p = await one<UserRow>(db, "SELECT * FROM users WHERE id=?", a.patient_id);
         if (!p) throw new ApiError(404, "NOT_FOUND", "Patient not found.");
-        await mutateQueue(db, p, "join", {}, a.clinic_id);
+        if (!linked)
+          throw new ApiError(
+            409,
+            "APPOINTMENT_REQUIRED",
+            "This historical appointment does not have an appointment token.",
+          );
       }
+      await ensureAppointmentQueue(db, a.clinic_id, c.scheduledAt.slice(0, 10), u.id);
       await db
         .prepare("UPDATE appointments SET status=?,scheduled_at=?,updated_at=? WHERE id=?")
         .run(

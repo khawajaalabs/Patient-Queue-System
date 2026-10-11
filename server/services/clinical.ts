@@ -335,6 +335,20 @@ export async function startVisit(
         patientId,
         c.clinicId,
       );
+    if (token?.["appointment_id"]) {
+      const linked = String(token["appointment_id"]);
+      if (c.appointmentId && c.appointmentId !== linked)
+        throw new ApiError(
+          409,
+          "APPOINTMENT_MISMATCH",
+          "This token belongs to another appointment.",
+        );
+      c.appointmentId = linked;
+      if (!appointment) {
+        appointment = await one<Row>(db, "SELECT * FROM appointments WHERE id=?", linked);
+        if (appointment) reason = str(appointment, "reason");
+      }
+    }
     if (c.tokenId && !token) throw new ApiError(404, "TOKEN_NOT_FOUND", "Token not found.");
     const existing = await one<Row>(
       db,

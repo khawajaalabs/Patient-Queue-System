@@ -1,3 +1,4 @@
+import { tokenDocumentRoutes } from "./routes/token-documents.ts";
 import { workflowRoutes } from "./routes/workflow.ts";
 import { clinicalWorkflowRoutes } from "./routes/clinical-workflow.ts";
 import { availabilityRoutes } from "./routes/availability.ts";
@@ -82,6 +83,7 @@ export function createLocalApp(options: {
       ...options.auth,
     }),
   );
+  app.use("/api", tokenDocumentRoutes(db));
   app.use("/api", workflowRoutes(db, notify));
   app.use("/api", clinicalWorkflowRoutes(db, options.storage));
   app.use("/api", availabilityRoutes(db, notify));

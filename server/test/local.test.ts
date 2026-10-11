@@ -1,3 +1,4 @@
+import { bookedToken } from "./appointment-token-fixture.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
@@ -61,6 +62,22 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
     body?: unknown,
     method = body === undefined ? "GET" : "POST",
   ): Promise<Result<T>> {
+    if (url === "__book-appointment") {
+      const identity = (await request<UserProfile>("/auth/me", cookie)).data;
+      const row = (await one<UserRow>(server.db, "SELECT * FROM users WHERE id=?", identity.id))!;
+      const data = await bookedToken(
+        server.db,
+        row,
+        "northstar",
+        (body as { reason?: string })?.reason ?? "",
+      );
+      return {
+        response: new Response("{}", { status: 200 }),
+        data: data as T,
+        error: undefined,
+        cookie: "",
+      };
+    }
     const response = await fetch(base + "/api" + url, {
       method,
       headers: {
@@ -238,7 +255,10 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
       assert.equal(unmarked.status, 403);
     });
     await t.test("patient cannot join before a queue is opened", async () => {
-      assert.equal((await request("/patient/token", patient, {})).error?.code, "NO_QUEUE");
+      assert.equal(
+        (await request("/patient/token", patient, {})).error?.code,
+        "APPOINTMENT_REQUIRED",
+      );
     });
     await t.test("open creates exactly one daily queue and is idempotent", async () => {
       const first = await action<DailyQueue>("open"),
@@ -252,15 +272,15 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
       );
     });
     await t.test("first token is A-001 and duplicate requests reuse it", async () => {
-      const result = await request<QueueToken>("/patient/token", patient, {
+      const result = await request<QueueToken>("__book-appointment", patient, {
         reason: "Private reason",
       });
       token = result.data;
       assert.equal(token.tokenCode, "A-001");
       assert.equal(token.patientId, user.id);
       const results = await Promise.all([
-        request<QueueToken>("/patient/token", patient, {}),
-        request<QueueToken>("/patient/token", patient, {}),
+        request<QueueToken>("__book-appointment", patient, {}),
+        request<QueueToken>("__book-appointment", patient, {}),
       ]);
       assert.ok(results.every((result) => result.data.id === token.id));
       assert.equal(
@@ -276,7 +296,7 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
       "second patient gets sequential token and cannot cancel another patient",
       async () => {
         second = (await register("second@example.com", "Second Patient")).cookie;
-        nextToken = (await request<QueueToken>("/patient/token", second, {})).data;
+        nextToken = (await request<QueueToken>("__book-appointment", second, {})).data;
         assert.equal(nextToken.tokenCode, "A-002");
         const tampered = await request("/patient/token/cancel", second, {
           token: token.tokenCode,
@@ -301,7 +321,7 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
         Array.from({ length: 4 }, (_, index) => register(`concurrent${index}@example.com`)),
       );
       const tokens = await Promise.all(
-        registrations.map((result) => request<QueueToken>("/patient/token", result.cookie, {})),
+        registrations.map((result) => request<QueueToken>("__book-appointment", result.cookie, {})),
       );
       assert.deepEqual(
         tokens.map((result) => result.data.tokenNumber).sort((a, b) => a - b),
@@ -326,7 +346,10 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
       "multiple serving patients and cancelling a serving token are prevented",
       async () => {
         assert.equal((await action("call-next")).error?.code, "ALREADY_SERVING");
-        assert.equal((await request("/patient/token/cancel", patient, {})).response.status, 409);
+        assert.equal(
+          (await request("/patient/token/cancel", patient, { tokenId: token.id })).response.status,
+          409,
+        );
         assert.equal(
           (await one<{ n: number }>(
             server.db,
@@ -397,7 +420,7 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
           request<PublicQueue>("/public/queue"),
         ]);
         assert.equal(staff.data.queue.find((entry) => entry.id === token.id)?.status, "completed");
-        assert.equal(own.data.mine?.status, "completed");
+        assert.equal(own.data.mine, null);
         assert.equal(pub.data.currentToken, null);
         assert.ok(completed.data.completedAt);
       },
@@ -414,37 +437,50 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
       const patients = (await request<QueueResponse["patients"]>("/admin/patients", admin)).data;
       assert.equal(patients.length, 6);
     });
-    await t.test("skip removes from position and move-back preserves number at end", async () => {
-      const skipped = await action("skip", { token: nextToken.tokenCode });
-      assert.equal(skipped.data.status, "skipped");
-      assert.ok(skipped.data.skippedAt);
-      assert.equal((await request<QueueToken>("/patient/token", second, {})).data.id, nextToken.id);
-      const moved = await action("requeue", { token: nextToken.tokenCode });
-      assert.equal(moved.data.tokenNumber, 2);
-      assert.equal(moved.data.status, "waiting");
-      assert.ok(moved.data.queueOrder > 6);
-      const own = (
-        await request<QueueResponse & { ahead: number; eta: number }>("/patient/state", second)
-      ).data;
-      assert.equal(own.ahead, 4);
-      assert.equal(own.eta, 20);
-    });
+    await t.test(
+      "skip removes from position; requeue preserves number and appointment-time order",
+      async () => {
+        const skipped = await action("skip", { token: nextToken.tokenCode });
+        assert.equal(skipped.data.status, "skipped");
+        assert.ok(skipped.data.skippedAt);
+        assert.equal(
+          (await request<QueueToken>("__book-appointment", second, {})).data.id,
+          nextToken.id,
+        );
+        const moved = await action("requeue", { token: nextToken.tokenCode });
+        assert.equal(moved.data.tokenNumber, 2);
+        assert.equal(moved.data.status, "waiting");
+        assert.equal(moved.data.queueOrder, 1);
+        const own = (
+          await request<QueueResponse & { ahead: number; eta: number }>("/patient/state", second)
+        ).data;
+        assert.equal(own.ahead, 0);
+        assert.equal(own.eta, 0);
+      },
+    );
     await t.test("patient cancellation retains history and permits a new visit", async () => {
-      const cancelled = await request<QueueToken>("/patient/token/cancel", second, {});
-      assert.equal(cancelled.data.status, "cancelled");
-      assert.ok(cancelled.data.cancelledAt);
+      const cancelled = await request<QueueToken>("/patient/token/cancel", second, {
+        tokenId: nextToken.id,
+      });
+      assert.equal(cancelled.data.id, nextToken.id);
       assert.equal(
         (await request<QueueToken[]>("/patient/history", second)).data[0]?.status,
         "cancelled",
       );
-      assert.equal((await request<QueueToken>("/patient/token", second, {})).data.tokenNumber, 7);
+      assert.equal(
+        (await request<QueueToken>("__book-appointment", second, {})).data.tokenNumber,
+        7,
+      );
     });
     await t.test(
       "closing prevents new issuance and reopening preserves counter/history",
       async () => {
         await action("close");
         assert.equal((await action("call-next")).error?.code, "QUEUE_CLOSED");
-        assert.equal((await request("/patient/token", patient, {})).error?.code, "QUEUE_CLOSED");
+        assert.equal(
+          (await request("/patient/token", patient, {})).error?.code,
+          "APPOINTMENT_REQUIRED",
+        );
         assert.equal((await request<PublicQueue>("/public/queue")).data.status, "closed");
         const opened = await action<DailyQueue>("open");
         assert.equal(opened.data.nextTokenNumber, 8);
@@ -478,7 +514,7 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
         const pub = (await request<PublicQueue>("/public/queue")).data;
         assert.equal(pub.displayName, "Updated Reception");
         assert.deepEqual(pub.nextTokens, []);
-        const issued = (await request<QueueToken>("/patient/token", patient, {})).data;
+        const issued = (await request<QueueToken>("__book-appointment", patient, {})).data;
         assert.equal(issued.tokenCode, "A-008");
         assert.equal(issued.department, "Local OPD");
       },
@@ -511,7 +547,7 @@ test("local authentication, queue lifecycle, privacy, realtime and persistence",
           initialHash,
         );
         const state = (await request<QueueResponse>("/admin/state", admin)).data;
-        assert.equal(state.queue.length, 8);
+        assert.equal(state.queue.length, 7);
         assert.equal(state.clinic.name, "Updated Local Clinic");
         assert.equal(state.clinic.averageConsultationMinutes, 5);
         assert.equal((await request<UserProfile>("/auth/me", patient)).data.id, user.id);

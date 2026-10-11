@@ -41,6 +41,9 @@ interface QueueRow {
   updated_at: string;
 }
 interface TokenRow {
+  appointment_id: string | null;
+  scheduled_at: string | null;
+  appointment_order: number;
   id: string;
   queue_id: string;
   patient_id: string;
@@ -65,10 +68,12 @@ interface TokenRow {
   clinic_name: string;
 }
 const tokenSelect =
-  "SELECT t.*,u.full_name,u.phone,q.queue_date,q.clinic_id,c.name clinic_name FROM tokens t JOIN users u ON u.id=t.patient_id JOIN daily_queues q ON q.id=t.queue_id JOIN clinics c ON c.id=q.clinic_id";
+  "SELECT t.*,a.scheduled_at,ROW_NUMBER() OVER(PARTITION BY t.queue_id ORDER BY a.scheduled_at,t.id) appointment_order,u.full_name,u.phone,q.queue_date,q.clinic_id,c.name clinic_name FROM tokens t JOIN users u ON u.id=t.patient_id JOIN daily_queues q ON q.id=t.queue_id JOIN clinics c ON c.id=q.clinic_id LEFT JOIN appointments a ON a.id=t.appointment_id";
 export function tokenValue(t: TokenRow): QueueToken {
   return {
     id: t.id,
+    appointmentId: t.appointment_id,
+    scheduledAt: t.scheduled_at,
     clinicId: t.clinic_id,
     clinicName: t.clinic_name,
     patientId: t.patient_id,
@@ -76,10 +81,13 @@ export function tokenValue(t: TokenRow): QueueToken {
     phone: t.phone,
     tokenNumber: t.token_number,
     tokenCode: t.token_code,
-    queueOrder: t.queue_order,
+    queueOrder: Number(t.appointment_id ? (t.appointment_order ?? t.queue_order) : t.queue_order),
     department: t.department,
     reasonForVisit: t.reason_for_visit,
-    status: t.status,
+    status:
+      t.appointment_id && t.status === "waiting" && t.queue_date > clinicDayKey()
+        ? "reserved"
+        : t.status,
     queueDate: t.queue_date,
     joinedAt: t.joined_at,
     calledAt: t.called_at,
@@ -112,12 +120,12 @@ export async function clinicValue(db: Database, clinicId = "northstar"): Promise
     publicDisplayShowNext: Boolean(c.public_display_show_next),
   };
 }
-export async function currentQueue(db: Database, clinicId = "northstar") {
+export async function currentQueue(db: Database, clinicId = "northstar", day = clinicDayKey()) {
   return await one<QueueRow>(
     db,
     "SELECT * FROM daily_queues WHERE clinic_id=? AND queue_date=?",
     clinicId,
-    clinicDayKey(),
+    day,
   );
 }
 export function dailyQueueValue(q: QueueRow): DailyQueue {
@@ -134,25 +142,30 @@ export async function queueTokens(db: Database, qid: string) {
   return (
     await many<TokenRow>(
       db,
-      tokenSelect + " WHERE t.queue_id=? ORDER BY t.queue_order LIMIT 200",
+      tokenSelect +
+        " WHERE t.queue_id=? AND t.appointment_id IS NOT NULL AND c.active=1 AND (a.status='scheduled' OR t.status='completed') ORDER BY a.scheduled_at,t.id LIMIT 999",
       qid,
     )
   ).map(tokenValue);
 }
-export async function publicQueue(db: Database, clinicId = "northstar"): Promise<PublicQueue> {
+export async function publicQueue(
+  db: Database,
+  clinicId = "northstar",
+  day = clinicDayKey(),
+): Promise<PublicQueue> {
   const c = await clinicValue(db, clinicId),
-    q = await currentQueue(db, clinicId);
+    q = await currentQueue(db, clinicId, day);
   const waiting = q
     ? await many<{ token_code: string; queue_order: number }>(
         db,
-        "SELECT token_code,queue_order FROM tokens WHERE queue_id=? AND status='waiting' ORDER BY queue_order LIMIT 200",
+        "SELECT t.token_code,ROW_NUMBER() OVER(ORDER BY a.scheduled_at,t.id) queue_order FROM tokens t JOIN appointments a ON a.id=t.appointment_id JOIN clinics c ON c.id=a.clinic_id WHERE t.queue_id=? AND t.status='waiting' AND a.status='scheduled' AND c.active=1 ORDER BY a.scheduled_at,t.id LIMIT 999",
         q.id,
       )
     : [];
   const serving = q
     ? await one<{ token_code: string }>(
         db,
-        "SELECT token_code FROM tokens WHERE queue_id=? AND status='serving'",
+        "SELECT t.token_code FROM tokens t JOIN appointments a ON a.id=t.appointment_id JOIN clinics c ON c.id=a.clinic_id WHERE t.queue_id=? AND t.status='serving' AND a.status='scheduled' AND c.active=1",
         q.id,
       )
     : undefined;
@@ -173,20 +186,31 @@ export async function publicQueue(db: Database, clinicId = "northstar"): Promise
     tokenPrefix: c.tokenPrefix,
     averageConsultationMinutes: c.averageConsultationMinutes,
     publicDisplayShowNext: c.publicDisplayShowNext,
-    queueDate: clinicDayKey(),
-    status: q?.status ?? "unavailable",
+    queueDate: day,
+    status: c.active === false ? "unavailable" : (q?.status ?? "unavailable"),
     currentToken: serving?.token_code ?? null,
     nextTokens: c.publicDisplayShowNext ? waiting.slice(0, 3).map((t) => t.token_code) : [],
-    waitingTokens: waiting.map((t) => ({ tokenCode: t.token_code, queueOrder: t.queue_order })),
+    waitingTokens: waiting.map((t) => ({
+      tokenCode: t.token_code,
+      queueOrder: Number(t.queue_order),
+    })),
     updatedAt: updated,
   };
 }
 export async function patientState(db: Database, uid: string, clinicId = "northstar") {
+  const appointmentClinic = await one<{ clinic_id: string }>(
+    db,
+    "SELECT a.clinic_id FROM appointments a JOIN tokens t ON t.appointment_id=a.id JOIN clinics c ON c.id=a.clinic_id WHERE a.patient_id=? AND substr(a.scheduled_at,1,10)=? AND a.status='scheduled' AND t.status IN ('waiting','serving','skipped') AND c.active=1 ORDER BY CASE WHEN t.status='serving' THEN 0 ELSE 1 END,a.scheduled_at LIMIT 1",
+    uid,
+    clinicDayKey(),
+  );
+  if (appointmentClinic) clinicId = appointmentClinic.clinic_id;
   const q = await currentQueue(db, clinicId);
   const last = q
     ? await one<TokenRow>(
         db,
-        tokenSelect + " WHERE t.queue_id=? AND t.patient_id=? ORDER BY t.token_number DESC LIMIT 1",
+        tokenSelect +
+          " WHERE t.queue_id=? AND t.patient_id=? AND t.appointment_id IS NOT NULL AND t.status IN ('waiting','serving','skipped') AND a.status='scheduled' AND c.active=1 ORDER BY a.scheduled_at,t.id LIMIT 1",
         q.id,
         uid,
       )
@@ -202,7 +226,10 @@ export async function patientState(db: Database, uid: string, clinicId = "norths
     mine = last ? tokenValue(last) : null;
   const ahead =
     mine?.status === "waiting"
-      ? pub.waitingTokens.filter((t) => t.queueOrder < mine.queueOrder).length
+      ? Math.max(
+          0,
+          pub.waitingTokens.findIndex((t) => t.tokenCode === mine.tokenCode),
+        )
       : 0;
   return {
     clinic: await clinicValue(db, clinicId),
@@ -215,9 +242,9 @@ export async function patientState(db: Database, uid: string, clinicId = "norths
     eta: ahead * pub.averageConsultationMinutes,
   };
 }
-export async function adminState(db: Database, date: string, clinicId = "northstar") {
+export async function adminState(db: Database, date: string, clinicId = "northstar", queueDate = date) {
   const all = clinicId === "all";
-  const q = all ? undefined : await currentQueue(db, clinicId);
+  const q = all ? undefined : await currentQueue(db, clinicId, queueDate);
   const history = (
     await many<TokenRow>(
       db,
@@ -254,7 +281,7 @@ export async function adminState(db: Database, date: string, clinicId = "northst
   return {
     clinic: await clinicValue(db, all ? "northstar" : clinicId),
     public: {
-      ...(await publicQueue(db, all ? "northstar" : clinicId)),
+      ...(await publicQueue(db, all ? "northstar" : clinicId, queueDate)),
       ...(all ? { status: "unavailable" as const } : {}),
     },
     mine: null,
@@ -287,11 +314,19 @@ export async function mutateQueue(
       throw new ApiError(403, "FORBIDDEN", "This action requires the patient or doctor account.");
   } else if (user.role !== (action === "join" || action === "leave" ? "patient" : "admin"))
     throw new ApiError(403, "FORBIDDEN", "Your account cannot perform this action.");
+  if (action === "leave")
+    throw new ApiError(409, "TOKEN_ID_REQUIRED", "Give up an appointment token using its ID.");
+  if (action === "join")
+    throw new ApiError(
+      409,
+      "APPOINTMENT_REQUIRED",
+      "Book an appointment to receive a token. Manual token creation is unavailable.",
+    );
   return atomic(db, async () => {
     const stamp = new Date().toISOString(),
       day = clinicDayKey(),
       clinic = await clinicValue(db, clinicId);
-    if ((action === "open" || action === "join") && !clinic.active)
+    if (action === "open" && !clinic.active)
       throw new ApiError(409, "CLINIC_INACTIVE", "This clinic is inactive.");
     let q = await currentQueue(db, clinicId);
     if (action === "open") {
@@ -316,80 +351,27 @@ export async function mutateQueue(
         .run(stamp, stamp, q.id);
       return dailyQueueValue((await currentQueue(db, clinicId))!);
     }
-    if (action === "join") {
-      const existing = await one<TokenRow>(
-        db,
-        tokenSelect +
-          " WHERE t.queue_id=? AND t.patient_id=? AND t.status IN ('waiting','serving','skipped')",
-        q.id,
-        user.id,
-      );
-      if (existing) return tokenValue(existing);
-      if (q.status !== "open") throw new ApiError(409, "QUEUE_CLOSED", "Today's queue is closed.");
-      if (q.next_token_number > 200)
-        throw new ApiError(409, "QUEUE_FULL", "Today's queue is full. Please contact reception.");
-      const number = q.next_token_number,
-        id = randomUUID(),
-        code = `${clinic.tokenPrefix}-${String(number).padStart(3, "0")}`;
-      const order = (await one<{ n: number }>(
-        db,
-        "SELECT COALESCE(MAX(queue_order),0)+1 AS n FROM tokens WHERE queue_id=?",
-        q.id,
-      ))!.n;
-      await db
-        .prepare(
-          "INSERT INTO tokens (id,queue_id,patient_id,token_number,token_code,queue_order,department,reason_for_visit,status,joined_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-        )
-        .run(
-          id,
-          q.id,
-          user.id,
-          number,
-          code,
-          order,
-          clinic.department,
-          input.reason ?? "",
-          "waiting",
-          stamp,
-          stamp,
-          stamp,
-        );
-      await db
-        .prepare(
-          "UPDATE daily_queues SET next_token_number=next_token_number+1,updated_at=? WHERE id=?",
-        )
-        .run(stamp, q.id);
-      await notification(
-        db,
-        user.id,
-        "token.created",
-        "Queue token created",
-        "Your queue token is ready. Check your queue position in the app.",
-        "queue",
-        id,
-        clinicId,
-      );
-      await operationalNotification(db, clinicId, "patient.checked_in", "Patient checked in", id);
-      return tokenValue((await one<TokenRow>(db, tokenSelect + " WHERE t.id=?", id))!);
-    }
     let t: TokenRow | undefined;
-    if (action === "leave")
-      t = await one<TokenRow>(
-        db,
-        tokenSelect + " WHERE t.queue_id=? AND t.patient_id=? ORDER BY t.token_number DESC LIMIT 1",
-        q.id,
-        user.id,
-      );
-    else if (action === "callNext" || action === "call") {
+    if (action === "callNext" || action === "call") {
       if (q.status !== "open") throw new ApiError(409, "QUEUE_CLOSED", "Today's queue is closed.");
       if (
-        q.current_token_id ||
-        (await one(db, "SELECT id FROM tokens WHERE queue_id=? AND status='serving'", q.id))
+        (q.current_token_id &&
+          (await one(
+            db,
+            "SELECT id FROM tokens WHERE id=? AND appointment_id IS NOT NULL AND status='serving'",
+            q.current_token_id,
+          ))) ||
+        (await one(
+          db,
+          "SELECT id FROM tokens WHERE queue_id=? AND status='serving' AND appointment_id IS NOT NULL",
+          q.id,
+        ))
       )
         throw new ApiError(409, "ALREADY_SERVING", "Complete or skip the current patient first.");
       t = await one<TokenRow>(
         db,
-        tokenSelect + " WHERE t.queue_id=? AND t.status='waiting' ORDER BY t.queue_order LIMIT 1",
+        tokenSelect +
+          " WHERE t.queue_id=? AND t.status='waiting' AND t.appointment_id IS NOT NULL AND a.status='scheduled' ORDER BY a.scheduled_at,t.id LIMIT 1",
         q.id,
       );
       if (!t) throw new ApiError(409, "NO_WAITING", "No patients waiting.");
@@ -408,7 +390,9 @@ export async function mutateQueue(
             input.token,
           )
         : await one<TokenRow>(db, tokenSelect + " WHERE t.id=?", q.current_token_id ?? "");
-    if (!t) throw new ApiError(404, "TOKEN_NOT_FOUND", "This token is no longer available.");
+    if (!t || !t.appointment_id)
+      throw new ApiError(404, "TOKEN_NOT_FOUND", "This appointment token is no longer available.");
+    if (!clinic.active) throw new ApiError(409, "CLINIC_INACTIVE", "This clinic is inactive.");
     if (action === "callNext" || action === "call") {
       await db
         .prepare(
@@ -416,13 +400,6 @@ export async function mutateQueue(
         )
         .run(stamp, stamp, stamp, t.id);
       await db.prepare("UPDATE daily_queues SET current_token_id=? WHERE id=?").run(t.id, q.id);
-    } else if (action === "leave") {
-      if (t.status === "cancelled") return tokenValue(t);
-      if (t.status !== "waiting")
-        throw new ApiError(409, "INVALID_STATUS", "Only your own waiting token can be cancelled.");
-      await db
-        .prepare("UPDATE tokens SET status='cancelled',cancelled_at=?,updated_at=? WHERE id=?")
-        .run(stamp, stamp, t.id);
     } else if (action === "done") {
       if (
         await one(db, "SELECT id FROM encounters WHERE token_id=? AND status='in_progress'", t.id)
@@ -442,6 +419,9 @@ export async function mutateQueue(
         .prepare("UPDATE tokens SET status='completed',completed_at=?,updated_at=? WHERE id=?")
         .run(stamp, stamp, t.id);
       await db.prepare("UPDATE daily_queues SET current_token_id=NULL WHERE id=?").run(q.id);
+      await db
+        .prepare("UPDATE appointments SET status='completed',updated_at=? WHERE id=?")
+        .run(stamp, t.appointment_id);
       await db
         .prepare(
           "INSERT INTO visits (id,clinic_id,patient_id,doctor_id,queue_id,token_id,completed_at) VALUES (?,?,?,?,?,?,?)",
@@ -498,7 +478,8 @@ export async function mutateQueue(
       );
       const next = await many<TokenRow>(
         db,
-        "SELECT * FROM tokens WHERE queue_id=? AND status='waiting' ORDER BY queue_order LIMIT 2",
+        tokenSelect +
+          " WHERE t.queue_id=? AND t.status='waiting' AND a.status='scheduled' ORDER BY a.scheduled_at,t.id LIMIT 2",
         q.id,
       );
       for (const waiting of next)

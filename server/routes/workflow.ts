@@ -22,9 +22,15 @@ export async function appointmentFlow(db: Database, clinic: string, date?: strin
     clinic,
     clinic,
   );
-  const tokens = await many<{ id: string; patient_id: string; clinic_id: string; status: string }>(
+  const tokens = await many<{
+    id: string;
+    appointment_id: string;
+    patient_id: string;
+    clinic_id: string;
+    status: string;
+  }>(
     db,
-    "SELECT t.id,t.patient_id,q.clinic_id,t.status FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.queue_date=? AND (?='all' OR q.clinic_id=?) AND t.status IN ('waiting','serving','skipped')",
+    "SELECT t.id,t.appointment_id,t.patient_id,q.clinic_id,t.status FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.queue_date=? AND (?='all' OR q.clinic_id=?) AND t.status IN ('waiting','serving','skipped')",
     day,
     clinic,
     clinic,
@@ -32,7 +38,7 @@ export async function appointmentFlow(db: Database, clinic: string, date?: strin
   return list.map((a) => {
     const visit = visits.find((v) => v.appointment_id === a.id),
       token = a.scheduledAt.startsWith(day)
-        ? tokens.find((t) => t.patient_id === a.patientId && t.clinic_id === a.clinicId)
+        ? tokens.find((t) => t.appointment_id === a.id)
         : undefined;
     return {
       ...a,
@@ -85,7 +91,7 @@ export function workflowRoutes(db: Database, notify: Notify) {
       reason_for_visit: string;
     }>(
       db,
-      "SELECT t.id,t.patient_id,u.full_name patient_name,q.clinic_id,c.name clinic_name,t.token_code,t.status,t.reason_for_visit FROM tokens t JOIN daily_queues q ON q.id=t.queue_id JOIN users u ON u.id=t.patient_id JOIN clinics c ON c.id=q.clinic_id WHERE q.queue_date=? AND (?='all' OR q.clinic_id=?) ORDER BY t.queue_order",
+      "SELECT t.id,t.patient_id,u.full_name patient_name,q.clinic_id,c.name clinic_name,t.token_code,t.status,t.reason_for_visit FROM tokens t JOIN daily_queues q ON q.id=t.queue_id JOIN users u ON u.id=t.patient_id JOIN clinics c ON c.id=q.clinic_id JOIN appointments ap ON ap.id=t.appointment_id WHERE q.queue_date=? AND c.active=1 AND ap.status<>'cancelled' AND (?='all' OR q.clinic_id=?) ORDER BY ap.scheduled_at,t.id",
       day,
       clinic,
       clinic,

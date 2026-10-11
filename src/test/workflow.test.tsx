@@ -95,8 +95,14 @@ it("appointment in consultation exposes continue instead of irrelevant mutations
   expect(screen.queryByRole("button", { name: "Check in" })).toBeNull();
 });
 it("patient booking has City Area Clinic and no upload controls; submits only booking fields", async () => {
-  f.api.mockImplementation((path: string) =>
-    Promise.resolve(path === "/patient/appointments" ? [] : {}),
+  f.api.mockImplementation((path: string, options?: { method?: string }) =>
+    Promise.resolve(
+      path === "/patient/appointments"
+        ? options?.method === "POST"
+          ? { id: "appointment", token: { id: "token", tokenCode: "HP-001" } }
+          : []
+        : {},
+    ),
   );
   render(<Appointments />);
   fireEvent.click(screen.getByRole("button", { name: "Book appointment" }));

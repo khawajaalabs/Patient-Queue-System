@@ -95,8 +95,8 @@ it("demonstrates staff login, opening, drawer actions, history and private publi
   fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
   await screen.findByRole("heading", { name: "Live queue" });
   act(() => actions.demo("no-queue"));
-  fireEvent.click(screen.getByRole("button", { name: "Open today's queue" }));
-  expect(screen.getByText("Queue open")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Open queue" }));
+  expect(screen.getByText("Queue Open")).toBeInTheDocument();
   act(() => actions.resetDemo());
   fireEvent.click(screen.getByRole("link", { name: "Live Queue" }));
   await screen.findByRole("heading", { name: "Live queue" });

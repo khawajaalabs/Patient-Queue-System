@@ -1,3 +1,4 @@
+import { bookedToken } from "./appointment-token-fixture.ts";
 import { testDoctorHours } from "./availability-fixture.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -51,8 +52,8 @@ test("clinics isolate queues, retain global patients/history, and deactivate wit
     assert.equal((await listClinics(db, true)).length, 2);
     await mutateQueue(db, admin, "open", {}, "northstar");
     await mutateQueue(db, admin, "open", {}, branch.id);
-    const first = await mutateQueue(db, patient, "join", { reason: "First" }, "northstar");
-    const second = await mutateQueue(db, patient, "join", { reason: "Second" }, branch.id);
+    const first = await bookedToken(db, patient, "northstar", "First");
+    const second = await bookedToken(db, patient, branch.id, "Second");
     assert.equal("tokenCode" in first && first.tokenCode, "A-001");
     assert.equal("tokenCode" in second && second.tokenCode, `${branch.tokenPrefix}-001`);
     await mutateQueue(db, admin, "callNext", {}, branch.id);
@@ -179,11 +180,13 @@ test("clinic API enforces admin access and selected-clinic writes; public and pa
       (await request("/patient/token?clinicId=northstar", patient.cookie, {})).status,
       409,
     );
-    assert.equal(
-      (await request("/patient/token" + scope, patient.cookie, { reason: "Private reason" })).data
-        .tokenCode,
-      `${branch.data.tokenPrefix}-001`,
+    const fixture = await bookedToken(
+      server.db,
+      (await one<UserRow>(server.db, "SELECT * FROM users WHERE id=?", patient.data.id))!,
+      branch.data.id,
+      "Private reason",
     );
+    assert.equal(fixture.tokenCode, `${branch.data.tokenPrefix}-001`);
     assert.equal(
       (await request("/admin/queue/call-next?clinicId=northstar", admin.cookie, {})).status,
       409,
@@ -228,8 +231,8 @@ test("clinic API enforces admin access and selected-clinic writes; public and pa
       (await request("/admin/appointments?clinicId=northstar", admin.cookie)).data.length,
       0,
     );
-    assert.equal((await request("/admin/appointments" + scope, admin.cookie)).data.length, 1);
-    assert.equal((await request("/admin/appointments?clinicId=all", admin.cookie)).data.length, 1);
+    assert.equal((await request("/admin/appointments" + scope, admin.cookie)).data.length, 2);
+    assert.equal((await request("/admin/appointments?clinicId=all", admin.cookie)).data.length, 2);
     assert.equal(
       (
         await request(
@@ -242,8 +245,8 @@ test("clinic API enforces admin access and selected-clinic writes; public and pa
       200,
     );
     assert.equal((await request("/patient/token" + scope, second.cookie, {})).status, 409);
-    assert.equal((await request("/admin/queue/complete" + scope, admin.cookie, {})).status, 200);
-    assert.equal((await request("/patient/history", patient.cookie)).data.length, 1);
+    assert.equal((await request("/admin/queue/complete" + scope, admin.cookie, {})).status, 409);
+    assert.equal((await request("/patient/history", patient.cookie)).data.length, 2);
     assert.equal(
       (
         await request("/auth/login", "", {

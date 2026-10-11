@@ -14,7 +14,7 @@ export const Route = createFileRoute("/patient")({ component: PatientLayout });
 const links = [
   { to: "/patient/dashboard", label: "Home", icon: Home },
   { to: "/patient/live-queue", label: "Live queue", icon: Activity },
-  { to: "/patient/get-token", label: "Get token", icon: Ticket },
+  { to: "/patient/appointments", label: "Appointments", icon: Ticket },
   { to: "/patient/history", label: "History", icon: History },
 ] as const;
 

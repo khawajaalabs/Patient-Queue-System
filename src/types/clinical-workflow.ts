@@ -9,6 +9,7 @@ export interface AppointmentAttachment {
   createdAt: string;
 }
 export interface AppointmentContext {
+  token?: { id: string; tokenCode: string; status: string } | null;
   id: string;
   clinicId: string;
   clinicName: string;

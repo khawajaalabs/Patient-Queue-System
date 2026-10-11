@@ -9,13 +9,30 @@ vi.mock("@/lib/queue-store", async () => {
       const q = fixture.useQueue();
       return {
         ...q,
+        mine: q.mine
+          ? {
+              ...q.mine,
+              date: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(
+                new Date(),
+              ),
+            }
+          : null,
+        queue: q.queue.map((e) => ({
+          ...e,
+          date: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()),
+        })),
         patients: [...new Map([...q.history, ...q.queue].map((e) => [e.name, e])).values()],
         notifications: [],
         error: "",
         retry: () => fixture.actions.setLoadState("ready"),
-        queueDate: fixture.demoDate,
-        historyDate: fixture.demoDate,
+        queueDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(
+          new Date(),
+        ),
+        historyDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(
+          new Date(),
+        ),
         setHistoryDate: () => {},
+        setQueueDate: ()=>{},
       };
     },
   };

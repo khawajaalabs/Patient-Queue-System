@@ -1,3 +1,4 @@
+import { appointmentToken } from "./appointment-tokens.ts";
 import { rememberSlot } from "./availability.ts";
 import { validateSlot } from "./final.ts";
 import { audit, notification } from "./operations.ts";
@@ -212,6 +213,14 @@ export async function createAppointment(
     .parse(input);
   return atomic(db, async () => {
     const clinic = await clinicValue(db, clinicId);
+    const previous = await one<{ id: string }>(
+      db,
+      "SELECT id FROM appointments WHERE patient_id=? AND clinic_id=? AND scheduled_at=? AND status<>'cancelled'",
+      c.patientId,
+      clinicId,
+      c.scheduledAt,
+    );
+    if (previous) return { id: previous.id, token: await appointmentToken(db, previous.id) };
     const slot = await validateSlot(db, clinicId, c.scheduledAt);
     if (!clinic.active) throw new ApiError(409, "CLINIC_INACTIVE", "This clinic is inactive.");
     if (
@@ -246,7 +255,7 @@ export async function createAppointment(
       id,
       clinicId,
     );
-    return { id };
+    return { id, token: await appointmentToken(db, id) };
   });
 }
 
@@ -275,4 +284,55 @@ async function uniquePrefix(db: Database, name: string) {
     if (!used.has(candidate)) return candidate;
   }
   throw new ApiError(409, "PREFIX_EXHAUSTED", "Choose a more distinctive clinic name.");
+}
+
+export async function clinicRemoval(
+  db: Database,
+  clinicId: string,
+  actor: string,
+  archive = false,
+) {
+  return atomic(db, async () => {
+    await clinicValue(db, clinicId);
+    const tables = [
+      "appointments",
+      "daily_queues",
+      "encounters",
+      "visits",
+      "patient_documents",
+      "invoices",
+      "doctor_availability",
+      "clinic_branding",
+      "staff_clinics",
+      "medicine_catalog",
+      "notifications",
+      "appointment_attachments",
+    ];
+    let history = false;
+    for (const table of tables)
+      if (
+        await one(db, "SELECT clinic_id FROM " + table + " WHERE clinic_id=? LIMIT 1", clinicId)
+      ) {
+        history = true;
+        break;
+      }
+    if (history && !archive)
+      throw new ApiError(
+        409,
+        "ARCHIVE_REQUIRED",
+        "This clinic has records or dependent configuration. Archive it to preserve its history.",
+      );
+    if (archive) {
+      await db
+        .prepare("UPDATE clinics SET active=0,updated_at=? WHERE id=?")
+        .run(new Date().toISOString(), clinicId);
+      await audit(db, actor, "clinic.archived", "clinic", clinicId, clinicId);
+      return { archived: true };
+    }
+    // Audit entries retain the clinic identity even after an empty clinic is removed.
+
+    await audit(db, actor, "clinic.deleted", "clinic", clinicId, null);
+    await db.prepare("DELETE FROM clinics WHERE id=?").run(clinicId);
+    return { deleted: true };
+  });
 }

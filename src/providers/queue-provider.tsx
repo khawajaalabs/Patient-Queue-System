@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from "react";
 import { io } from "socket.io-client";
 import { useClinicContext } from "./clinic-provider";
 import { api } from "@/api/client";
@@ -28,6 +28,7 @@ export type QueueState = {
   error: string;
   retry: () => void;
   queueDate: string;
+  setQueueDate: (date: string) => void;
   historyDate: string;
   setHistoryDate: (date: string) => void;
   notifications: string[];
@@ -44,7 +45,10 @@ const emptyClinic: Clinic = {
   publicName: "",
   showNext: true,
 };
-const initial = (): Omit<QueueState, "retry" | "setHistoryDate" | "historyDate" | "queueDate"> => ({
+const initial = (): Omit<
+  QueueState,
+  "retry" | "setQueueDate" | "setHistoryDate" | "historyDate" | "queueDate"
+> => ({
   scope: "",
   open: false,
   openedToday: false,
@@ -72,6 +76,8 @@ export function toEntry(t: QueueToken): Entry {
   const end = t.calledAt ?? t.cancelledAt ?? t.skippedAt;
   return {
     id: t.id,
+    appointmentId: t.appointmentId,
+    scheduledAt: t.scheduledAt,
     clinicId: t.clinicId,
     clinicName: t.clinicName,
     department: t.department,
@@ -125,7 +131,14 @@ export function QueueProvider({
   const uid = publicOnly ? undefined : profile?.id;
   const [state, setState] = useState(initial);
   const [day, setDay] = useState(clinicDayKey);
+  const [selectedQueueDate, setQueueDate] = useState(clinicDayKey);
   const [historyDate, setHistoryDate] = useState(clinicDayKey);
+  const previousDay = useRef(day);
+  useEffect(() => {
+    const previous = previousDay.current;
+    setQueueDate((current) => (current === previous ? day : current));
+    previousDay.current = day;
+  }, [day]);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setDay(clinicDayKey()), 15000);
@@ -142,7 +155,7 @@ export function QueueProvider({
       try {
         const path =
           role === "admin"
-            ? `/admin/state?historyDate=${encodeURIComponent(historyDate)}`
+            ? `/admin/state?historyDate=${encodeURIComponent(historyDate)}&queueDate=${encodeURIComponent(selectedQueueDate)}`
             : role === "patient"
               ? "/patient/state"
               : "/public/queue";
@@ -154,6 +167,10 @@ export function QueueProvider({
         const privateState = "public" in data ? data : null;
         const pub = privateState ? privateState.public : (data as PublicQueue);
         const mine = privateState?.mine ? toEntry(privateState.mine) : null;
+        if (mine)
+          mine.queueOrder =
+            pub.waitingTokens.find((t) => t.tokenCode === mine.token)?.queueOrder ??
+            mine.queueOrder;
         let queue =
           role === "admin" && privateState
             ? privateState.queue.map(toEntry)
@@ -246,13 +263,14 @@ export function QueueProvider({
       socket.disconnect();
       window.removeEventListener("queuecare:refresh", refreshNow);
     };
-  }, [role, uid, authLoading, publicOnly, day, historyDate, attempt, selected]);
+  }, [role, uid, authLoading, publicOnly, day, historyDate, selectedQueueDate, attempt, selected]);
   return (
     <Context.Provider
       value={{
         ...state,
         loadState: state.scope === selected ? state.loadState : "loading",
-        queueDate: day,
+        queueDate: role === "admin" ? selectedQueueDate : day,
+        setQueueDate,
         historyDate,
         setHistoryDate,
         retry: () => setAttempt((n) => n + 1),

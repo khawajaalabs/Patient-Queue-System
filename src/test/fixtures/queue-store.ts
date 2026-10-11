@@ -5,6 +5,7 @@ export type Entry = {
   token: string;
   id?: string | undefined;
   patientId?: string | undefined;
+  appointmentId?: string | undefined;
   queueOrder?: number | undefined;
   skippedAt?: string | undefined;
   cancelledAt?: string | undefined;
@@ -80,6 +81,7 @@ const seed: Entry[] = (
   ] as [string, string, Status, string, number][]
 ).map(([token, name, status, time, waitMin]) => ({
   token,
+  appointmentId: "fixture-" + token,
   name,
   status,
   joinedAt: formatTime(time),

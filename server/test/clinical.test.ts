@@ -1,3 +1,5 @@
+import { one } from "../db/database.ts";
+import { bookedToken } from "./appointment-token-fixture.ts";
 import { testDoctorHours } from "./availability-fixture.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -99,7 +101,12 @@ test("clinical workflow: global profiles, structured notes/vitals/prescriptions,
       200,
     );
     await req("/admin/queue/open", admin.cookie, {});
-    const token = (await req("/patient/token", patient.cookie, { reason: "Review" })).data;
+    const token = await bookedToken(
+      app.db,
+      (await one<any>(app.db, "SELECT * FROM users WHERE id=?", uid))!,
+      "northstar",
+      "Review",
+    );
     await req("/admin/queue/call-next", admin.cookie, {});
     const start = { clinicId: "northstar", tokenId: token.id };
     const visit = (await req(`/admin/patients/${uid}/visits`, admin.cookie, start)).data;
@@ -166,7 +173,7 @@ test("clinical workflow: global profiles, structured notes/vitals/prescriptions,
     assert.equal(completed.status, 200);
     assert.equal((await req(path + "/complete", admin.cookie, record)).status, 200);
     assert.equal((await req(path, admin.cookie, record, "PUT")).status, 409);
-    assert.equal((await req("/patient/state", patient.cookie)).data.mine.status, "completed");
+    assert.equal((await req("/patient/state", patient.cookie)).data.mine, null);
     const released = (await req(`/patient/visits/${visit.id}`, patient.cookie)).data;
     assert.equal(released.patientSummary, "Released visit summary");
     assert.equal(released.diagnosis, "Recorded diagnosis");
@@ -277,7 +284,7 @@ test("additive clinical migration backfills existing patient profiles without ch
     );
     const original = JSON.stringify(db.prepare("SELECT * FROM users ORDER BY id").all());
     db.exec(
-      "DROP TABLE patient_conditions; DROP TABLE conditions; DROP INDEX clinics_location; ALTER TABLE clinics DROP COLUMN city; ALTER TABLE clinics DROP COLUMN area; DROP TABLE prescription_item_details; DROP TABLE medicine_catalog; DROP TABLE appointment_attachments; DROP TABLE appointment_context; DROP TABLE appointment_slots; DROP TABLE doctor_availability; DROP TABLE email_delivery_log; DROP TABLE follow_up_actions; DROP TABLE appointment_workflow; DROP TABLE clinic_branding; DROP TABLE doctor_profiles; DROP TABLE audit_logs; DROP TABLE notifications; DROP TABLE payments; DROP TABLE invoice_items; DROP TABLE invoices; DROP TABLE patient_documents; DROP TABLE staff_clinics; DROP TABLE staff_profiles; DROP TABLE prescription_items; DROP TABLE prescriptions; DROP TABLE visit_vitals; DROP TABLE encounters; DROP TABLE patient_profiles; DROP INDEX appointments_identity_clinic; PRAGMA user_version=3;",
+      "DROP TRIGGER empty_clinic_audit_pointer; DROP TRIGGER appointment_token_sync; DROP TRIGGER appointment_token_guard; DROP TRIGGER tokens_appointment_insert; DROP TRIGGER tokens_appointment_update; DROP TRIGGER tokens_appointment_link; DROP INDEX one_serving_appointment; CREATE UNIQUE INDEX one_serving_visit ON tokens(queue_id) WHERE status='serving'; DROP INDEX tokens_appointment_unique; DROP INDEX one_active_legacy_visit; ALTER TABLE tokens DROP COLUMN appointment_id; CREATE UNIQUE INDEX one_active_visit ON tokens(queue_id,patient_id) WHERE status IN ('waiting','serving','skipped'); DROP TABLE patient_conditions; DROP TABLE conditions; DROP INDEX clinics_location; ALTER TABLE clinics DROP COLUMN city; ALTER TABLE clinics DROP COLUMN area; DROP TABLE prescription_item_details; DROP TABLE medicine_catalog; DROP TABLE appointment_attachments; DROP TABLE appointment_context; DROP TABLE appointment_slots; DROP TABLE doctor_availability; DROP TABLE email_delivery_log; DROP TABLE follow_up_actions; DROP TABLE appointment_workflow; DROP TABLE clinic_branding; DROP TABLE doctor_profiles; DROP TABLE audit_logs; DROP TABLE notifications; DROP TABLE payments; DROP TABLE invoice_items; DROP TABLE invoices; DROP TABLE patient_documents; DROP TABLE staff_clinics; DROP TABLE staff_profiles; DROP TABLE prescription_items; DROP TABLE prescriptions; DROP TABLE visit_vitals; DROP TABLE encounters; DROP TABLE patient_profiles; DROP INDEX appointments_identity_clinic; PRAGMA user_version=3;",
     );
     migrate(db);
     assert.equal(JSON.stringify(db.prepare("SELECT * FROM users ORDER BY id").all()), original);

@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 export function migrate(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()?.["user_version"] ?? 0);
-  if (version > 9) throw new Error("This database was created by a newer QueueCare version.");
+  if (version > 10) throw new Error("This database was created by a newer QueueCare version.");
   if (version >= 1) {
     if (version === 1) migrateAuthentication(db);
     if (version < 3) migrateClinics(db);
@@ -11,6 +11,7 @@ export function migrate(db: DatabaseSync) {
     if (version < 7) migrateAvailability(db);
     if (version < 8) migrateClinicalWorkflow(db);
     if (version < 9) migrateSimplification(db);
+    if (version < 10) migrateAppointmentTokens(db);
     return;
   }
   db.exec(`BEGIN IMMEDIATE;
@@ -55,6 +56,7 @@ export function migrate(db: DatabaseSync) {
   migrateAvailability(db);
   migrateClinicalWorkflow(db);
   migrateSimplification(db);
+  migrateAppointmentTokens(db);
 }
 
 function migrateAuthentication(db: DatabaseSync) {
@@ -227,4 +229,38 @@ CREATE TABLE patient_conditions (id TEXT PRIMARY KEY, patient_id TEXT NOT NULL R
 CREATE INDEX patient_conditions_condition ON patient_conditions(condition_id,patient_id);
 CREATE INDEX patient_conditions_patient ON patient_conditions(patient_id,created_at);
 PRAGMA user_version=9; COMMIT;`);
+}
+
+function migrateAppointmentTokens(db: DatabaseSync) {
+  db.exec(`BEGIN IMMEDIATE;
+ALTER TABLE tokens ADD COLUMN appointment_id TEXT REFERENCES appointments(id);
+DROP INDEX one_serving_visit;
+CREATE UNIQUE INDEX one_serving_appointment ON tokens(queue_id) WHERE appointment_id IS NOT NULL AND status='serving';
+CREATE UNIQUE INDEX tokens_appointment_unique ON tokens(appointment_id) WHERE appointment_id IS NOT NULL;
+DROP INDEX one_active_visit;
+CREATE UNIQUE INDEX one_active_legacy_visit ON tokens(queue_id,patient_id) WHERE appointment_id IS NULL AND status IN ('waiting','serving','skipped');
+
+CREATE TRIGGER tokens_appointment_insert BEFORE INSERT ON tokens WHEN NEW.appointment_id IS NOT NULL BEGIN
+ SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM appointments a JOIN daily_queues q ON q.id=NEW.queue_id WHERE a.id=NEW.appointment_id AND a.patient_id=NEW.patient_id AND a.clinic_id=q.clinic_id AND substr(a.scheduled_at,1,10)=q.queue_date) THEN RAISE(ABORT,'Appointment token identity mismatch') END;
+END;
+CREATE TRIGGER tokens_appointment_link BEFORE UPDATE ON tokens WHEN OLD.appointment_id IS NOT NULL AND (NEW.appointment_id IS NULL OR NEW.appointment_id<>OLD.appointment_id) BEGIN SELECT RAISE(ABORT,'Appointment token linkage is immutable'); END;
+CREATE TRIGGER tokens_appointment_update BEFORE UPDATE ON tokens WHEN NEW.appointment_id IS NOT NULL BEGIN
+ SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM appointments a JOIN daily_queues q ON q.id=NEW.queue_id WHERE a.id=NEW.appointment_id AND a.patient_id=NEW.patient_id AND a.clinic_id=q.clinic_id AND substr(a.scheduled_at,1,10)=q.queue_date) THEN RAISE(ABORT,'Appointment token identity mismatch') END;
+END;
+CREATE TRIGGER appointment_token_guard BEFORE UPDATE ON appointments WHEN EXISTS(SELECT 1 FROM tokens WHERE appointment_id=OLD.id) BEGIN
+ SELECT CASE WHEN NEW.patient_id<>OLD.patient_id OR NEW.clinic_id<>OLD.clinic_id OR (OLD.status='cancelled' AND NEW.status<>'cancelled') OR ((NEW.scheduled_at<>OLD.scheduled_at OR NEW.status='cancelled') AND EXISTS(SELECT 1 FROM tokens WHERE appointment_id=OLD.id AND status IN ('serving','completed'))) THEN RAISE(ABORT,'Appointment token cannot be changed in this state') END;
+ SELECT CASE WHEN NEW.scheduled_at<>OLD.scheduled_at AND NOT EXISTS(SELECT 1 FROM daily_queues WHERE clinic_id=NEW.clinic_id AND queue_date=substr(NEW.scheduled_at,1,10)) THEN RAISE(ABORT,'Appointment queue required') END;
+END;
+CREATE TRIGGER appointment_token_sync AFTER UPDATE ON appointments BEGIN
+ UPDATE tokens SET status='completed',completed_at=COALESCE(completed_at,NEW.updated_at),updated_at=NEW.updated_at WHERE appointment_id=NEW.id AND NEW.status='completed';
+ UPDATE tokens SET status='cancelled',cancelled_at=NEW.updated_at,updated_at=NEW.updated_at WHERE appointment_id=NEW.id AND NEW.status='cancelled';
+ UPDATE tokens SET queue_id=(SELECT id FROM daily_queues WHERE clinic_id=NEW.clinic_id AND queue_date=substr(NEW.scheduled_at,1,10)),
+ token_number=(SELECT next_token_number FROM daily_queues WHERE clinic_id=NEW.clinic_id AND queue_date=substr(NEW.scheduled_at,1,10)),
+ token_code=(SELECT token_prefix FROM clinics WHERE id=NEW.clinic_id)||'-'||printf('%03d',(SELECT next_token_number FROM daily_queues WHERE clinic_id=NEW.clinic_id AND queue_date=substr(NEW.scheduled_at,1,10))),
+ queue_order=(SELECT COALESCE(MAX(t.queue_order),0)+1 FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.clinic_id=NEW.clinic_id AND q.queue_date=substr(NEW.scheduled_at,1,10)),updated_at=NEW.updated_at
+ WHERE appointment_id=NEW.id AND substr(NEW.scheduled_at,1,10)<>substr(OLD.scheduled_at,1,10);
+ UPDATE daily_queues SET next_token_number=next_token_number+1,updated_at=NEW.updated_at WHERE clinic_id=NEW.clinic_id AND queue_date=substr(NEW.scheduled_at,1,10) AND substr(NEW.scheduled_at,1,10)<>substr(OLD.scheduled_at,1,10) AND EXISTS(SELECT 1 FROM tokens WHERE appointment_id=NEW.id);
+END;
+CREATE TRIGGER empty_clinic_audit_pointer BEFORE DELETE ON clinics BEGIN UPDATE audit_logs SET clinic_id=NULL WHERE clinic_id=OLD.id; END;
+PRAGMA user_version=10; COMMIT;`);
 }
