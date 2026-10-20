@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { hash } from "bcryptjs";
@@ -80,9 +81,43 @@ export async function createPostgresDatabase(
   }
   pool.on("error", () => console.error("QueueCare database connection interrupted."));
   const context = new AsyncLocalStorage<pg.PoolClient>();
+  // A suspended function cannot run an idle timer. Reuse while SQL is queued,
+  // then close the final connection synchronously before the response can freeze.
+  async function acquire() {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await pool.connect();
+      } catch (error) {
+        const failure = error as { code?: string; severity?: string; message?: string };
+        // Supavisor rejected this connection before any SQL ran. Never replay a query,
+        // write or transaction; only give short serverless bursts time to drain.
+        if (
+          !serverless ||
+          attempt >= 20 ||
+          failure.code !== "XX000" ||
+          failure.severity !== "FATAL" ||
+          !failure.message?.includes("EMAXCONNSESSION")
+        )
+          throw error;
+        await delay(
+          Math.round(Math.min(500, 75 * 2 ** Math.min(attempt, 3)) * (0.8 + Math.random() * 0.4)),
+        );
+      }
+    }
+  }
   async function query(sql: string, values: SQLInputValue[] = []) {
-    const client = context.getStore() ?? pool;
-    return client.query(postgresSql(sql), values);
+    const active = context.getStore();
+    if (active) return active.query(postgresSql(sql), values);
+    const client = await acquire();
+    let discard = false;
+    try {
+      return await client.query(postgresSql(sql), values);
+    } catch (error) {
+      discard = true;
+      throw error;
+    } finally {
+      client.release(discard || (serverless && pool.waitingCount === 0));
+    }
   }
   const db: Database = {
     prepare(sql) {
@@ -112,7 +147,7 @@ export async function createPostgresDatabase(
     },
     async transaction<T>(action: () => Promise<T>): Promise<T> {
       if (context.getStore()) throw new Error("Nested QueueCare transactions are not supported.");
-      const client = await pool.connect();
+      const client = await acquire();
       let discard = false;
       try {
         await client.query("BEGIN");
@@ -131,7 +166,7 @@ export async function createPostgresDatabase(
         }
         throw error;
       } finally {
-        client.release(discard);
+        client.release(discard || (serverless && pool.waitingCount === 0));
       }
     },
   };

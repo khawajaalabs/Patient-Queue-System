@@ -7,7 +7,7 @@ import { one, many } from "../db/database.ts";
 
 test(
   "appointment attention and doctor-wide leave preserve scheduling, privacy and tokens",
-  { timeout: 300000 },
+  { timeout: process.env["QUEUECARE_ATTENTION_TEST_SCHEMA"] ? 900000 : 300000 },
   async (t) => {
     const schema = process.env["QUEUECARE_ATTENTION_TEST_SCHEMA"];
     const database = schema

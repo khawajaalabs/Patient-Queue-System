@@ -102,3 +102,5 @@ Doctor Schedule separates recurring Weekly Working Hours from Special Days Off /
 Migration: `20261020000100_appointment_attention_doctor_leave.sql` adds private attention/tag and doctor-leave tables, constraints and transaction-locking validation triggers. No existing rows are updated or deleted. The Vercel pool remains limited to one connection with no permanent listener.
 
 Run the focused PostgreSQL suite with `npm.cmd run test:attention-leave:postgres` using the same ignored local environment and shared Supabase CLI session as the other integration suites. It creates and removes an isolated schema. Production migrations require a verified backup/recovery point and before/after data-preservation checks.
+
+Vercel closes the final idle PostgreSQL connection synchronously before a function can suspend, while queued queries reuse the single request-pool connection. Brief Supabase session-pool acquisition refusals use bounded backoff before SQL begins; queries and transactions are never replayed. Local development retains normal pooling.
