@@ -8,7 +8,7 @@
   "functions": {
     "api/server.ts": {
       "maxDuration": 300,
-      "includeFiles": "server/**"
+      "includeFiles": "{server/**,src/domain/**}"
     }
   },
   "rewrites": [
