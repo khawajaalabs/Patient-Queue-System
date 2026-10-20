@@ -1,3 +1,4 @@
+import { AttentionBadges, AttentionButton } from "@/components/appointment-attention";
 import { clinicDayKey } from "@/utils/clinic-date";
 import { Link } from "@tanstack/react-router";
 import { StartConsultation } from "@/components/clinical";
@@ -49,6 +50,12 @@ export function PatientDrawer({ entry, onClose }: { entry: Entry | null; onClose
                 </div>
                 <p className="mt-2 text-lg font-medium">{current.name}</p>
               </div>
+              {current.appointmentId && (
+                <div>
+                  <AttentionBadges attention={current.attention} />
+                  <AttentionButton appointmentId={current.appointmentId} />
+                </div>
+              )}
               <dl className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
                 {[
                   ["Phone", current.phone || "—"],

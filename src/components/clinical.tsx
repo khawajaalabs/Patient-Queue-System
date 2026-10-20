@@ -48,11 +48,13 @@ export function StartConsultation({
   clinicId,
   tokenId,
   appointmentId,
+  compact = false,
 }: {
   patientId: string;
   clinicId: string;
   tokenId?: string | undefined;
   appointmentId?: string | undefined;
+  compact?: boolean;
 }) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false),
@@ -81,8 +83,13 @@ export function StartConsultation({
     }
   };
   return (
-    <div>
-      <Btn type="button" disabled={busy || clinicId === "all"} onClick={() => void start()}>
+    <div className={compact ? "min-w-0 shrink-0" : undefined}>
+      <Btn
+        className="whitespace-nowrap"
+        type="button"
+        disabled={busy || clinicId === "all"}
+        onClick={() => void start()}
+      >
         {busy ? "Opening…" : "Start Consultation"}
       </Btn>
       {clinicId === "all" && (

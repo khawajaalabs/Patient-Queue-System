@@ -100,7 +100,7 @@ it("demonstrates staff login, opening, drawer actions, history and private publi
   act(() => actions.resetDemo());
   fireEvent.click(screen.getByRole("link", { name: "Live Queue" }));
   await screen.findByRole("heading", { name: "Live queue" });
-  fireEvent.click(screen.getByRole("button", { name: "A-020 Sara Ali" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sara Ali" }));
   const drawer = await screen.findByRole("dialog");
   fireEvent.click(within(drawer).getByRole("button", { name: "Call patient" }));
   expect(drawer).toHaveTextContent("Serving");

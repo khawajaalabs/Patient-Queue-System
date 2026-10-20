@@ -98,6 +98,7 @@ test(
         "20261010000100_clinical_workflow.sql",
         "20261011000100_workflow_simplification.sql",
         "20261011000200_appointment_tokens.sql",
+        "20261020000100_appointment_attention_doctor_leave.sql",
       ])
         await adminQuery(
           readFileSync("supabase/migrations/" + file, "utf8").replace(/\bqueuecare\b/g, schema),

@@ -1,3 +1,5 @@
+import { AttentionBadges, AttentionButton } from "@/components/appointment-attention";
+import { useAuth } from "@/providers/auth-provider";
 import { api } from "@/api/client";
 import { useState } from "react";
 import { Btn } from "@/components/qc";
@@ -129,6 +131,7 @@ export function AppointmentRows({
   onChanged: () => void;
   onOpen?: (a: FlowAppointment) => void;
 }) {
+  const { profile } = useAuth();
   return (
     <div className="divide-y divide-border">
       <div className="hidden grid-cols-[90px_1.2fr_1fr_1fr_100px_150px] gap-3 px-5 py-3 text-xs text-muted-foreground xl:grid">
@@ -161,6 +164,12 @@ export function AppointmentRows({
             >
               {a.patientName}
             </a>
+            {profile?.role === "admin" && (
+              <div className="mt-2">
+                <AttentionBadges attention={a.attention} />
+                <AttentionButton appointmentId={a.id} onChanged={onChanged} />
+              </div>
+            )}
             {onOpen && (
               <button className="mt-1 block text-xs text-primary" onClick={() => onOpen(a)}>
                 Appointment details

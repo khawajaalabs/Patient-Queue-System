@@ -1,3 +1,4 @@
+import { DoctorLeave } from "@/components/doctor-leave";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { api } from "@/api/client";
@@ -46,6 +47,7 @@ export function DoctorSchedule() {
         title="Doctor Schedule"
         sub="Weekly availability and appointment duration for each clinic."
       />
+      <h2 className="mb-4 text-lg font-semibold">Weekly Working Hours</h2>
       {selected === "all" ? (
         <div className="surface p-6 text-sm text-muted-foreground">
           Select a clinic to configure doctor hours.
@@ -197,6 +199,7 @@ export function DoctorSchedule() {
           <Btn disabled={busy}>{busy ? "Saving…" : "Save schedule"}</Btn>
         </form>
       )}
+      <DoctorLeave />
     </>
   );
 }

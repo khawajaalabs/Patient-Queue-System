@@ -1,3 +1,4 @@
+import { attentionLeaveRoutes } from "./routes/attention-leave.ts";
 import { tokenDocumentRoutes } from "./routes/token-documents.ts";
 import { workflowRoutes } from "./routes/workflow.ts";
 import { clinicalWorkflowRoutes } from "./routes/clinical-workflow.ts";
@@ -83,6 +84,7 @@ export function createLocalApp(options: {
       ...options.auth,
     }),
   );
+  app.use("/api", attentionLeaveRoutes(db, notify));
   app.use("/api", tokenDocumentRoutes(db));
   app.use("/api", workflowRoutes(db, notify));
   app.use("/api", clinicalWorkflowRoutes(db, options.storage));

@@ -1,3 +1,4 @@
+import { withAppointmentAttention } from "./appointment-attention.ts";
 import { authorizeClinic, audit, notification, operationalNotification } from "./operations.ts";
 import type { Database } from "../db/database.ts";
 import { randomUUID } from "node:crypto";
@@ -242,7 +243,12 @@ export async function patientState(db: Database, uid: string, clinicId = "norths
     eta: ahead * pub.averageConsultationMinutes,
   };
 }
-export async function adminState(db: Database, date: string, clinicId = "northstar", queueDate = date) {
+export async function adminState(
+  db: Database,
+  date: string,
+  clinicId = "northstar",
+  queueDate = date,
+) {
   const all = clinicId === "all";
   const q = all ? undefined : await currentQueue(db, clinicId, queueDate);
   const history = (
@@ -278,6 +284,20 @@ export async function adminState(db: Database, date: string, clinicId = "northst
       };
     }),
   );
+  const queue = q ? await queueTokens(db, q.id) : [];
+  const visits = queue.length
+    ? await many<{ id: string; token_id: string }>(
+        db,
+        "SELECT id,token_id FROM encounters WHERE status='in_progress' AND token_id IN (" +
+          queue.map(() => "?").join(",") +
+          ")",
+        ...queue.map((t) => t.id),
+      )
+    : [];
+  const queueWithVisits = queue.map((t) => {
+    const visit = visits.find((v) => v.token_id === t.id);
+    return { ...t, ...(visit ? { visitId: visit.id, visitStatus: "in_progress" } : {}) };
+  });
   return {
     clinic: await clinicValue(db, all ? "northstar" : clinicId),
     public: {
@@ -285,8 +305,8 @@ export async function adminState(db: Database, date: string, clinicId = "northst
       ...(all ? { status: "unavailable" as const } : {}),
     },
     mine: null,
-    queue: q ? await queueTokens(db, q.id) : [],
-    history,
+    queue: await withAppointmentAttention(db, queueWithVisits, (t) => t.appointmentId),
+    history: await withAppointmentAttention(db, history, (t) => t.appointmentId),
     patients,
   };
 }

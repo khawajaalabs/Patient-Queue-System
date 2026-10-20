@@ -14,3 +14,8 @@ supabase/.temp/
 server/test/
 src/test/
 docs/
+
+# Local source archives are not deployment inputs.
+queuecare-config.zip
+server.zip
+src.zip

@@ -77,6 +77,9 @@ export function toEntry(t: QueueToken): Entry {
   return {
     id: t.id,
     appointmentId: t.appointmentId,
+    attention: t.attention,
+    visitId: t.visitId,
+    visitStatus: t.visitStatus,
     scheduledAt: t.scheduledAt,
     clinicId: t.clinicId,
     clinicName: t.clinicName,

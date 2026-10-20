@@ -1,3 +1,9 @@
+import {
+  AttentionEditor,
+  PriorityBadge,
+  AttentionBadges,
+} from "@/components/appointment-attention";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TemporalInput, SelectField } from "@/components/form-controls";
 import { StartConsultation } from "@/components/clinical";
 import { useClinicContext } from "@/providers/clinic-provider";
@@ -17,72 +23,94 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
+const queueColumns = "xl:grid-cols-[88px_72px_minmax(0,1fr)_84px_94px_300px]";
+
 export const Route = createFileRoute("/admin/queue")({
   head: () => ({ meta: [{ title: "Live queue — QueueCare Admin" }] }),
   component: LiveQueue,
 });
-function RowActions({ entry, onDetails }: { entry: Entry; onDetails: () => void }) {
-  const q = useQueue();
-  const { selected } = useClinicContext();
-  const currentDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(
-    new Date(),
-  );
-  if (q.queueDate !== currentDate)
-    return (
-      <Btn variant="secondary" onClick={onDetails}>
-        Details
-      </Btn>
-    );
-  const mayCall =
-    q.open &&
+function RowActions({
+  entry,
+  onDetails,
+  onTags,
+}: {
+  entry: Entry;
+  onDetails: () => void;
+  onTags: () => void;
+}) {
+  const q = useQueue(),
+    { selected } = useClinicContext();
+  const today =
     q.queueDate ===
-      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()) &&
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
+  const serving = entry.status === "serving",
+    inConsultation = entry.visitStatus === "in_progress";
+  const mayCall =
+    today &&
+    q.open &&
     !q.serving &&
+    q.waiting[0]?.id === entry.id &&
     q.waiting[0]?.token === entry.token;
-  const active = entry.status === "waiting" || entry.status === "serving";
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1">
-      {entry.status === "serving" && entry.patientId && (
+    <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:justify-end">
+      {today && serving && entry.patientId && !inConsultation && (
         <StartConsultation
+          compact
           patientId={entry.patientId}
           clinicId={entry.clinicId ?? selected}
           tokenId={entry.id}
+          appointmentId={entry.appointmentId ?? undefined}
         />
+      )}
+      {today && serving && inConsultation && entry.visitId && (
+        <a
+          className="whitespace-nowrap text-sm text-primary hover:underline"
+          href={"/admin/visits/" + entry.visitId}
+        >
+          Continue consultation
+        </a>
       )}
       <Btn
         variant="secondary"
-        disabled={entry.status === "waiting" && !mayCall}
-        title={
-          entry.status === "waiting" && !mayCall
-            ? "Complete or skip the current patient, then call the first waiting token."
-            : undefined
+        className="h-10 whitespace-nowrap px-3"
+        disabled={
+          today && ((entry.status === "waiting" && !mayCall) || (serving && inConsultation))
         }
-        className="h-11 px-3"
+        title={
+          inConsultation
+            ? "Complete the consultation before marking this token done."
+            : entry.status === "waiting" && !mayCall
+              ? "Complete or skip the current patient, then call the first waiting token."
+              : undefined
+        }
         onClick={() => {
-          if (entry.status === "waiting") {
+          if (today && entry.status === "waiting")
             void runAction(
               () => actions.call(entry.token),
               `Token ${entry.token} is now being served.`,
             );
-          } else if (entry.status === "serving") {
+          else if (today && serving)
             void runAction(() => actions.markDone(entry.token), "Patient marked as completed.");
-          } else onDetails();
+          else onDetails();
         }}
       >
-        {entry.status === "waiting" ? "Call" : entry.status === "serving" ? "Done" : "Details"}
+        {!today ? "Details" : entry.status === "waiting" ? "Call" : serving ? "Done" : "Details"}
       </Btn>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             aria-label={`More actions for ${entry.token}`}
-            className="grid size-11 place-items-center rounded-lg hover:bg-muted"
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <MoreHorizontal className="size-4" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={onDetails}>View details</DropdownMenuItem>
-          {entry.status === "serving" && (
+          {entry.appointmentId && (
+            <DropdownMenuItem onSelect={onTags}>Manage tags</DropdownMenuItem>
+          )}
+          {today && serving && (
             <DropdownMenuItem
               onSelect={() =>
                 void runAction(() => actions.callAgain(entry.token), `Calling ${entry.token} again`)
@@ -91,20 +119,18 @@ function RowActions({ entry, onDetails }: { entry: Entry; onDetails: () => void 
               Call again
             </DropdownMenuItem>
           )}
-          {active && (
+          {today && !inConsultation && ["waiting", "serving"].includes(entry.status) && (
             <DropdownMenuItem
-              onSelect={() => {
-                void runAction(() => actions.skip(entry.token), "Token skipped.");
-              }}
+              onSelect={() => void runAction(() => actions.skip(entry.token), "Token skipped.")}
             >
               Skip
             </DropdownMenuItem>
           )}
-          {entry.status === "skipped" && (
+          {today && entry.status === "skipped" && (
             <DropdownMenuItem
-              onSelect={() => {
-                void runAction(() => actions.requeue(entry.token), "Patient moved back to queue.");
-              }}
+              onSelect={() =>
+                void runAction(() => actions.requeue(entry.token), "Patient moved back to queue.")
+              }
             >
               Move back to queue
             </DropdownMenuItem>
@@ -128,6 +154,7 @@ export function LiveQueue() {
   const [filter, setFilter] = useState<"all" | Status>("all");
   const [term, setTerm] = useState("");
   const [selected, setSelected] = useState<Entry | null>(null);
+  const [tagAppointment, setTagAppointment] = useState<string | null>(null);
   const rows = q.queue.filter(
     (e) =>
       (filter === "all" || e.status === filter) &&
@@ -222,10 +249,18 @@ export function LiveQueue() {
           </SelectField>
         </label>
       </div>
-      <div className="surface overflow-hidden">
-        <div className="hidden grid-cols-[90px_80px_minmax(120px,1fr)_100px_180px] gap-3 border-b border-border px-5 py-3 text-xs text-muted-foreground xl:grid">
-          {["Time", "Token", "Patient", "Status", "Actions"].map((label) => (
-            <span key={label}>{label}</span>
+      <div className="surface overflow-hidden" role="table" aria-label="Live queue">
+        <div
+          role="row"
+          className={cn(
+            "sr-only gap-3 border-b border-border px-5 py-3 text-xs text-muted-foreground xl:not-sr-only xl:grid xl:px-5 xl:py-3",
+            queueColumns,
+          )}
+        >
+          {["Time", "Token", "Patient", "Priority", "Status", "Actions"].map((label) => (
+            <span role="columnheader" key={label}>
+              {label}
+            </span>
           ))}
         </div>
         {rows.length === 0 &&
@@ -238,37 +273,67 @@ export function LiveQueue() {
           ))}
         {rows.map((entry) => (
           <div
-            key={entry.token}
+            role="row"
+            key={entry.id ?? entry.token}
             className={cn(
-              "grid gap-3 border-b border-border px-5 py-4 last:border-0 sm:grid-cols-[minmax(0,1fr)_auto] xl:grid-cols-[80px_minmax(120px,1fr)_95px_75px_100px_120px] xl:items-center",
-              entry.status === "serving" && "bg-info-soft/60",
+              "grid min-w-0 grid-cols-2 items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3 last:border-0 sm:px-5 xl:gap-3",
+              queueColumns,
+              entry.status === "serving" ? "bg-info-soft/40" : "hover:bg-muted/30",
             )}
           >
-            <p className="tabular text-sm text-muted-foreground">
+            <p role="cell" className="tabular text-sm text-muted-foreground">
               {entry.scheduledAt ? formatTime(entry.scheduledAt.slice(11)) : "—"}
             </p>
-            <button
-              onClick={() => setSelected(entry)}
-              className="text-left font-semibold text-primary hover:underline"
-            >
-              <span className="tabular text-lg xl:text-base">{entry.token}</span>
-              <span className="ml-3 text-sm font-medium text-foreground xl:hidden">
+            <div role="cell" className="text-right xl:text-left">
+              <button
+                onClick={() => setSelected(entry)}
+                className="tabular text-sm font-semibold text-primary hover:underline"
+              >
+                {entry.token}
+              </button>
+            </div>
+            <div role="cell" className="col-span-2 min-w-0 xl:col-span-1">
+              <button
+                title={entry.name}
+                onClick={() => setSelected(entry)}
+                className="max-w-full break-words text-left text-sm font-medium hover:underline xl:line-clamp-2"
+              >
                 {entry.name}
-              </span>
-            </button>
-            <button
-              onClick={() => setSelected(entry)}
-              className="hidden text-left text-sm font-medium hover:underline xl:block"
-            >
-              {entry.name}
-            </button>
-            <div>
+              </button>
+              {!!entry.attention?.tags.length && (
+                <div className="mt-1.5">
+                  <AttentionBadges attention={entry.attention} descriptiveOnly />
+                </div>
+              )}
+            </div>
+            <div role="cell">
+              <PriorityBadge priority={entry.attention?.priority} />
+            </div>
+            <div role="cell" className="text-right xl:text-left">
               <StatusPill status={entry.status} />
             </div>
-            <RowActions entry={entry} onDetails={() => setSelected(entry)} />
+            <div role="cell" className="col-span-2 xl:col-span-1">
+              <RowActions
+                entry={entry}
+                onDetails={() => setSelected(entry)}
+                onTags={() => setTagAppointment(entry.appointmentId ?? null)}
+              />
+            </div>
           </div>
         ))}
       </div>
+      <Dialog
+        open={!!tagAppointment}
+        onOpenChange={(open) => {
+          if (!open) setTagAppointment(null);
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
+          <DialogTitle>Appointment tags</DialogTitle>
+          <DialogDescription>Staff workflow classification for this appointment.</DialogDescription>
+          {tagAppointment && <AttentionEditor appointmentId={tagAppointment} onChanged={q.retry} />}
+        </DialogContent>
+      </Dialog>
       <PatientDrawer entry={selected} onClose={() => setSelected(null)} />
     </>
   );

@@ -1,3 +1,4 @@
+import { withAppointmentAttention } from "../services/appointment-attention.ts";
 import { Router } from "express";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
@@ -14,7 +15,11 @@ const patientScope =
 const patientOnly =
   "u.role='patient' AND NOT EXISTS(SELECT 1 FROM staff_profiles s WHERE s.user_id=u.id)";
 export async function appointmentFlow(db: Database, clinic: string, date?: string) {
-  const list = await appointments(db, clinic === "all" ? undefined : clinic, date),
+  const list = await withAppointmentAttention(
+      db,
+      await appointments(db, clinic === "all" ? undefined : clinic, date),
+      (a) => a.id,
+    ),
     day = clinicDayKey();
   const visits = await many<{ id: string; appointment_id: string; status: string }>(
     db,

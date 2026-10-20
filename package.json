@@ -22,6 +22,7 @@
     "test:backend": "node --test server/test/*.test.ts",
     "supabase:setup": "node --env-file-if-exists=.env.local scripts/supabase-setup.mjs",
     "test:supabase": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local --test server/test/supabase.integration.test.ts",
+    "test:attention-leave:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-attention-leave-postgres.mjs",
     "test:availability:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-availability-postgres.mjs",
     "test:clinical-workflow:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-clinical-workflow-postgres.mjs",
     "test:workflow:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-workflow-postgres.mjs",

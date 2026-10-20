@@ -1,3 +1,4 @@
+import { AttentionEditor } from "@/components/appointment-attention";
 import { useClinicalData, ClinicalLoading } from "@/components/clinical";
 import { AppointmentFiles } from "@/components/appointment-files";
 import type { ClinicalRecord } from "@/types/clinical";
@@ -54,6 +55,7 @@ export function DoctorSnapshot({
         (context.data ? (
           <section className="space-y-3 border-t pt-4">
             <h3>Current appointment</h3>
+            <AttentionEditor appointmentId={appointmentId} />
             <p className="break-words">{context.data.reason || "No reason provided"}</p>
             <p className="whitespace-pre-wrap break-words text-sm">
               {context.data.patientNotes || "No additional patient notes"}

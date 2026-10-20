@@ -211,7 +211,7 @@ test("clinic API enforces admin access and selected-clinic writes; public and pa
       (
         await request("/admin/appointments" + scope, patient.cookie, {
           patientId: patient.data.id,
-          scheduledAt: "2026-10-12T10:00",
+          scheduledAt: "2031-10-12T10:00",
           reason: "",
         })
       ).status,
@@ -221,7 +221,7 @@ test("clinic API enforces admin access and selected-clinic writes; public and pa
       (
         await request("/admin/appointments" + scope, admin.cookie, {
           patientId: patient.data.id,
-          scheduledAt: "2026-10-12T10:00",
+          scheduledAt: "2031-10-12T10:00",
           reason: "",
         })
       ).status,

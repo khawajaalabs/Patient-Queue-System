@@ -1,3 +1,4 @@
+import type { AppointmentAttention } from "../domain/appointment-attention";
 export type Role = "patient" | "admin" | "receptionist" | "nurse";
 export type TokenStatus =
   "reserved" | "waiting" | "serving" | "skipped" | "completed" | "cancelled";
@@ -38,6 +39,9 @@ export interface DailyQueue {
   currentTokenId: string | null;
 }
 export interface QueueToken {
+  attention?: AppointmentAttention | undefined;
+  visitId?: string | undefined;
+  visitStatus?: string | undefined;
   appointmentId?: string | null;
   scheduledAt?: string | null;
   clinicId?: string;
@@ -89,6 +93,9 @@ export interface QueueResponse {
 }
 export type Status = "reserved" | "waiting" | "serving" | "done" | "skipped" | "left";
 export type Entry = {
+  attention?: AppointmentAttention | undefined;
+  visitId?: string | undefined;
+  visitStatus?: string | undefined;
   appointmentId?: string | null | undefined;
   scheduledAt?: string | null | undefined;
   clinicId?: string | undefined;

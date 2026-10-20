@@ -30,7 +30,7 @@ test("report dates reject impossible, reversed and oversized ranges", () => {
 });
 test(
   "final phase: analytics, search, exports, appointment states, follow-ups, branding, account security and email privacy",
-  { timeout: 180000 },
+  { timeout: process.env["QUEUECARE_FINAL_TEST_SCHEMA"] ? 600000 : 180000 },
   async (t) => {
     const database = process.env["QUEUECARE_FINAL_TEST_SCHEMA"]
       ? await createPostgresDatabase(

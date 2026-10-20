@@ -1,3 +1,4 @@
+import type { AppointmentAttention } from "../domain/appointment-attention";
 import type { Appointment, ManagedClinic } from "./local";
 export type Condition = { id: string; name: string; count?: number };
 export type PatientSearchRow = {
@@ -10,6 +11,7 @@ export type PatientSearchRow = {
   conditions: Condition[];
 };
 export type FlowAppointment = Appointment & {
+  attention?: AppointmentAttention;
   visitId?: string;
   visitStatus?: string;
   tokenId?: string;

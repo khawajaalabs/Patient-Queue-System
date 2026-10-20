@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 export function migrate(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()?.["user_version"] ?? 0);
-  if (version > 10) throw new Error("This database was created by a newer QueueCare version.");
+  if (version > 11) throw new Error("This database was created by a newer QueueCare version.");
   if (version >= 1) {
     if (version === 1) migrateAuthentication(db);
     if (version < 3) migrateClinics(db);
@@ -12,6 +12,7 @@ export function migrate(db: DatabaseSync) {
     if (version < 8) migrateClinicalWorkflow(db);
     if (version < 9) migrateSimplification(db);
     if (version < 10) migrateAppointmentTokens(db);
+    if (version < 11) migrateAttentionLeave(db);
     return;
   }
   db.exec(`BEGIN IMMEDIATE;
@@ -57,6 +58,7 @@ export function migrate(db: DatabaseSync) {
   migrateClinicalWorkflow(db);
   migrateSimplification(db);
   migrateAppointmentTokens(db);
+  migrateAttentionLeave(db);
 }
 
 function migrateAuthentication(db: DatabaseSync) {
@@ -263,4 +265,13 @@ CREATE TRIGGER appointment_token_sync AFTER UPDATE ON appointments BEGIN
 END;
 CREATE TRIGGER empty_clinic_audit_pointer BEFORE DELETE ON clinics BEGIN UPDATE audit_logs SET clinic_id=NULL WHERE clinic_id=OLD.id; END;
 PRAGMA user_version=10; COMMIT;`);
+}
+
+function migrateAttentionLeave(db: DatabaseSync) {
+  db.exec(`BEGIN IMMEDIATE;
+CREATE TABLE appointment_attention (appointment_id TEXT PRIMARY KEY REFERENCES appointments(id) ON DELETE CASCADE, priority TEXT NOT NULL DEFAULT 'routine' CHECK(priority IN ('routine','urgent','critical')));
+CREATE TABLE appointment_attention_tags (appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE, tag TEXT NOT NULL CHECK(tag IN ('follow_up','needs_assistance','special_attention','review_required')), PRIMARY KEY(appointment_id,tag));
+CREATE TABLE doctor_leave (id TEXT PRIMARY KEY, doctor_user_id TEXT NOT NULL REFERENCES users(id), start_date TEXT NOT NULL, end_date TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '' CHECK(length(reason)<=300), created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, CHECK(start_date<=end_date), UNIQUE(doctor_user_id,start_date,end_date));
+CREATE INDEX doctor_leave_dates ON doctor_leave(doctor_user_id,start_date,end_date);
+PRAGMA user_version=11; COMMIT;`);
 }

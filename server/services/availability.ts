@@ -5,7 +5,7 @@ import { ApiError } from "../middleware/auth.ts";
 import { audit } from "./operations.ts";
 
 const clock = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
-const date = z
+export const availabilityDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine((s) => {
@@ -32,6 +32,14 @@ export function timeLabel(s: string) {
   const h = Number(s.slice(0, 2));
   return `${h % 12 || 12}:${s.slice(3, 5)} ${h < 12 ? "AM" : "PM"}`;
 }
+export async function primaryDoctor(db: Database) {
+  const doctor = await one<{ id: string }>(
+    db,
+    "SELECT id FROM users WHERE role='admin' ORDER BY created_at,id LIMIT 1",
+  );
+  if (!doctor) throw new ApiError(409, "NO_DOCTOR", "Doctor availability has not been configured.");
+  return doctor.id;
+}
 async function configuration(db: Database, clinicId: string) {
   const clinic = await one<{
     name: string;
@@ -41,17 +49,13 @@ async function configuration(db: Database, clinicId: string) {
   }>(db, "SELECT name,active,opening_time,closing_time FROM clinics WHERE id=?", clinicId);
   if (!clinic || !clinic.active)
     throw new ApiError(409, "CLINIC_INACTIVE", "Choose an active clinic.");
-  const doctor = await one<{ id: string }>(
-    db,
-    "SELECT id FROM users WHERE role='admin' ORDER BY created_at,id LIMIT 1",
-  );
-  if (!doctor) throw new ApiError(409, "NO_DOCTOR", "Doctor availability has not been configured.");
+  const doctorId = await primaryDoctor(db);
   const branding = await one<{ slot_minutes: number }>(
     db,
     "SELECT slot_minutes FROM clinic_branding WHERE clinic_id=?",
     clinicId,
   );
-  return { clinic, doctorId: doctor.id, slotMinutes: branding?.slot_minutes ?? 15 };
+  return { clinic, doctorId, slotMinutes: branding?.slot_minutes ?? 15 };
 }
 export async function doctorSchedule(db: Database, clinicId: string) {
   const { clinic, doctorId, slotMinutes } = await configuration(db, clinicId);
@@ -137,8 +141,18 @@ export async function saveDoctorSchedule(
   });
 }
 export async function availableSlots(db: Database, clinicId: string, day: string, exclude = "") {
-  date.parse(day);
+  availabilityDate.parse(day);
   const { clinic, doctorId, slotMinutes } = await configuration(db, clinicId);
+  if (
+    await one(
+      db,
+      "SELECT id FROM doctor_leave WHERE doctor_user_id=? AND start_date<=? AND end_date>=? LIMIT 1",
+      doctorId,
+      day,
+      day,
+    )
+  )
+    return { slots: [], slotMinutes, timezone: "Asia/Karachi", doctorId };
   const windows = await many<{ start_time: string; end_time: string }>(
     db,
     "SELECT start_time,end_time FROM doctor_availability WHERE doctor_user_id=? AND clinic_id=? AND weekday=? ORDER BY start_time",

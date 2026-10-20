@@ -92,3 +92,13 @@ Live queues are ordered by appointment time, then token ID. Token number identif
 Patients and administrators can download an actual PDF token through an authenticated, uncached API. It contains clinic contact/location, patient name, appointment date/time and token; it excludes clinical history, diagnosis, prescriptions and private notes. Empty clinics may be deleted by admins; clinics with records or dependent configuration must be archived. Audit entries remain append-only with their deleted-clinic identifier retained in entity_id.
 
 Apply only additive migration `20261011000200_appointment_tokens.sql` after comparing all existing production table counts/checksums. Legacy tokens keep null appointment_id and remain available in history; they are never automatically attached or called. `npm run test:appointment-tokens:postgres` verifies booking retries, date movement, ordering, PDF ownership, give-up, clinic removal and sessions in a disposable PostgreSQL schema with Vercel max-one pooling.
+
+### Appointment attention and special leave
+
+Administrators (the existing doctor/admin role) manage appointment-specific Routine, Urgent or Critical priorities and predefined descriptive tags. These staff-only classifications use the existing audit log and never change queue order, diagnoses, prescriptions or token identifiers. Manage tags in Live Queue, Appointments, appointment details and staff queue history. Patient and public responses do not include this metadata.
+
+Doctor Schedule separates recurring Weekly Working Hours from Special Days Off / Manage Leave. Leave applies to the single doctor across all clinics, uses inclusive Karachi-local calendar dates, and rejects duplicate/overlapping ranges and unresolved active appointments. Review conflicts before confirmation; reschedule/cancel affected appointments explicitly through the existing workflow. Removing current/upcoming leave restores normal eligible slots without modifying weekly schedules or bookings. Past leave remains visible for reference.
+
+Migration: `20261020000100_appointment_attention_doctor_leave.sql` adds private attention/tag and doctor-leave tables, constraints and transaction-locking validation triggers. No existing rows are updated or deleted. The Vercel pool remains limited to one connection with no permanent listener.
+
+Run the focused PostgreSQL suite with `npm.cmd run test:attention-leave:postgres` using the same ignored local environment and shared Supabase CLI session as the other integration suites. It creates and removes an isolated schema. Production migrations require a verified backup/recovery point and before/after data-preservation checks.

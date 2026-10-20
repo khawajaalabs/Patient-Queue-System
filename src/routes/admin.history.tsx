@@ -1,3 +1,4 @@
+import { AttentionBadges, AttentionButton } from "@/components/appointment-attention";
 import { SelectField } from "@/components/form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -96,6 +97,12 @@ function AdminHistory() {
             <div>
               <p className="text-sm font-medium">{entry.name}</p>
               <p className="mt-1 text-xs text-muted-foreground">{entry.clinicName}</p>
+              {entry.appointmentId && (
+                <div className="mt-2">
+                  <AttentionBadges attention={entry.attention} />
+                  <AttentionButton appointmentId={entry.appointmentId} onChanged={q.retry} />
+                </div>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">{formatDate(entry.date ?? q.queueDate)}</p>
             <p className="text-sm text-muted-foreground">
