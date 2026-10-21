@@ -7,7 +7,7 @@ import { one, many } from "../db/database.ts";
 
 test(
   "doctor availability: split shifts, clinic conflicts, slots, patient security, concurrency, rescheduling and historical preservation",
-  { timeout: 180000 },
+  { timeout: process.env["QUEUECARE_AVAILABILITY_TEST_SCHEMA"] ? 900000 : 180000 },
   async (t) => {
     const database = process.env["QUEUECARE_AVAILABILITY_TEST_SCHEMA"]
       ? await createPostgresDatabase(

@@ -9,9 +9,9 @@ import { LiveDot } from "@/components/qc";
 export const Route = createFileRoute("/public-display")({
   head: () => ({
     meta: [
-      { title: "Now serving — QueueCare" },
+      { title: "Now serving — Neuro Spine Care Center" },
       { name: "description", content: "Live token display for the clinic reception screen." },
-      { property: "og:title", content: "Now serving — QueueCare" },
+      { property: "og:title", content: "Now serving — Neuro Spine Care Center" },
       {
         property: "og:description",
         content: "Live token display for the clinic reception screen.",

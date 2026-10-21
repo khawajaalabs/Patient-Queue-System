@@ -1,7 +1,7 @@
 import type { PrintIdentity } from "@/types/clinical-workflow";
 import { PrescriptionPreview } from "@/components/prescription-preview";
 import { DoctorSignature, PrintBranding } from "@/components/final-operations";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { api } from "@/api/client";
 import { Btn, PageHeader } from "@/components/qc";
@@ -11,19 +11,30 @@ export function useClinicalData<T>(path: string | null) {
   const [data, setData] = useState<T | null>(null),
     [error, setError] = useState(""),
     [attempt, setAttempt] = useState(0);
+  const loadedPath = useRef<string | null>(null);
+  const reload = useCallback(() => setAttempt((n) => n + 1), []);
   useEffect(() => {
-    if (!path) return;
+    if (!path) {
+      setData(null);
+      loadedPath.current = null;
+      return;
+    }
     const c = new AbortController();
-    setData(null);
+    if (loadedPath.current !== path) setData(null);
     setError("");
     api<T>(path, { signal: c.signal })
-      .then(setData)
+      .then((next) => {
+        if (!c.signal.aborted) {
+          loadedPath.current = path;
+          setData(next);
+        }
+      })
       .catch((e) => {
         if (!c.signal.aborted) setError(friendlyError(e));
       });
     return () => c.abort();
   }, [path, attempt]);
-  return { data, error, reload: () => setAttempt((n) => n + 1) };
+  return { data, error, reload };
 }
 export function ClinicalLoading({ error, retry }: { error: string; retry: () => void }) {
   return (
@@ -161,6 +172,7 @@ export function PrescriptionView({
 }) {
   return (
     <section className="prescription-sheet surface mt-6 p-6 md:p-9">
+      <p className="mb-3 text-sm font-semibold text-primary">Neuro Spine Care Center</p>
       <PrintBranding
         clinicId={visit.clinicId}
         {...(printIdentity ? { data: printIdentity.branding } : {})}

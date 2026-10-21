@@ -1,3 +1,4 @@
+import { patientToday } from "../../src/domain/patient-demographics.ts";
 import { audit, notification } from "./operations.ts";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -39,14 +40,16 @@ export const demographicsSchema = z
     fullName: z.string().trim().min(2).max(120),
     phone: z.string().trim().min(7).max(30),
     dateOfBirth: date.refine(
-      (s) => !s || s <= new Date().toISOString().slice(0, 10),
+      (s) => !s || s <= patientToday(),
       "Date of birth cannot be in the future.",
     ),
     gender: z.enum(["", "female", "male", "other", "prefer_not_to_say"]),
     address: z.string().trim().max(500),
-    emergencyContactName: z.string().trim().max(120),
-    emergencyContactPhone: z.string().trim().max(30),
-    bloodGroup: z.enum(["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"]),
+    emergencyContactName: z.string().trim().max(120).optional(),
+    emergencyContactPhone: z.string().trim().max(30).optional(),
+    bloodGroup: z
+      .enum(["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"])
+      .optional(),
   })
   .strict();
 const clinicalProfileSchema = z
@@ -163,15 +166,15 @@ export async function saveProfile(
         .run(c.fullName, c.phone, stamp, id);
       await db
         .prepare(
-          "UPDATE patient_profiles SET date_of_birth=?,gender=?,address=?,emergency_contact_name=?,emergency_contact_phone=?,blood_group=?,updated_at=? WHERE user_id=?",
+          "UPDATE patient_profiles SET date_of_birth=?,gender=?,address=?,emergency_contact_name=COALESCE(?,emergency_contact_name),emergency_contact_phone=COALESCE(?,emergency_contact_phone),blood_group=COALESCE(?,blood_group),updated_at=? WHERE user_id=?",
         )
         .run(
           c.dateOfBirth,
           c.gender,
           c.address,
-          c.emergencyContactName,
-          c.emergencyContactPhone,
-          c.bloodGroup,
+          c.emergencyContactName ?? null,
+          c.emergencyContactPhone ?? null,
+          c.bloodGroup ?? null,
           stamp,
           id,
         );

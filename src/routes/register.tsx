@@ -8,7 +8,7 @@ import { friendlyError } from "@/services/errors";
 import { Btn, Field, Logo } from "@/components/qc";
 
 export const Route = createFileRoute("/register")({
-  head: () => ({ meta: [{ title: "Create an account — QueueCare" }] }),
+  head: () => ({ meta: [{ title: "Create an account — Neuro Spine Care Center" }] }),
   component: Register,
 });
 function Register() {
@@ -31,7 +31,7 @@ function Register() {
         String(data.get("phone")),
         String(data.get("password")),
       );
-      toast.success("Account created. Welcome to QueueCare.");
+      toast.success("Account created. Welcome to Neuro Spine Care Center.");
       await navigate({ to: "/patient/dashboard" });
     } catch (err) {
       setError(friendlyError(err));
@@ -63,7 +63,9 @@ function Register() {
             </div>
           ))}
         </div>
-        <p className="mt-10 text-xs text-muted-foreground">QueueCare · Patient portal</p>
+        <p className="mt-10 text-xs text-muted-foreground">
+          Neuro Spine Care Center · Patient portal
+        </p>
       </aside>
       <main className="flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-[380px]">

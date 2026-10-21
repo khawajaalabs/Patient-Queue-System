@@ -22,7 +22,9 @@ export function AuthPage({
             Join the clinic queue remotely and arrive closer to your turn.
           </p>
         </div>
-        <p className="mt-10 text-xs text-muted-foreground">QueueCare · Patient portal</p>
+        <p className="mt-10 text-xs text-muted-foreground">
+          Neuro Spine Care Center · Patient portal
+        </p>
       </aside>
       <main className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-[380px]">

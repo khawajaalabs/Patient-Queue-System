@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 const queueColumns = "xl:grid-cols-[88px_72px_minmax(0,1fr)_84px_94px_300px]";
 
 export const Route = createFileRoute("/admin/queue")({
-  head: () => ({ meta: [{ title: "Live queue — QueueCare Admin" }] }),
+  head: () => ({ meta: [{ title: "Live queue — Neuro Spine Care Center Admin" }] }),
   component: LiveQueue,
 });
 function RowActions({

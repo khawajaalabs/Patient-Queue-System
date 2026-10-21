@@ -1,3 +1,4 @@
+import { groupClinicLocations, normalizeLocation } from "@/domain/locations";
 import { ConfirmAction } from "@/components/queue-feedback";
 import { SearchableChoice } from "@/components/searchable-choice";
 import { createFileRoute } from "@tanstack/react-router";
@@ -16,6 +17,7 @@ export function Clinics() {
     [editing, setEditing] = useState<ManagedClinic | null | undefined>(undefined),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [fixedCity, setFixedCity] = useState(false),
     [city, setCity] = useState(""),
     [area, setArea] = useState(""),
     [created, setCreated] = useState<ManagedClinic | null>(null);
@@ -78,6 +80,7 @@ export function Clinics() {
           editing === undefined && (
             <Btn
               onClick={() => {
+                setFixedCity(false);
                 setEditing(null);
                 setCity("");
                 setArea("");
@@ -112,22 +115,28 @@ export function Clinics() {
         <form onSubmit={save} key={editing?.id ?? "new"} className="surface mb-8 space-y-5 p-6">
           <h2 className="text-lg font-semibold">{editing ? "Edit clinic" : "New clinic"}</h2>
           <div className="grid gap-5 sm:grid-cols-2">
-            <SearchableChoice
-              label="City"
-              value={city}
-              allowCreate
-              options={clinics.map((c) => c.city || "")}
-              onChange={(v) => {
-                setCity(v);
-                setArea("");
-              }}
-            />
+            {fixedCity ? (
+              <Field label="City" value={city} readOnly />
+            ) : (
+              <SearchableChoice
+                label="City"
+                value={city}
+                allowCreate
+                options={clinics.map((c) => c.city || "")}
+                onChange={(v) => {
+                  setCity(v);
+                  setArea("");
+                }}
+              />
+            )}
             <SearchableChoice
               label="Area"
               value={area}
               allowCreate
               disabled={!city}
-              options={clinics.filter((c) => c.city === city).map((c) => c.area || "")}
+              options={clinics
+                .filter((c) => normalizeLocation(c.city || "") === normalizeLocation(city))
+                .map((c) => c.area || "")}
               onChange={setArea}
             />
             <Field
@@ -207,81 +216,110 @@ export function Clinics() {
             Add your first clinic to start scheduling patients.
           </p>
         )}
-        {clinics.map((c) => (
-          <article key={c.id} className="p-5">
-            <div className="flex justify-between gap-3">
-              <h2 className="font-semibold">{c.name}</h2>
-              <span className={c.active ? "text-xs text-success" : "text-xs text-muted-foreground"}>
-                {c.active ? "Active" : "Inactive"}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {c.city && c.area ? `${c.area} · ${c.city}` : "Location details incomplete"}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">{c.address}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {c.department} · {c.phone}
-            </p>
-            <p className="mt-3 text-sm">
-              {c.openingTime} – {c.closingTime}
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
+        {groupClinicLocations(clinics).map((g) => (
+          <section key={normalizeLocation(g.city)} className="p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">{g.city}</h2>
               <Btn
                 variant="secondary"
                 onClick={() => {
-                  setEditing(c);
-                  setCity(c.city || "");
-                  setArea(c.area || "");
+                  setEditing(null);
+                  setFixedCity(g.city !== "Location not yet specified");
+                  setCity(g.city === "Location not yet specified" ? "" : g.city);
+                  setArea("");
                   setCreated(null);
                 }}
               >
-                Edit clinic
+                + Add Area
               </Btn>
-              <ConfirmAction
-                title="Delete or archive clinic?"
-                description="An empty clinic can be deleted. A clinic with records or schedules must be archived to preserve its history."
-                confirm="Delete empty clinic"
-                onConfirm={() =>
-                  void api("/admin/clinics/" + c.id, { method: "DELETE" })
-                    .then(() => {
-                      void load();
-                      window.dispatchEvent(new Event("queuecare:refresh"));
-                    })
-                    .catch((e) => setError(friendlyError(e)))
-                }
-              >
-                <Btn variant="ghost">Delete clinic</Btn>
-              </ConfirmAction>
-              {c.active && (
-                <ConfirmAction
-                  title="Archive this clinic?"
-                  description="Existing records will be preserved. This clinic will no longer accept bookings or queue actions."
-                  confirm="Archive clinic"
-                  onConfirm={() =>
-                    void api("/admin/clinics/" + c.id + "?archive=1", { method: "DELETE" })
-                      .then(() => {
-                        void load();
-                        window.dispatchEvent(new Event("queuecare:refresh"));
-                      })
-                      .catch((e) => setError(friendlyError(e)))
-                  }
-                >
-                  <Btn variant="ghost">Archive clinic</Btn>
-                </ConfirmAction>
-              )}
-              <Btn variant="ghost" onClick={() => select(c.id)}>
-                Select clinic
-              </Btn>
-              <a
-                className="inline-flex items-center px-3 text-sm text-primary hover:underline"
-                target="_blank"
-                rel="noreferrer"
-                href={`/public-display?clinicId=${encodeURIComponent(c.id)}`}
-              >
-                Public display
-              </a>
             </div>
-          </article>
+            {g.areas.map((a) => (
+              <section key={normalizeLocation(a.area)} className="rounded-lg border border-border">
+                <h3 className="px-5 pt-4 font-medium">{a.area}</h3>
+                {a.clinics.map((c) => (
+                  <article key={c.id} className="p-5">
+                    <div className="flex justify-between gap-3">
+                      <h2 className="font-semibold">{c.name}</h2>
+                      <span
+                        className={
+                          c.active ? "text-xs text-success" : "text-xs text-muted-foreground"
+                        }
+                      >
+                        {c.active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {c.city && c.area ? `${c.area} · ${c.city}` : "Location details incomplete"}
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">{c.address}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {c.department} · {c.phone}
+                    </p>
+                    <p className="mt-3 text-sm">
+                      {c.openingTime} – {c.closingTime}
+                    </p>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <Btn
+                        variant="secondary"
+                        onClick={() => {
+                          setFixedCity(false);
+                          setEditing(c);
+                          setCity(c.city || "");
+                          setArea(c.area || "");
+                          setCreated(null);
+                        }}
+                      >
+                        Edit clinic
+                      </Btn>
+                      <ConfirmAction
+                        title="Delete or archive clinic?"
+                        description="An empty clinic can be deleted. A clinic with records or schedules must be archived to preserve its history."
+                        confirm="Delete empty clinic"
+                        onConfirm={() =>
+                          void api("/admin/clinics/" + c.id, { method: "DELETE" })
+                            .then(() => {
+                              void load();
+                              window.dispatchEvent(new Event("queuecare:refresh"));
+                            })
+                            .catch((e) => setError(friendlyError(e)))
+                        }
+                      >
+                        <Btn variant="ghost">Delete clinic</Btn>
+                      </ConfirmAction>
+                      {c.active && (
+                        <ConfirmAction
+                          title="Archive this clinic?"
+                          description="Existing records will be preserved. This clinic will no longer accept bookings or queue actions."
+                          confirm="Archive clinic"
+                          onConfirm={() =>
+                            void api("/admin/clinics/" + c.id + "?archive=1", { method: "DELETE" })
+                              .then(() => {
+                                void load();
+                                window.dispatchEvent(new Event("queuecare:refresh"));
+                              })
+                              .catch((e) => setError(friendlyError(e)))
+                          }
+                        >
+                          <Btn variant="ghost">Archive clinic</Btn>
+                        </ConfirmAction>
+                      )}
+                      <Btn variant="ghost" onClick={() => select(c.id)}>
+                        Select clinic
+                      </Btn>
+                      <a
+                        className="inline-flex items-center px-3 text-sm text-primary hover:underline"
+                        target="_blank"
+                        rel="noreferrer"
+                        href={`/public-display?clinicId=${encodeURIComponent(c.id)}`}
+                      >
+                        Public display
+                      </a>
+                    </div>
+                  </article>
+                ))}
+              </section>
+            ))}
+          </section>
         ))}
       </div>
     </>

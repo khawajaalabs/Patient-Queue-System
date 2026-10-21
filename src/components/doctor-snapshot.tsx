@@ -1,3 +1,4 @@
+import { ageOnDate } from "@/domain/patient-demographics";
 import { AttentionEditor } from "@/components/appointment-attention";
 import { useClinicalData, ClinicalLoading } from "@/components/clinical";
 import { AppointmentFiles } from "@/components/appointment-files";
@@ -35,7 +36,7 @@ export function DoctorSnapshot({
       <p className="text-sm">
         {p.fullName} ·{" "}
         {p.dateOfBirth
-          ? `Born ${p.dateOfBirth} (${new Date().getFullYear() - Number(p.dateOfBirth.slice(0, 4)) - (new Date().toISOString().slice(5, 10) < p.dateOfBirth.slice(5, 10) ? 1 : 0)} years)`
+          ? `Born ${p.dateOfBirth} (${ageOnDate(p.dateOfBirth)} years)`
           : "Date of birth not provided"}{" "}
         · {p.gender || "Gender not provided"} · {p.bloodGroup || "Blood group not recorded"}
       </p>

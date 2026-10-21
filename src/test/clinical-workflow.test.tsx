@@ -1,3 +1,5 @@
+import { uploadPrivateFile } from "@/lib/private-upload";
+vi.mock("@/lib/private-upload", () => ({ uploadPrivateFile: vi.fn() }));
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PrescriptionItems } from "@/components/prescription-items";
@@ -96,9 +98,9 @@ it("a failed upload does not prevent another file completing and discards its pe
         : {},
     ),
   );
-  vi.spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce({ ok: false } as Response)
-    .mockResolvedValueOnce({ ok: true } as Response);
+  vi.mocked(uploadPrivateFile)
+    .mockRejectedValueOnce(Error("Upload failed"))
+    .mockResolvedValueOnce();
   const progress = vi.fn();
   const count = await uploadAppointmentFiles(
     "appointment",

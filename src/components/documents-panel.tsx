@@ -1,3 +1,4 @@
+import { uploadPrivateFile } from "@/lib/private-upload";
 import { SelectField } from "@/components/form-controls";
 import { PatientPicker } from "@/components/patient-picker";
 import { useState } from "react";
@@ -29,19 +30,26 @@ export function DocumentsPanel({
       (visitId ? "&visitId=" + encodeURIComponent(visitId) : ""),
   );
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [chosen, setChosen] = useState<File | null>(null),
+    [uploadKey, setUploadKey] = useState(""),
+    [progress, setProgress] = useState("");
   const canUpload = !portal && (profile?.role === "admin" || profile?.role === "nurse");
   async function upload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget,
       f = new FormData(form),
-      file = f.get("file") as File;
+      file = chosen;
     let pending: string | undefined;
     setBusy(true);
     setError("");
     try {
-      if (!file.size || file.size > 10485760) throw Error("Choose a file no larger than 10 MB.");
-      const init = await api<{ id: string; url: string }>("/documents/upload", {
+      if (!file || !file.size || file.size > 10485760)
+        throw Error("Choose a file no larger than 10 MB.");
+      if (!/\.(pdf|jpe?g|png)$/i.test(file.name))
+        throw Error("Choose a PDF, JPG/JPEG or PNG file.");
+      setProgress("Preparing upload");
+      const init = await api<{ id: string; url?: string; ready?: boolean }>("/documents/upload", {
         method: "POST",
         body: {
           patientId: patientId ?? String(f.get("patientId")),
@@ -53,21 +61,25 @@ export function DocumentsPanel({
           filename: file.name,
           mimeType: file.type,
           fileSize: file.size,
+          uploadKey,
         },
       });
       pending = init.id;
-      const uploaded = await fetch(init.url, {
-        method: "PUT",
-        headers: { "Content-Type": file.type, "x-upsert": "false" },
-        body: file,
-      });
-      if (!uploaded.ok) throw Error("File upload failed. Please try again.");
-      await api("/documents/" + init.id + "/complete", { method: "POST", body: {} });
+      if (!init.ready) {
+        if (!init.url) throw Error("Unable to prepare this upload.");
+        await uploadPrivateFile(init.url, file, (percent) => setProgress(`Uploading ${percent}%`));
+        setProgress("Checking file");
+        await api("/documents/" + init.id + "/complete", { method: "POST", body: {} });
+      }
       pending = undefined;
       form.reset();
+      setChosen(null);
+      setUploadKey("");
+      setProgress("File uploaded privately.");
       remote.reload();
       window.dispatchEvent(new Event("queuecare:refresh"));
     } catch (e) {
+      setProgress("");
       setError(friendlyError(e));
       if (pending)
         await api("/documents/" + pending + "/pending", { method: "DELETE" }).catch(() => {});
@@ -99,7 +111,9 @@ export function DocumentsPanel({
   }
   return (
     <section className="space-y-5">
-      <h2 className="text-lg font-semibold">Documents & lab reports</h2>
+      <h2 className="text-lg font-semibold">
+        {visitId ? "Consultation Attachments" : "Documents & lab reports"}
+      </h2>
       {canUpload && selected !== "all" && (
         <form onSubmit={(e) => void upload(e)} className="surface space-y-4 p-6">
           <h3 className="font-semibold">Upload a private document</h3>
@@ -120,21 +134,54 @@ export function DocumentsPanel({
             </label>
             <Field label="Description" name="description" maxLength={1000} />
             <label className="text-sm font-medium">
-              File · PDF, JPG or PNG · up to 10 MB
+              Choose File · PDF, JPG or PNG · up to 10 MB
               <input
                 aria-label="Document file"
-                className="mt-2 block w-full text-sm"
+                className="mt-2 block w-full text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-muted file:px-4 file:py-2"
+                disabled={busy}
+                onChange={(e) => {
+                  setChosen(e.target.files?.[0] ?? null);
+                  setUploadKey(crypto.randomUUID());
+                  setError("");
+                  setProgress("");
+                }}
                 name="file"
                 type="file"
                 accept="application/pdf,image/jpeg,image/png"
-                required
+                required={!chosen}
               />
             </label>
           </div>
+          {chosen && (
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="break-all">
+                {chosen.name} · {(chosen.size / 1024).toFixed(0)} KB
+              </span>
+              <Btn
+                type="button"
+                variant="ghost"
+                disabled={busy}
+                onClick={(e) => {
+                  setChosen(null);
+                  setUploadKey("");
+                  const input =
+                    e.currentTarget.form?.querySelector<HTMLInputElement>('input[type="file"]');
+                  if (input) input.value = "";
+                }}
+              >
+                Remove file
+              </Btn>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Files remain private. Only the doctor can release them to the patient portal.
           </p>
-          <Btn disabled={busy}>{busy ? "Uploading…" : "Upload document"}</Btn>
+          {progress && (
+            <p role="status" className="text-sm">
+              {progress}
+            </p>
+          )}
+          <Btn disabled={busy || !chosen}>{busy ? "Uploading…" : "Upload document"}</Btn>
         </form>
       )}
       {canUpload && selected === "all" && (

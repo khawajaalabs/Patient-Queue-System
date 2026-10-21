@@ -5,7 +5,7 @@ import { AuthPage } from "@/components/auth-page";
 import { requestPasswordReset } from "@/services/auth";
 import { friendlyError } from "@/services/errors";
 export const Route = createFileRoute("/forgot-password")({
-  head: () => ({ meta: [{ title: "Forgot password — QueueCare" }] }),
+  head: () => ({ meta: [{ title: "Forgot password — Neuro Spine Care Center" }] }),
   component: ForgotPassword,
 });
 export function ForgotPassword() {

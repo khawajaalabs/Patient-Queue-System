@@ -78,12 +78,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "QueueCare — Clinic queue & token management" },
+      { title: "Neuro Spine Care Center — Clinic queue & token management" },
       {
         name: "description",
         content: "Join the clinic queue remotely and arrive closer to your turn.",
       },
-      { property: "og:title", content: "QueueCare — Clinic queue & token management" },
+      {
+        property: "og:title",
+        content: "Neuro Spine Care Center — Clinic queue & token management",
+      },
       {
         property: "og:description",
         content: "Join the clinic queue remotely and arrive closer to your turn.",
@@ -92,6 +95,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     ],
@@ -124,7 +128,9 @@ function RootComponent() {
       <AuthProvider>
         <ClinicProvider publicOnly={publicOnly}>
           <QueueProvider publicOnly={publicOnly}>
-            <a href="#main-content" className="skip-link">Skip to content</a>
+            <a href="#main-content" className="skip-link">
+              Skip to content
+            </a>
             <Outlet />
             <Toaster position="top-center" />
           </QueueProvider>

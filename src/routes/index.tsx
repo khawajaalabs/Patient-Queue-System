@@ -3,12 +3,15 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "QueueCare — Less waiting, better patient flow" },
+      { title: "Neuro Spine Care Center — Less waiting, better patient flow" },
       {
         name: "description",
         content: "Book a clinic appointment, receive your token and track your turn live.",
       },
-      { property: "og:title", content: "QueueCare — Less waiting, better patient flow" },
+      {
+        property: "og:title",
+        content: "Neuro Spine Care Center — Less waiting, better patient flow",
+      },
       {
         property: "og:description",
         content: "Book a clinic appointment, receive your token and track your turn live.",

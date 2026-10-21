@@ -19,6 +19,7 @@ import {
 import {
   SupabaseDocumentStorage,
   actualMime,
+  validateFileName,
   type DocumentStorage,
 } from "../services/document-storage.ts";
 import { adminState, mutateQueue, type QueueAction } from "../services/queueService.ts";
@@ -437,9 +438,11 @@ export function operationsRoutes(
           filename: z.string().trim().min(1).max(200),
           mimeType: z.enum(["application/pdf", "image/jpeg", "image/png"]),
           fileSize: z.number().int().min(1).max(10485760),
+          uploadKey: z.string().uuid().optional(),
         })
         .strict()
         .parse(req.body);
+    validateFileName(c.filename, c.mimeType);
     await authorizeClinic(db, u, c.clinicId, ["nurse"]);
     await patientInClinic(db, u, c.patientId, c.clinicId);
     if (
@@ -453,32 +456,54 @@ export function operationsRoutes(
       ))
     )
       throw new ApiError(400, "INVALID_VISIT", "Choose a matching visit.");
-    const uid = randomUUID(),
-      path = c.clinicId + "/" + c.patientId + "/" + uid + "/" + randomUUID();
-    await db
-      .prepare(
-        "INSERT INTO patient_documents(id,patient_id,clinic_id,visit_id,uploaded_by,document_type,title,description,storage_path,original_filename,mime_type,file_size,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-      )
-      .run(
+    const uid = c.uploadKey ?? randomUUID();
+    const prepared = await atomic(db, async () => {
+      const previous = await one<Record<string, unknown>>(
+        db,
+        "SELECT * FROM patient_documents WHERE id=?",
         uid,
-        c.patientId,
-        c.clinicId,
-        c.visitId,
-        u.id,
-        c.documentType,
-        c.title,
-        c.description,
-        path,
-        c.filename.replace(/[\\/\r\n]/g, "_"),
-        c.mimeType,
-        c.fileSize,
-        stamp(),
-        stamp(),
       );
+      if (previous) {
+        if (
+          previous["uploaded_by"] !== u.id ||
+          previous["patient_id"] !== c.patientId ||
+          previous["clinic_id"] !== c.clinicId ||
+          previous["visit_id"] !== c.visitId ||
+          previous["mime_type"] !== c.mimeType ||
+          Number(previous["file_size"]) !== c.fileSize ||
+          previous["original_filename"] !== c.filename
+        )
+          throw new ApiError(409, "UPLOAD_CONFLICT", "Start a new file selection.");
+        return { path: String(previous["storage_path"]), ready: previous["status"] === "ready" };
+      }
+      const path = c.clinicId + "/" + c.patientId + "/" + uid + "/" + randomUUID();
+      await db
+        .prepare(
+          "INSERT INTO patient_documents(id,patient_id,clinic_id,visit_id,uploaded_by,document_type,title,description,storage_path,original_filename,mime_type,file_size,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        )
+        .run(
+          uid,
+          c.patientId,
+          c.clinicId,
+          c.visitId,
+          u.id,
+          c.documentType,
+          c.title,
+          c.description,
+          path,
+          c.filename,
+          c.mimeType,
+          c.fileSize,
+          stamp(),
+          stamp(),
+        );
+      return { path, ready: false };
+    });
+    if (prepared.ready) return send(res, { id: uid, ready: true }, 201);
     try {
-      send(res, { id: uid, url: await storage.uploadUrl(path) }, 201);
+      send(res, { id: uid, url: await storage.uploadUrl(prepared.path) }, 201);
     } catch (e) {
-      await db.prepare("DELETE FROM patient_documents WHERE id=?").run(uid);
+      await db.prepare("DELETE FROM patient_documents WHERE id=? AND status='pending'").run(uid);
       throw e;
     }
   });

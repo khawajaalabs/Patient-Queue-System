@@ -60,3 +60,18 @@ export function actualMime(data: Uint8Array) {
   if (b[0] === 255 && b[1] === 216 && b[2] === 255) return "image/jpeg";
   throw new ApiError(400, "INVALID_FILE", "Upload a valid PDF, JPEG or PNG file.");
 }
+
+export function validateFileName(filename: string, mime: string) {
+  const extensions: Record<string, RegExp> = {
+    "application/pdf": /\.pdf$/i,
+    "image/jpeg": /\.jpe?g$/i,
+    "image/png": /\.png$/i,
+  };
+  if (/[\\/\x00-\x1f]/.test(filename) || !extensions[mime]?.test(filename))
+    throw new ApiError(
+      400,
+      "INVALID_FILE",
+      "Choose a PDF, JPG/JPEG or PNG file with a matching filename.",
+    );
+  return filename;
+}

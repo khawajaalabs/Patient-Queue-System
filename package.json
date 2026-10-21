@@ -26,7 +26,8 @@
     "test:availability:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-availability-postgres.mjs",
     "test:clinical-workflow:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-clinical-workflow-postgres.mjs",
     "test:workflow:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-workflow-postgres.mjs",
-    "test:appointment-tokens:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-appointment-tokens-postgres.mjs"
+    "test:appointment-tokens:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-appointment-tokens-postgres.mjs",
+    "test:clinic-improvements:postgres": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.supabase-cli.local scripts/test-clinic-improvements-postgres.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

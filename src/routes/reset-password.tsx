@@ -6,7 +6,10 @@ import { resetPassword, verifyPasswordRecovery } from "@/services/auth";
 import { friendlyError } from "@/services/errors";
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
-    meta: [{ title: "Reset password — QueueCare" }, { name: "referrer", content: "no-referrer" }],
+    meta: [
+      { title: "Reset password — Neuro Spine Care Center" },
+      { name: "referrer", content: "no-referrer" },
+    ],
   }),
   component: ResetPassword,
 });
@@ -46,7 +49,7 @@ export function ResetPassword() {
   return (
     <AuthPage
       title="Reset your password"
-      description="Choose a new password for your QueueCare account."
+      description="Choose a new password for your Neuro Spine Care Center account."
     >
       {verifying ? (
         <p role="status" className="mt-6 text-sm text-muted-foreground">

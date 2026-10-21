@@ -10,12 +10,12 @@ import { Btn, Label, LiveDot, StatusPill } from "@/components/qc";
 export const Route = createFileRoute("/patient/dashboard")({
   head: () => ({
     meta: [
-      { title: "Your queue status — QueueCare" },
+      { title: "Your queue status — Neuro Spine Care Center" },
       {
         name: "description",
         content: "See your token, people ahead, and estimated wait at a glance.",
       },
-      { property: "og:title", content: "Your queue status — QueueCare" },
+      { property: "og:title", content: "Your queue status — Neuro Spine Care Center" },
       {
         property: "og:description",
         content: "See your token, people ahead, and estimated wait at a glance.",

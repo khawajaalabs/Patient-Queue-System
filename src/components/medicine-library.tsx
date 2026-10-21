@@ -1,3 +1,5 @@
+import { ConfirmAction } from "@/components/queue-feedback";
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { api } from "@/api/client";
 import { Btn, Field, PageHeader } from "@/components/qc";
@@ -81,6 +83,36 @@ export function MedicineLibrary() {
                     >
                       Edit medicine
                     </Btn>
+                    <ConfirmAction
+                      title="Delete or archive medicine?"
+                      description="Unused medicines will be deleted. Medicines referenced by prescriptions will be archived, preserving medical history."
+                      confirm="Delete or archive"
+                      onConfirm={() => {
+                        setBusy(true);
+                        setError("");
+                        void api<{ archived: boolean }>("/admin/medicine-library/" + m.id, {
+                          method: "DELETE",
+                        })
+                          .then((result) => {
+                            if (editing === m.id) {
+                              setEditing("");
+                              setDraft(blank);
+                            }
+                            remote.reload();
+                            toast.success(
+                              result.archived
+                                ? "Medicine archived. Historical prescriptions are preserved."
+                                : "Medicine deleted.",
+                            );
+                          })
+                          .catch((e) => setError(friendlyError(e)))
+                          .finally(() => setBusy(false));
+                      }}
+                    >
+                      <Btn type="button" variant="ghost" disabled={busy}>
+                        Delete medicine
+                      </Btn>
+                    </ConfirmAction>
                   </article>
                 ))
             )}

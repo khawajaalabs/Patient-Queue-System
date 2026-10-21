@@ -1,3 +1,4 @@
+import { usePatientToday } from "@/hooks/use-patient-today";
 import { SelectField } from "@/components/form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -9,6 +10,7 @@ import { friendlyError } from "@/services/errors";
 import type { PatientProfile } from "@/types/clinical";
 export const Route = createFileRoute("/patient/profile")({ component: Profile });
 function Profile() {
+  const today = usePatientToday();
   const remote = useClinicalData<PatientProfile>("/patient/profile");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -31,9 +33,6 @@ function Profile() {
           dateOfBirth: value("dateOfBirth") || null,
           gender: value("gender"),
           address: value("address"),
-          emergencyContactName: value("emergencyContactName"),
-          emergencyContactPhone: value("emergencyContactPhone"),
-          bloodGroup: value("bloodGroup"),
         },
       });
       await restoreSession();
@@ -70,7 +69,7 @@ function Profile() {
             label="Date of birth"
             name="dateOfBirth"
             type="date"
-            max={new Date().toISOString().slice(0, 10)}
+            max={today}
             defaultValue={p.dateOfBirth ?? ""}
           />
           <label className="block text-sm font-medium">
@@ -93,33 +92,7 @@ function Profile() {
               ))}
             </SelectField>
           </label>
-          <label className="block text-sm font-medium">
-            Blood group
-            <SelectField
-              name="bloodGroup"
-              defaultValue={p.bloodGroup}
-              className="mt-2 block h-11 w-full rounded-lg border border-input bg-card px-3"
-            >
-              {["", "unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((id) => (
-                <option key={id} value={id}>
-                  {id || "Not provided"}
-                </option>
-              ))}
-            </SelectField>
-          </label>
           <Field label="Address" name="address" maxLength={500} defaultValue={p.address} />
-          <Field
-            label="Emergency contact name"
-            name="emergencyContactName"
-            maxLength={120}
-            defaultValue={p.emergencyContactName}
-          />
-          <Field
-            label="Emergency contact phone"
-            name="emergencyContactPhone"
-            maxLength={30}
-            defaultValue={p.emergencyContactPhone}
-          />
         </div>
         {error && (
           <p role="alert" className="text-sm text-destructive">

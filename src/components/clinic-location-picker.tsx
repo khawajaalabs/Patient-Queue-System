@@ -1,3 +1,4 @@
+import { groupClinicLocations, normalizeLocation } from "@/domain/locations";
 import { useState, useEffect } from "react";
 import { SearchableChoice } from "@/components/searchable-choice";
 import { useClinicContext } from "@/providers/clinic-provider";
@@ -21,11 +22,19 @@ export function ClinicLocationPicker({
       setArea(c.area || legacy);
     }
   }, [value, clinics]);
-  const cities = [...new Set(active.map((c) => c.city || legacy))],
+  const cities = groupClinicLocations(active).map((g) => g.city),
     areas = [
-      ...new Set(active.filter((c) => (c.city || legacy) === city).map((c) => c.area || legacy)),
+      ...new Map(
+        active
+          .filter((c) => normalizeLocation(c.city || legacy) === normalizeLocation(city))
+          .map((c) => [normalizeLocation(c.area || legacy), c.area || legacy]),
+      ).values(),
     ];
-  const relevant = active.filter((c) => (c.city || legacy) === city && (c.area || legacy) === area);
+  const relevant = active.filter(
+    (c) =>
+      (c.city || legacy) === city &&
+      normalizeLocation(c.area || legacy) === normalizeLocation(area),
+  );
   return (
     <div className="space-y-4">
       <SearchableChoice
@@ -46,7 +55,9 @@ export function ClinicLocationPicker({
         onChange={(v) => {
           setArea(v);
           const candidates = active.filter(
-            (c) => (c.city || legacy) === city && (c.area || legacy) === v,
+            (c) =>
+              (c.city || legacy) === city &&
+              normalizeLocation(c.area || legacy) === normalizeLocation(v),
           );
           onChange(candidates.length === 1 ? candidates[0]!.id : "");
         }}

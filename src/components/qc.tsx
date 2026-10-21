@@ -21,7 +21,9 @@ export function Logo({ className }: { className?: string }) {
           <path d="M12 5v14M5 12h14" />
         </svg>
       </div>
-      <span className="text-[15px] font-semibold tracking-tight">QueueCare</span>
+      <span className="min-w-0 text-[15px] font-semibold leading-tight tracking-tight">
+        Neuro Spine Care Center
+      </span>
     </div>
   );
 }

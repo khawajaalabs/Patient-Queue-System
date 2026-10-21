@@ -337,13 +337,13 @@ export function GlobalSearch() {
       <Btn
         variant="secondary"
         onClick={() => setOpen(true)}
-        aria-label="Search QueueCare (Control K)"
+        aria-label="Search Neuro Spine Care Center (Control K)"
       >
         Search
       </Btn>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogTitle>Search QueueCare</DialogTitle>
+          <DialogTitle>Search Neuro Spine Care Center</DialogTitle>
           <DialogDescription>
             Patients, phone, email, appointments, invoices, tokens and clinics.
           </DialogDescription>
@@ -681,7 +681,7 @@ export function AccountSettings() {
     <>
       <PageHeader
         title="Account & security"
-        sub="Manage your password and active QueueCare sessions."
+        sub="Manage your password and active Neuro Spine Care Center sessions."
       />
       <div className="surface space-y-5 p-6">
         <p>

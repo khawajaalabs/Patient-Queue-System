@@ -1,3 +1,10 @@
+import { PatientDemographics } from "@/components/patient-demographics";
+import {
+  AttachmentFields,
+  uploadAppointmentFiles,
+  type SelectedAttachment,
+} from "@/components/appointment-files";
+import type { PatientProfile } from "@/types/clinical";
 import { TokenActions } from "@/components/appointment-tokens";
 import { ClinicLocationPicker } from "@/components/clinic-location-picker";
 import { createFileRoute } from "@tanstack/react-router";
@@ -13,6 +20,11 @@ import { useClinicalData, ClinicalLoading } from "@/components/clinical";
 import type { Appointment } from "@/types/local";
 export const Route = createFileRoute("/patient/appointments")({ component: Appointments });
 export function Appointments() {
+  const patient = useClinicalData<PatientProfile>("/patient/profile");
+  const [files, setFiles] = useState<SelectedAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const progress = (key: string, state: string, error = "") =>
+    setFiles((previous) => previous.map((f) => (f.key === key ? { ...f, state, error } : f)));
   const remote = useClinicalData<Appointment[]>("/patient/appointments");
   const { clinics, selected } = useClinicContext();
   const [booking, setBooking] = useState(
@@ -22,7 +34,12 @@ export function Appointments() {
   );
   const [clinicId, setClinicId] = useState(selected === "all" ? "" : selected);
   const [notes, setNotes] = useState(""),
-    [review, setReview] = useState<{ scheduledAt: string; reason: string } | null>(null);
+    [review, setReview] = useState<{
+      scheduledAt: string;
+      reason: string;
+      dateOfBirth: string;
+      gender: string;
+    } | null>(null);
   const [confirmed, setConfirmed] = useState<{
     id: string;
     token: { id: string; tokenCode: string; status: string };
@@ -41,6 +58,8 @@ export function Appointments() {
             setError("");
             setReview(null);
             setNotes("");
+            setFiles([]);
+            setConfirmed(null);
           }}
         >
           Book appointment
@@ -60,6 +79,28 @@ export function Appointments() {
             View appointment →
           </a>
           <TokenActions token={confirmed.token} onChanged={remote.reload} />
+          {files.length > 0 && (
+            <div className="mt-4 space-y-3">
+              <p role="status">
+                {files.every((f) => f.state === "Uploaded")
+                  ? "All supporting documents uploaded privately."
+                  : "Your appointment is confirmed. Retry any unfinished supporting documents below; do not book again."}
+              </p>
+              <AttachmentFields files={files} onChange={setFiles} disabled={uploading} />
+              <Btn
+                type="button"
+                disabled={uploading || files.every((f) => f.state === "Uploaded")}
+                onClick={() => {
+                  setUploading(true);
+                  void uploadAppointmentFiles(confirmed.id, files, progress).finally(() =>
+                    setUploading(false),
+                  );
+                }}
+              >
+                Retry unfinished uploads
+              </Btn>
+            </div>
+          )}
         </section>
       )}
       {!remote.data ? (
@@ -90,8 +131,13 @@ export function Appointments() {
           )}
         </div>
       )}
-      <Dialog open={booking} onOpenChange={setBooking}>
-        <DialogContent>
+      <Dialog
+        open={booking}
+        onOpenChange={(open) => {
+          if (!busy) setBooking(open);
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogTitle>Book appointment</DialogTitle>
           <DialogDescription>Choose a clinic, date and available time.</DialogDescription>
           <form
@@ -103,12 +149,26 @@ export function Appointments() {
                 setReview({
                   scheduledAt: String(f.get("scheduledAt") ?? ""),
                   reason: String(f.get("reason") ?? ""),
+                  dateOfBirth: String(f.get("dateOfBirth") ?? ""),
+                  gender: String(f.get("gender") ?? ""),
                 });
                 return;
               }
               setBusy(true);
               setError("");
               void (async () => {
+                if (!patient.data)
+                  throw Error("Your patient profile is still loading. Please try again.");
+                await api("/patient/profile", {
+                  method: "PUT",
+                  body: {
+                    fullName: patient.data.fullName,
+                    phone: patient.data.phone,
+                    address: patient.data.address,
+                    dateOfBirth: review.dateOfBirth,
+                    gender: review.gender,
+                  },
+                });
                 const booked = await api<{ id: string; token: { id: string; tokenCode: string } }>(
                   "/patient/appointments",
                   {
@@ -126,6 +186,10 @@ export function Appointments() {
                   token: { ...booked.token, status: "waiting" },
                   scheduledAt: review.scheduledAt,
                 });
+                if (files.length) {
+                  await uploadAppointmentFiles(booked.id, files, progress);
+                }
+                patient.reload();
                 remote.reload();
                 window.dispatchEvent(new Event("queuecare:refresh"));
                 setBooking(false);
@@ -140,7 +204,12 @@ export function Appointments() {
                 .finally(() => setBusy(false));
             }}
           >
-            <div hidden={!!review}>
+            <div hidden={!!review} className="space-y-4">
+              {patient.data ? (
+                <PatientDemographics key={patient.data.id} patient={patient.data} required />
+              ) : (
+                <ClinicalLoading error={patient.error} retry={patient.reload} />
+              )}
               <ClinicLocationPicker
                 value={clinicId}
                 onChange={(v) => {
@@ -162,12 +231,16 @@ export function Appointments() {
                 />
               </label>
             </div>
+            <AttachmentFields files={files} onChange={setFiles} disabled={busy} />
             {review && (
               <section className="space-y-3 rounded-lg border p-4">
                 <h2>Review your appointment</h2>
                 <p>
                   {clinics.find((c) => c.id === clinicId)?.name} ·{" "}
                   {review.scheduledAt.replace("T", " ")}
+                </p>
+                <p>
+                  Gender: {review.gender.replaceAll("_", " ")} · Date of birth: {review.dateOfBirth}
                 </p>
                 <p className="break-words">{review.reason || "No reason provided"}</p>
                 <p className="whitespace-pre-wrap break-words">{notes}</p>
@@ -188,7 +261,7 @@ export function Appointments() {
                 {error}
               </p>
             )}
-            <Btn disabled={busy || !clinicId}>
+            <Btn disabled={busy || !clinicId || !patient.data}>
               {busy ? "Booking…" : review ? "Confirm booking" : "Review booking"}
             </Btn>
           </form>

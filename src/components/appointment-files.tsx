@@ -1,7 +1,7 @@
+import { uploadPrivateFile } from "@/lib/private-upload";
 import { useState } from "react";
 import { api } from "@/api/client";
-import { Btn, Field } from "@/components/qc";
-import { SelectField } from "@/components/form-controls";
+import { Btn } from "@/components/qc";
 import { friendlyError } from "@/services/errors";
 import type { AppointmentAttachment } from "@/types/clinical-workflow";
 export interface SelectedAttachment {
@@ -12,14 +12,6 @@ export interface SelectedAttachment {
   state: string;
   error: string;
 }
-const kinds = [
-  "lab_report",
-  "imaging_report",
-  "old_prescription",
-  "referral",
-  "medical_document",
-  "other",
-];
 export function AttachmentFields({
   files,
   onChange,
@@ -33,13 +25,13 @@ export function AttachmentFields({
   return (
     <section className="space-y-3">
       <h2>
-        Supporting files <span className="text-muted-foreground">(optional)</span>
+        Supporting Documents <span className="text-muted-foreground">(optional)</span>
       </h2>
       <p className="text-sm text-muted-foreground">
         Up to 10 files. PDF, JPEG or PNG, up to 10 MB each. Files remain private.
       </p>
       <label className="block text-sm">
-        Add files
+        Choose Files
         <input
           aria-label="Add supporting files"
           type="file"
@@ -59,7 +51,8 @@ export function AttachmentFields({
                 (f) =>
                   f.size === 0 ||
                   f.size > 10485760 ||
-                  !["application/pdf", "image/jpeg", "image/png"].includes(f.type),
+                  !["application/pdf", "image/jpeg", "image/png"].includes(f.type) ||
+                  !/\.(pdf|jpe?g|png)$/i.test(f.name),
               )
             ) {
               setError("Choose PDF, JPEG or PNG files between 1 byte and 10 MB.");
@@ -71,7 +64,7 @@ export function AttachmentFields({
               ...incoming.map((file) => ({
                 key: crypto.randomUUID(),
                 file,
-                title: file.name.replace(/\.[^.]+$/, ""),
+                title: file.name.replace(/\.[^.]+$/, "") || file.name,
                 type: "medical_document",
                 state: "Waiting to upload",
                 error: "",
@@ -82,37 +75,10 @@ export function AttachmentFields({
       </label>
       {error && <p role="alert">{error}</p>}
       {files.map((f, i) => (
-        <div key={f.key} className="rounded-lg border border-border p-4 space-y-3">
+        <div key={f.key} className="rounded-lg border border-border p-3 space-y-2">
           <p className="break-all text-sm text-muted-foreground">
             {f.file.name} · {(f.file.size / 1024).toFixed(0)} KB
           </p>
-          <Field
-            label={`File title ${i + 1}`}
-            required
-            maxLength={160}
-            value={f.title}
-            disabled={disabled}
-            onChange={(e) =>
-              onChange(files.map((x) => (x.key === f.key ? { ...x, title: e.target.value } : x)))
-            }
-          />
-          <label className="block text-sm">
-            Document type {i + 1}
-            <SelectField
-              aria-label={`Document type ${i + 1}`}
-              value={f.type}
-              disabled={disabled}
-              onChange={(e) =>
-                onChange(files.map((x) => (x.key === f.key ? { ...x, type: e.target.value } : x)))
-              }
-            >
-              {kinds.map((k) => (
-                <option key={k} value={k}>
-                  {k.replaceAll("_", " ")}
-                </option>
-              ))}
-            </SelectField>
-          </label>
           <p role="status" className="text-sm">
             {f.state}
           </p>
@@ -145,7 +111,7 @@ export async function uploadAppointmentFiles(
     let prepared: string | undefined;
     try {
       progress(f.key, "Preparing upload");
-      const p = await api<{ id: string; uploadUrl: string }>(
+      const p = await api<{ id: string; uploadUrl?: string; ready?: boolean }>(
         `/appointments/${encodeURIComponent(id)}/attachments`,
         {
           method: "POST",
@@ -155,18 +121,20 @@ export async function uploadAppointmentFiles(
             filename: f.file.name,
             mime: f.file.type,
             size: f.file.size,
+            uploadKey: f.key,
           },
         },
       );
       prepared = p.id;
-      progress(f.key, "Uploading");
-      const response = await fetch(p.uploadUrl, {
-        method: "PUT",
-        body: f.file,
-        headers: { "Content-Type": f.file.type },
-        signal: AbortSignal.timeout(60000),
-      });
-      if (!response.ok) throw new Error("Upload failed. Try this file again.");
+      if (p.ready) {
+        progress(f.key, "Uploaded");
+        continue;
+      }
+      if (!p.uploadUrl) throw Error("Unable to prepare this upload.");
+      progress(f.key, "Uploading 0%");
+      await uploadPrivateFile(p.uploadUrl, f.file, (percent) =>
+        progress(f.key, `Uploading ${percent}%`),
+      );
       progress(f.key, "Checking file");
       await api(`/appointment-attachments/${p.id}/complete`, { method: "POST", body: {} });
       progress(f.key, "Uploaded");

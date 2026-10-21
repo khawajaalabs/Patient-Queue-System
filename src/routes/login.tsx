@@ -10,15 +10,15 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Sign in — QueueCare" },
+      { title: "Sign in — Neuro Spine Care Center" },
       {
         name: "description",
-        content: "Sign in to QueueCare to get a token and track your clinic queue.",
+        content: "Sign in to Neuro Spine Care Center to get a token and track your clinic queue.",
       },
-      { property: "og:title", content: "Sign in — QueueCare" },
+      { property: "og:title", content: "Sign in — Neuro Spine Care Center" },
       {
         property: "og:description",
-        content: "Sign in to QueueCare to get a token and track your clinic queue.",
+        content: "Sign in to Neuro Spine Care Center to get a token and track your clinic queue.",
       },
     ],
   }),
@@ -93,7 +93,7 @@ function Login() {
           ))}
         </div>
         <p className="relative z-10 mt-10 text-xs text-muted-foreground">
-          QueueCare · Patient portal
+          Neuro Spine Care Center · Patient portal
         </p>
       </aside>
 

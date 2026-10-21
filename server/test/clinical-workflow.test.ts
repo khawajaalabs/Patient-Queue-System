@@ -8,7 +8,7 @@ import { one } from "../db/database.ts";
 import type { DocumentStorage } from "../services/document-storage.ts";
 test(
   "Clinical additions: notes, owned private uploads, verified bytes, clinic library and immutable structured prescriptions",
-  { timeout: 180000 },
+  { timeout: process.env["QUEUECARE_WORKFLOW_TEST_SCHEMA"] ? 900000 : 180000 },
   async () => {
     const files = new Map<string, Uint8Array>();
     let failRemove = false;
@@ -123,8 +123,14 @@ test(
         mime: "application/pdf",
         size: 8,
       };
-      // Historical files are seeded as existing data; all new patient upload paths are disabled.
-      assert.equal((await req(`/appointments/${id}/attachments`, p.cookie, metadata)).status, 403);
+      // New private uploads are enabled; historical fixtures remain readable.
+      const uploaded = await req(`/appointments/${id}/attachments`, p.cookie, metadata);
+      assert.equal(uploaded.status, 201);
+      files.set(uploaded.data.uploadUrl.replace("memory://", ""), Buffer.from("%PDF-1.7"));
+      assert.equal(
+        (await req(`/appointment-attachments/${uploaded.data.id}/complete`, p.cookie, {})).status,
+        200,
+      );
       const fid = "historical-ready",
         bad = { data: { id: "historical-failed" } };
       const stamp = new Date().toISOString();
@@ -153,11 +159,11 @@ test(
           );
       assert.equal(
         (await req(`/appointment-attachments/${fid}/complete`, p.cookie, {})).status,
-        403,
+        200,
       );
       assert.equal(
         (await req(`/appointment-attachments/${fid}`, p.cookie, {}, "DELETE")).status,
-        403,
+        409,
       );
       assert.equal(
         (await req(`/appointment-attachments/${fid}/download`, other.cookie)).status,
@@ -175,7 +181,7 @@ test(
         (await req(`/appointment-attachments/${fid}/download`, admin.cookie)).status,
         200,
       );
-      assert.equal((await req(`/appointments/${id}/context`, p.cookie)).data.attachments.length, 2);
+      assert.equal((await req(`/appointments/${id}/context`, p.cookie)).data.attachments.length, 3);
       assert.equal((await req("/admin/medicine-library?clinicId=northstar", p.cookie)).status, 403);
       const med = await req("/admin/medicine-library?clinicId=northstar", admin.cookie, {
         name: "Example medicine",
@@ -258,7 +264,7 @@ test(
         ).status,
         "ready",
       );
-      assert.equal((await req(`/appointments/${id}/attachments`, p.cookie, metadata)).status, 403);
+      assert.equal((await req(`/appointments/${id}/attachments`, p.cookie, metadata)).status, 409);
       const before = JSON.stringify(own.data.prescription);
       await req(
         "/admin/medicine-library/" + med.data.id,

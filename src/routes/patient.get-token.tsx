@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Join } from "./patient.join-queue";
 export const Route = createFileRoute("/patient/get-token")({
-  head: () => ({ meta: [{ title: "Book an appointment — QueueCare" }] }),
+  head: () => ({ meta: [{ title: "Book an appointment — Neuro Spine Care Center" }] }),
   component: Join,
 });

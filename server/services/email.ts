@@ -45,8 +45,8 @@ export async function deliverEmails(
     try {
       await provider.send(
         row.email,
-        "QueueCare account update",
-        "An update is available in your QueueCare account. Sign in at " +
+        "Neuro Spine Care Center account update",
+        "An update is available in your Neuro Spine Care Center account. Sign in at " +
           new URL(process.env["APP_URL"] ?? "http://localhost:5174").origin +
           " to view it.",
       );

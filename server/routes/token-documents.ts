@@ -33,14 +33,14 @@ export function tokenDocumentRoutes(db: Database) {
     const pdf = new PDFDocument({
       size: "A4",
       margin: 50,
-      info: { Title: "QueueCare appointment token" },
+      info: { Title: "Neuro Spine Care Center appointment token" },
     });
     const chunks: Buffer[] = [];
     pdf.on("data", (c) => chunks.push(c));
     const finished = new Promise<Buffer>((resolve) =>
       pdf.on("end", () => resolve(Buffer.concat(chunks))),
     );
-    pdf.fillColor("#148577").fontSize(22).text("QueueCare");
+    pdf.fillColor("#148577").fontSize(22).text("Neuro Spine Care Center");
     pdf.moveDown().fillColor("#152b29").fontSize(18).text(t.clinic_name);
     pdf
       .fontSize(11)
@@ -72,7 +72,7 @@ export function tokenDocumentRoutes(db: Database) {
       .type("application/pdf")
       .setHeader(
         "Content-Disposition",
-        `attachment; filename="QueueCare-${t.token_code}-${t.queue_date}.pdf"`,
+        `attachment; filename="Neuro-Spine-Care-Center-${t.token_code}-${t.queue_date}.pdf"`,
       );
     res.send(await finished);
   });

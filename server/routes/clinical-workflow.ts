@@ -6,11 +6,13 @@ import { ApiError, requireRole } from "../middleware/auth.ts";
 import { audit, authorizeClinic, idValue, stamp } from "../services/operations.ts";
 import {
   actualMime,
+  validateFileName,
   SupabaseDocumentStorage,
   type DocumentStorage,
 } from "../services/document-storage.ts";
 const fileSchema = z
   .object({
+    uploadKey: z.string().uuid().optional(),
     title: z.string().trim().min(1).max(160),
     type: z.enum([
       "lab_report",
@@ -87,21 +89,6 @@ export function clinicalWorkflowRoutes(db: Database, provided?: DocumentStorage)
     admin = requireRole(db, "admin"),
     patient = requireRole(db, "patient"),
     storage = provided ?? new SupabaseDocumentStorage();
-  r.use((req, _res, next) => {
-    if (
-      req.method !== "GET" &&
-      (/^\/appointments\/[^/]+\/attachments$/.test(req.path) ||
-        /^\/appointment-attachments\/[^/]+(?:\/complete)?$/.test(req.path))
-    )
-      return next(
-        new ApiError(
-          403,
-          "UPLOAD_DISABLED",
-          "Patient appointment uploads are no longer available.",
-        ),
-      );
-    next();
-  });
   r.get("/appointments/:id/context", auth, async (req, res) => {
     const a = await access(db, res.locals["user"], idValue.parse(req.params["id"]));
     const files = await many<Row>(
@@ -141,9 +128,10 @@ export function clinicalWorkflowRoutes(db: Database, provided?: DocumentStorage)
   r.post("/appointments/:id/attachments", patient, async (req, res) => {
     const c = fileSchema.parse(req.body),
       u = res.locals["user"] as UserRow,
-      id = randomUUID(),
+      id = c.uploadKey ?? randomUUID(),
       path = "appointments/" + randomUUID() + "/" + id;
-    await atomic(db, async () => {
+    validateFileName(c.filename, c.mime);
+    const existing = await atomic(db, async () => {
       const a = await access(db, u, idValue.parse(req.params["id"]));
       if (!["scheduled", "confirmed", "checked_in"].includes(String(a["status"])))
         throw new ApiError(
@@ -151,6 +139,34 @@ export function clinicalWorkflowRoutes(db: Database, provided?: DocumentStorage)
           "APPOINTMENT_CLOSED",
           "Attachments can only be added to an upcoming appointment.",
         );
+      const previous = await one<Row>(db, "SELECT * FROM appointment_attachments WHERE id=?", id);
+      if (previous) {
+        if (previous["appointment_id"] !== a["id"] || previous["patient_id"] !== u.id) throw fail();
+        if (
+          previous["mime_type"] !== c.mime ||
+          Number(previous["file_size"]) !== c.size ||
+          previous["original_filename"] !== c.filename
+        )
+          throw new ApiError(
+            409,
+            "UPLOAD_CONFLICT",
+            "Choose the file again to start a new upload.",
+          );
+        if (["ready", "pending"].includes(String(previous["status"]))) return previous;
+        const activeFiles = await one<{ n: number }>(
+          db,
+          "SELECT CAST(COUNT(*) AS INTEGER) n FROM appointment_attachments WHERE appointment_id=? AND status IN ('ready','pending')",
+          String(a["id"]),
+        );
+        if (activeFiles!.n >= 10)
+          throw new ApiError(400, "ATTACHMENT_LIMIT", "An appointment can contain up to 10 files.");
+        await db
+          .prepare(
+            "UPDATE appointment_attachments SET status='pending',expires_at=?,updated_at=? WHERE id=?",
+          )
+          .run(Date.now() + 2 * 60 * 60 * 1000, stamp(), id);
+        return { ...previous, status: "pending" };
+      }
       const count = await one<{ n: number }>(
         db,
         "SELECT CAST(COUNT(*) AS INTEGER) n FROM appointment_attachments WHERE appointment_id=? AND status IN ('ready','pending')",
@@ -177,14 +193,25 @@ export function clinicalWorkflowRoutes(db: Database, provided?: DocumentStorage)
           stamp(),
           stamp(),
         );
+      return undefined;
     });
     try {
-      res
-        .status(201)
-        .json({ success: true, data: { id, uploadUrl: await storage.uploadUrl(path) } });
+      if (existing?.["status"] === "ready") {
+        res.status(201).json({ success: true, data: { id, ready: true } });
+        return;
+      }
+      res.status(201).json({
+        success: true,
+        data: {
+          id,
+          uploadUrl: await storage.uploadUrl(existing ? String(existing["storage_path"]) : path),
+        },
+      });
     } catch (e) {
       await db
-        .prepare("UPDATE appointment_attachments SET status='failed',updated_at=? WHERE id=?")
+        .prepare(
+          "UPDATE appointment_attachments SET status='failed',updated_at=? WHERE id=? AND status='pending'",
+        )
         .run(stamp(), id);
       throw e;
     }
@@ -387,6 +414,33 @@ export function clinicalWorkflowRoutes(db: Database, provided?: DocumentStorage)
       success: true,
       data: catalogDto((await one<Row>(db, "SELECT * FROM medicine_catalog WHERE id=?", id))!),
     });
+  });
+  r.delete("/admin/medicine-library/:id", admin, async (req, res) => {
+    const id = idValue.parse(req.params["id"]);
+    const archived = await atomic(db, async () => {
+      const m = await one<Row>(db, "SELECT * FROM medicine_catalog WHERE id=?", id);
+      if (!m) throw new ApiError(404, "NOT_FOUND", "Medicine not found.");
+      const referenced = await one(
+        db,
+        "SELECT item_id FROM prescription_item_details WHERE catalog_id=? LIMIT 1",
+        id,
+      );
+      if (referenced)
+        await db
+          .prepare("UPDATE medicine_catalog SET active=0,updated_at=? WHERE id=?")
+          .run(stamp(), id);
+      else await db.prepare("DELETE FROM medicine_catalog WHERE id=?").run(id);
+      await audit(
+        db,
+        res.locals["user"].id,
+        referenced ? "medicine.deactivated" : "medicine.deleted",
+        "medicine",
+        id,
+        String(m["clinic_id"]),
+      );
+      return !!referenced;
+    });
+    res.json({ success: true, data: { archived } });
   });
   return r;
 }

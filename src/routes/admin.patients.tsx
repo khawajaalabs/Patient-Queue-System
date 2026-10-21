@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useClinicalData, ClinicalLoading } from "@/components/clinical";
 import { useClinicContext } from "@/providers/clinic-provider";
 import { PageHeader, Btn, Field } from "@/components/qc";
@@ -19,10 +19,38 @@ export function Patients() {
     "/admin/patients/search?" +
       new URLSearchParams({ q, clinicId: clinic, conditionId: group, clinical }),
   );
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        remote.reload();
+        groups.reload();
+      }, 250);
+    };
+    window.addEventListener("queuecare:updated", refresh);
+    window.addEventListener("queuecare:refresh", refresh);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("queuecare:updated", refresh);
+      window.removeEventListener("queuecare:refresh", refresh);
+    };
+  }, [remote.reload, groups.reload]);
   return (
     <>
       <PageHeader
         title="Patients"
+        right={
+          <Btn
+            variant="secondary"
+            onClick={() => {
+              remote.reload();
+              groups.reload();
+            }}
+          >
+            Refresh
+          </Btn>
+        }
         sub="Find a patient, open their record, and start a consultation."
       />
       <div className="mb-5 flex flex-wrap items-end gap-4">
@@ -91,6 +119,11 @@ export function Patients() {
           Group counts use explicit tags only; free-text matches do not assign a disease.
         </p>
       </section>
+      {remote.error && remote.data && (
+        <p role="alert" className="mb-4 text-sm text-destructive">
+          {remote.error}
+        </p>
+      )}
       {!remote.data ? (
         <ClinicalLoading error={remote.error} retry={remote.reload} />
       ) : (

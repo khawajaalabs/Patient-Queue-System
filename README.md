@@ -1,6 +1,6 @@
-# QueueCare
+# Neuro Spine Care Center
 
-QueueCare is a clinic management application for one doctor/administrator managing multiple clinics. The existing React/TypeScript interface is served by Vercel; Express APIs use Supabase PostgreSQL through a restricted server-only database role. Local development uses the same Express application. SQLite remains available for isolated local tests; production uses PostgreSQL.
+Neuro Spine Care Center is the public brand of the existing QueueCare clinic management application for one doctor/administrator managing multiple clinics. The existing React/TypeScript interface is served by Vercel; Express APIs use Supabase PostgreSQL through a restricted server-only database role. Local development uses the same Express application. SQLite remains available for isolated local tests; production uses PostgreSQL.
 
 ## Run locally
 
@@ -65,7 +65,7 @@ Apply `supabase/migrations/20261009000100_doctor_availability.sql` additively th
 
 ## Clinical booking and prescribing
 
-Patient booking uses City -> Area -> Clinic -> Date -> Available time -> Reason -> Confirm, with optional notes and no document/upload step. Patient Documents navigation and pages are removed. Existing private files remain stored and accessible to authorized clinical staff in patient records. The server rejects all new appointment attachment mutations, including direct API attempts; historical download authorization remains unchanged.
+Patient booking confirms saved gender and DOB, derives completed age using the Karachi calendar, and uses City -> Area -> Clinic -> Date -> Available time -> Reason -> Confirm. PDF/JPEG/PNG supporting documents (up to 10 MB each, at most 10 per appointment) upload privately after the atomic appointment/token booking. Failed file uploads are reported separately and can be retried without booking again; pending private objects are tracked for cleanup. Authorized consultation uploads use the same private storage and byte checks, associated with their visit separately. No permanent public document URLs are used.
 
 Doctor consultations show appointment context and the latest completed clinical visit. The clinic-specific Medicine Library is administrator-only. Selecting a library medicine fills editable structured fields; custom medicine entry never implicitly adds a library record. Previous prescriptions copy into the current unsaved draft only, with repeated-copy protection and the existing 20-item limit. Preview and A4 printing do not save or complete consultations. Completed prescriptions retain their historical structured values independently of library edits.
 
@@ -81,7 +81,7 @@ Queue estimates use the median of the most recent 30 completed token consultatio
 
 Patients can be searched by name, email and phone and filtered by clinic and explicit manual condition tags, with most-recent visits first. Only administrators/doctors can add or remove condition tags. Group counts derive exclusively from these tags; diagnosis/chronic-condition free-text matches are a separately labelled search and never infer membership. Audit records contain mutation identifiers rather than medical condition text.
 
-`20261011000100_workflow_simplification.sql` only adds nullable clinic location fields, backend-only condition/tag tables, constraints and indexes. No historical rows are backfilled or deleted. `npm run test:workflow:postgres` verifies location compatibility, prefix stability, condition counts/isolation, role restrictions, upload denial and queue estimates in a disposable PostgreSQL schema.
+`20261011000100_workflow_simplification.sql` only adds nullable clinic location fields, backend-only condition/tag tables, constraints and indexes. No historical rows are backfilled or deleted. `npm run test:workflow:postgres` verifies location compatibility, prefix stability, condition counts/isolation, role restrictions, private upload preparation and queue estimates in a disposable PostgreSQL schema.
 
 ## Appointment-only tokens
 
@@ -104,3 +104,9 @@ Migration: `20261020000100_appointment_attention_doctor_leave.sql` adds private 
 Run the focused PostgreSQL suite with `npm.cmd run test:attention-leave:postgres` using the same ignored local environment and shared Supabase CLI session as the other integration suites. It creates and removes an isolated schema. Production migrations require a verified backup/recovery point and before/after data-preservation checks.
 
 Vercel closes the final idle PostgreSQL connection synchronously before a function can suspend, while queued queries reuse the single request-pool connection. Brief Supabase session-pool acquisition refusals use bounded backoff before SQL begins; queries and transactions are never replayed. Local development retains normal pooling.
+
+## Patient workflow improvements
+
+DOB is date-only, limited dynamically to the current Karachi date on the frontend and backend. Age is derived rather than independently stored. Emergency-contact and blood-group inputs are removed; omitted legacy fields retain their historical database values. Patient/staff background refresh preserves mounted editors and drafts. Medicines without prescription references can be deleted; referenced medicines are archived and excluded from new prescription suggestions. Clinic cards group normalized city/area labels while keeping separate clinic IDs, schedules and history.
+
+These improvements reuse existing tables; no new production migration is required. `npm run test:clinic-improvements:postgres` verifies them in a disposable PostgreSQL schema with Vercel max-one connection behavior. Internal QueueCare schema, cookie, API/header/event names and environment variables remain unchanged.

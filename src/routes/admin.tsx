@@ -169,7 +169,7 @@ function AdminLayoutContent() {
           tabIndex={-1}
           className="mx-auto w-full max-w-[1240px] flex-1 px-5 py-8 md:px-8 md:py-10"
         >
-          {pathname === "/admin" || pathname === "/admin/" ? (
+          {!["/admin/queue", "/admin/live-queue", "/admin/history"].includes(pathname) ? (
             <Outlet />
           ) : (
             <QueueBoundary kind={pathname === "/admin" || pathname === "/admin/" ? "hero" : "list"}>

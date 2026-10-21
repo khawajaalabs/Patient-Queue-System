@@ -8,7 +8,7 @@ import { bookedToken } from "./appointment-token-fixture.ts";
 import { clinicDayKey } from "../../src/domain/queue.js";
 test(
   "appointment tokens: real booking, retries, future dates, PDF ownership, cancellation, rescheduling, order and clinic removal",
-  { timeout: 180000 },
+  { timeout: process.env["QUEUECARE_TOKEN_TEST_SCHEMA"] ? 900000 : 180000 },
   async () => {
     const schema = process.env["QUEUECARE_TOKEN_TEST_SCHEMA"];
     const database = schema
@@ -93,7 +93,10 @@ test(
       assert.equal(pdf.status, 200);
       assert.equal(pdf.headers.get("content-type"), "application/pdf");
       assert.match(Buffer.from(await pdf.arrayBuffer()).toString("latin1"), /^%PDF/);
-      assert.match(pdf.headers.get("content-disposition")!, new RegExp("QueueCare-A-001-" + day));
+      assert.match(
+        pdf.headers.get("content-disposition")!,
+        new RegExp("Neuro-Spine-Care-Center-A-001-" + day),
+      );
       assert.equal(
         (
           await fetch(base + "/patient/tokens/" + t.id + "/pdf", {

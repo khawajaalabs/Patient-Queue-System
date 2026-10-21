@@ -9,7 +9,7 @@ export const Route = createFileRoute("/account")({
       <ProtectedRoute role={profile?.role ?? "patient"}>
         <main className="mx-auto max-w-3xl px-5 py-8">
           <a href="/" className="mb-4 block text-primary">
-            QueueCare home
+            Neuro Spine Care Center home
           </a>
           <AccountSettings />
         </main>

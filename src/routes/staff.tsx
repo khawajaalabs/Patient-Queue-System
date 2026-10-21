@@ -1,3 +1,4 @@
+import { usePatientToday } from "@/hooks/use-patient-today";
 import { SelectField } from "@/components/form-controls";
 import { AppointmentCalendar } from "@/components/appointment-calendar";
 import { createFileRoute } from "@tanstack/react-router";
@@ -131,7 +132,15 @@ function Workspace() {
         </div>
       </header>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-[1240px] px-5 py-8 md:px-8">
-        <PageHeader title="Clinic workspace" sub={state?.clinic.name ?? "Assigned clinics only"} />
+        <PageHeader
+          title="Clinic workspace"
+          sub={state?.clinic.name ?? "Assigned clinics only"}
+          right={
+            <Btn variant="secondary" onClick={remote.reload}>
+              Refresh
+            </Btn>
+          }
+        />
         <nav className="mb-6 flex flex-wrap gap-2">
           {[
             "queue",
@@ -144,6 +153,14 @@ function Workspace() {
             </Btn>
           ))}
         </nav>
+        {remote.error && state && (
+          <p role="alert" className="mb-4 text-sm text-destructive">
+            {remote.error}{" "}
+            <button type="button" className="underline" onClick={remote.reload}>
+              Retry refresh
+            </button>
+          </p>
+        )}
         {error && (
           <p role="alert" className="mb-5 text-sm text-destructive">
             {error}
@@ -323,6 +340,7 @@ function DemographicEditor({
   clinicId: string;
   onSaved: () => void;
 }) {
+  const today = usePatientToday();
   const remote = useClinicalData<PatientProfile>(
       "/staff/patients/" + patientId + "?clinicId=" + encodeURIComponent(clinicId),
     ),
@@ -340,15 +358,7 @@ function DemographicEditor({
         method: "PUT",
         body: {
           ...Object.fromEntries(
-            [
-              "fullName",
-              "phone",
-              "gender",
-              "address",
-              "emergencyContactName",
-              "emergencyContactPhone",
-              "bloodGroup",
-            ].map((k) => [k, String(f.get(k) ?? "")]),
+            ["fullName", "phone", "gender", "address"].map((k) => [k, String(f.get(k) ?? "")]),
           ),
           dateOfBirth: String(f.get("dateOfBirth") ?? "") || null,
         },
@@ -369,8 +379,6 @@ function DemographicEditor({
           ["fullName", "Full name"],
           ["phone", "Phone"],
           ["address", "Address"],
-          ["emergencyContactName", "Emergency contact"],
-          ["emergencyContactPhone", "Emergency phone"],
         ].map(([key, label]) => (
           <Field
             key={key}
@@ -385,6 +393,7 @@ function DemographicEditor({
           label="Date of birth"
           name="dateOfBirth"
           type="date"
+          max={today}
           defaultValue={p.dateOfBirth ?? ""}
         />
         <label className="text-sm">
@@ -397,20 +406,6 @@ function DemographicEditor({
             {["", "female", "male", "other", "prefer_not_to_say"].map((v) => (
               <option key={v} value={v}>
                 {v.replaceAll("_", " ") || "Not provided"}
-              </option>
-            ))}
-          </SelectField>
-        </label>
-        <label className="text-sm">
-          Blood group
-          <SelectField
-            name="bloodGroup"
-            defaultValue={p.bloodGroup}
-            className="mt-2 block w-full rounded-lg border bg-card p-3"
-          >
-            {["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"].map((v) => (
-              <option key={v} value={v}>
-                {v || "Not provided"}
               </option>
             ))}
           </SelectField>

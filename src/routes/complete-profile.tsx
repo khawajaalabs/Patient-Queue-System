@@ -6,7 +6,7 @@ import { api } from "@/api/client";
 import { completeGoogleProfile } from "@/services/auth";
 import { friendlyError } from "@/services/errors";
 export const Route = createFileRoute("/complete-profile")({
-  head: () => ({ meta: [{ title: "Complete your profile — QueueCare" }] }),
+  head: () => ({ meta: [{ title: "Complete your profile — Neuro Spine Care Center" }] }),
   component: CompleteProfile,
 });
 export function CompleteProfile() {

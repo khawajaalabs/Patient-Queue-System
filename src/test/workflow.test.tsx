@@ -101,7 +101,16 @@ it("patient booking has City Area Clinic and no upload controls; submits only bo
         ? options?.method === "POST"
           ? { id: "appointment", token: { id: "token", tokenCode: "HP-001" } }
           : []
-        : {},
+        : path === "/patient/profile"
+          ? {
+              id: "patient",
+              fullName: "Returning Patient",
+              phone: "03001234567",
+              gender: "female",
+              dateOfBirth: "2000-01-01",
+              address: "",
+            }
+          : {},
     ),
   );
   render(<Appointments />);
@@ -109,8 +118,8 @@ it("patient booking has City Area Clinic and no upload controls; submits only bo
   expect(screen.getByRole("button", { name: "City" })).toHaveTextContent("Karachi");
   expect(screen.getByRole("button", { name: "Area" })).toHaveTextContent("Clifton");
   expect(screen.getByRole("button", { name: "Clinic" })).toHaveTextContent("Health Point");
-  expect(screen.queryByLabelText("Add supporting files")).toBeNull();
-  expect(document.querySelector("input[type=file]")).toBeNull();
+  expect(screen.getByLabelText("Add supporting files")).toBeVisible();
+  await screen.findByLabelText("Date of birth");
   fireEvent.click(screen.getByRole("button", { name: "Review booking" }));
   fireEvent.click(screen.getByRole("button", { name: "Confirm booking" }));
   await waitFor(() =>

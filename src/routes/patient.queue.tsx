@@ -9,7 +9,7 @@ import { QueueHero } from "./patient.dashboard";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/patient/queue")({
-  head: () => ({ meta: [{ title: "Live queue — QueueCare" }] }),
+  head: () => ({ meta: [{ title: "Live queue — Neuro Spine Care Center" }] }),
   component: QueuePage,
 });
 export function QueuePage() {

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQueue, formatDate } from "@/lib/queue-store";
 import { PageHeader, StatusPill } from "@/components/qc";
 export const Route = createFileRoute("/patient/history")({
-  head: () => ({ meta: [{ title: "Visit history — QueueCare" }] }),
+  head: () => ({ meta: [{ title: "Visit history — Neuro Spine Care Center" }] }),
   component: History,
 });
 function History() {

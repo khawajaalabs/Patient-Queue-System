@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useQueue, formatDate, type Status } from "@/lib/queue-store";
 import { PageHeader, StatusPill } from "@/components/qc";
 export const Route = createFileRoute("/admin/history")({
-  head: () => ({ meta: [{ title: "Queue history — QueueCare Admin" }] }),
+  head: () => ({ meta: [{ title: "Queue history — Neuro Spine Care Center Admin" }] }),
   component: AdminHistory,
 });
 function AdminHistory() {

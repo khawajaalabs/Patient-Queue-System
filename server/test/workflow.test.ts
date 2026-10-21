@@ -8,8 +8,8 @@ import { one, type UserRow } from "../db/database.ts";
 import { testDoctorHours } from "./availability-fixture.ts";
 import { consultationEstimate, mutateQueue } from "../services/queueService.ts";
 test(
-  "Simplification: structured locations, stable unique prefixes, explicit conditions, privacy, upload denial and today onboarding",
-  { timeout: 240000 },
+  "Simplification: structured locations, stable unique prefixes, explicit conditions, privacy, private upload preparation and today onboarding",
+  { timeout: process.env["QUEUECARE_SIMPLIFICATION_TEST_SCHEMA"] ? 900000 : 240000 },
   async () => {
     const database = process.env["QUEUECARE_SIMPLIFICATION_TEST_SCHEMA"]
       ? await createPostgresDatabase(
@@ -19,7 +19,22 @@ test(
           () => {},
         )
       : undefined;
-    const app = createLocalApp({ ...(database ? { database } : {}), log: () => {} });
+    const app = createLocalApp({
+      ...(database ? { database } : {}),
+      storage: {
+        async uploadUrl(path) {
+          return "memory://" + path;
+        },
+        async read() {
+          return new Uint8Array();
+        },
+        async signedUrl() {
+          return "https://private.test/signed";
+        },
+        async remove() {},
+      },
+      log: () => {},
+    });
     app.http.listen(0, "127.0.0.1");
     await once(app.http, "listening");
     const address = app.http.address();
@@ -213,18 +228,18 @@ test(
       assert.equal(
         (
           await req("/appointments/" + booking.data.id + "/attachments", p.cookie, {
-            title: "Blocked",
+            title: "Private report",
             filename: "file.pdf",
             mime: "application/pdf",
             size: 8,
             type: "lab_report",
           })
         ).status,
-        403,
+        201,
       );
       assert.equal(
         (await req("/appointment-attachments/nonexistent/complete", p.cookie, {})).status,
-        403,
+        404,
       );
       assert.equal(
         (

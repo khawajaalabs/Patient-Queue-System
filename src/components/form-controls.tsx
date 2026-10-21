@@ -276,8 +276,16 @@ export function TemporalInput({
               selected={selectedDate}
               defaultMonth={selectedDate ?? new Date()}
               captionLayout="dropdown"
-              startMonth={new Date(1900, 0)}
-              endMonth={new Date(new Date().getFullYear() + 20, 11)}
+              startMonth={
+                props.min
+                  ? new Date(String(props.min).slice(0, 10) + "T00:00:00")
+                  : new Date(1900, 0)
+              }
+              endMonth={
+                props.max
+                  ? new Date(String(props.max).slice(0, 10) + "T00:00:00")
+                  : new Date(new Date().getFullYear() + 20, 11)
+              }
               autoFocus
               disabled={(day) => {
                 const iso = localDate(day);
