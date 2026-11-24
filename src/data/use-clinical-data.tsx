@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
-import { Btn } from "@/components/qc";
+import { Btn, PanelSkeleton } from "@/components/qc";
 import { friendlyError } from "@/services/errors";
 
 /**
@@ -34,22 +34,15 @@ export function useClinicalData<T>(path: string | null) {
 }
 
 export function ClinicalLoading({ error, retry }: { error: string; retry: () => void }) {
+  if (!error) return <PanelSkeleton rows={3} />;
   return (
     <div className="surface p-8 text-sm">
-      {error ? (
-        <>
-          <p role="alert" className="mb-4 text-destructive">
-            {error}
-          </p>
-          <Btn variant="secondary" onClick={retry}>
-            Try again
-          </Btn>
-        </>
-      ) : (
-        <p role="status" className="text-muted-foreground">
-          Loading…
-        </p>
-      )}
+      <p role="alert" className="mb-4 text-destructive">
+        {error}
+      </p>
+      <Btn variant="secondary" onClick={retry}>
+        Try again
+      </Btn>
     </div>
   );
 }

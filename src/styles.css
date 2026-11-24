@@ -143,6 +143,18 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+  ::selection {
+    background: var(--primary-soft);
+    color: var(--foreground);
+  }
+  :where(a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
   .tabular {
     font-variant-numeric: tabular-nums;
   }
@@ -187,6 +199,20 @@
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) + 4px);
   box-shadow: var(--shadow-soft);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@utility skeleton {
+  background: linear-gradient(90deg, var(--muted) 25%, var(--card) 50%, var(--muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
 }
 
 @media print {

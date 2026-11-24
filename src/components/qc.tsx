@@ -3,9 +3,10 @@ import { TemporalInput } from "@/components/form-controls";
 import { useSyncExternalStore } from "react";
 import { subscribePending, isQueueActionPending } from "@/services/queue";
 import { cn } from "@/lib/utils";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, FileText, FlaskConical, ScanLine } from "lucide-react";
 import type { Status } from "@/lib/queue-store";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
 export function Logo({ className }: { className?: string }) {
   return (
@@ -27,6 +28,116 @@ export function Logo({ className }: { className?: string }) {
       </span>
     </div>
   );
+}
+
+/**
+ * Presentation-only helpers shared across admin screens. They do not fetch,
+ * filter or mutate data — they just give every screen the same visual rhythm.
+ */
+export function Panel({
+  title,
+  sub,
+  right,
+  children,
+  className,
+  bodyClassName,
+}: {
+  title?: ReactNode;
+  sub?: ReactNode;
+  right?: ReactNode;
+  children: ReactNode;
+  className?: string | undefined;
+  bodyClassName?: string | undefined;
+}) {
+  return (
+    <section className={cn("surface overflow-hidden", className)}>
+      {(title || right) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            {title && <h2 className="font-semibold leading-tight">{title}</h2>}
+            {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
+          </div>
+          {right}
+        </div>
+      )}
+      <div className={cn("p-5", bodyClassName)}>{children}</div>
+    </section>
+  );
+}
+
+const tones: Record<string, string> = {
+  neutral: "bg-muted text-muted-foreground",
+  primary: "bg-primary-soft text-primary",
+  success: "bg-success-soft text-success",
+  warning: "bg-warning-soft text-warning",
+  info: "bg-info-soft text-info",
+  danger: "bg-destructive/10 text-destructive",
+};
+export function TonePill({
+  tone = "neutral",
+  children,
+}: {
+  tone?: "neutral" | "primary" | "success" | "warning" | "info" | "danger";
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+        tones[tone],
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon?: LucideIcon | undefined;
+  title: string;
+  description?: string | undefined;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+      {Icon && (
+        <span className="grid size-11 place-items-center rounded-xl bg-muted text-muted-foreground">
+          <Icon className="size-5" aria-hidden="true" />
+        </span>
+      )}
+      <p className="font-medium">{title}</p>
+      {description && <p className="max-w-sm text-sm text-muted-foreground">{description}</p>}
+      {action}
+    </div>
+  );
+}
+
+export function PanelSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="surface space-y-3 p-5" role="status" aria-label="Loading">
+      <div className="skeleton h-4 w-1/3 rounded" />
+      {Array.from({ length: rows }).map((_, i) => (
+        <div className="skeleton h-12 w-full rounded-lg" key={i} />
+      ))}
+    </div>
+  );
+}
+
+export function DocumentTypeIcon({
+  type,
+  className,
+}: {
+  type: string;
+  className?: string | undefined;
+}) {
+  const Icon =
+    type === "imaging_report" ? ScanLine : type === "lab_report" ? FlaskConical : FileText;
+  return <Icon className={cn("size-5", className)} aria-hidden="true" />;
 }
 
 const statusMap: Record<Status, { label: string; cls: string }> = {

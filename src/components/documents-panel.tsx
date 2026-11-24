@@ -3,7 +3,8 @@ import { SelectField } from "@/components/form-controls";
 import { PatientPicker } from "@/components/patient-picker";
 import { useState } from "react";
 import { api } from "@/api/client";
-import { Btn, Field } from "@/components/qc";
+import { Btn, DocumentTypeIcon, Field } from "@/components/qc";
+import { Download, Eye, FileText, FlaskConical, Layers, ScanLine, UploadCloud } from "lucide-react";
 import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { useAuth } from "@/providers/auth-provider";
 import { useClinicContext } from "@/providers/clinic-provider";
@@ -180,46 +181,46 @@ export function DocumentsPanel({
           <button
             type="button"
             onClick={() => setCategoryFilter("all")}
-            className={`rounded-md px-3 py-1 font-medium transition-all ${
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-all ${
               categoryFilter === "all"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            All ({documents.length})
+            <Layers className="size-3.5" /> All ({documents.length})
           </button>
           <button
             type="button"
             onClick={() => setCategoryFilter("imaging")}
-            className={`rounded-md px-3 py-1 font-medium transition-all ${
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-all ${
               categoryFilter === "imaging"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            🩻 MRI & X-Ray ({imagingCount})
+            <ScanLine className="size-3.5" /> MRI & X-Ray ({imagingCount})
           </button>
           <button
             type="button"
             onClick={() => setCategoryFilter("labs")}
-            className={`rounded-md px-3 py-1 font-medium transition-all ${
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-all ${
               categoryFilter === "labs"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            🧪 Lab Reports ({labCount})
+            <FlaskConical className="size-3.5" /> Lab Reports ({labCount})
           </button>
           <button
             type="button"
             onClick={() => setCategoryFilter("other")}
-            className={`rounded-md px-3 py-1 font-medium transition-all ${
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-all ${
               categoryFilter === "other"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Other Documents
+            <FileText className="size-3.5" /> Other Documents
           </button>
         </div>
       </div>
@@ -244,7 +245,9 @@ export function DocumentsPanel({
         <form onSubmit={(e) => void upload(e)} className="surface overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/30 px-6 py-4">
             <div>
-              <h3 className="font-semibold">Upload patient report</h3>
+              <h3 className="flex items-center gap-2 font-semibold">
+                <UploadCloud className="size-4 text-primary" /> Upload patient report
+              </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 MRI, X-ray, CT scans, lab reports and other documents · PDF, JPG or PNG · up to 10
                 MB
@@ -291,9 +294,9 @@ export function DocumentsPanel({
                     (t) => (
                       <option key={t} value={t}>
                         {t === "imaging_report"
-                          ? "🩻 MRI / X-Ray / CT (Imaging)"
+                          ? "MRI / X-Ray / CT (Imaging)"
                           : t === "lab_report"
-                            ? "🧪 Lab Report"
+                            ? "Lab Report"
                             : t.replaceAll("_", " ")}
                       </option>
                     ),
@@ -373,13 +376,7 @@ export function DocumentsPanel({
             <article key={d.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">
-                    {d.document_type === "imaging_report"
-                      ? "🩻"
-                      : d.document_type === "lab_report"
-                        ? "🧪"
-                        : "📄"}
-                  </span>
+                  <DocumentTypeIcon type={d.document_type} className="size-5 text-primary" />
                   <h3 className="font-semibold">{d.title}</h3>
                   <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground uppercase">
                     {d.document_type.replaceAll("_", " ")}
@@ -402,15 +399,11 @@ export function DocumentsPanel({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Btn
-                  variant="primary"
-                  onClick={() => void viewScan(d)}
-                  className="bg-cyan-600 hover:bg-cyan-700 text-white"
-                >
-                  🔍 View Scan / Report
+                <Btn variant="primary" onClick={() => void viewScan(d)}>
+                  <Eye className="size-4" /> View Scan / Report
                 </Btn>
-                <Btn variant="secondary" onClick={() => void download(d)}>
-                  Download ⤓
+                <Btn variant="secondary" aria-label="Download ⤓" onClick={() => void download(d)}>
+                  <Download className="size-4" /> Download
                 </Btn>
                 {profile?.role === "admin" && (
                   <Btn variant="ghost" onClick={() => void release(d)}>

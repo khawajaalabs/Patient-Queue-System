@@ -6,7 +6,7 @@ import { logout } from "@/services/auth";
 import { runAction } from "@/services/queue";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useState } from "react";
-import { LayoutGrid, Monitor, Settings, Users, Menu } from "lucide-react";
+import { CalendarDays, LayoutGrid, Monitor, Settings, Users, Menu } from "lucide-react";
 import { Logo, LiveDot } from "@/components/qc";
 import { useQueue } from "@/lib/queue-store";
 import { cn } from "@/lib/utils";
@@ -19,31 +19,52 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 
-const nav = [
-  { to: "/admin", label: "Home", icon: LayoutGrid, exact: true },
-  { to: "/admin/patients", label: "Patients", icon: Users },
-  { to: "/admin/clinics", label: "Clinics", icon: LayoutGrid },
-  { to: "/admin/staff", label: "Staff", icon: Users },
-  { to: "/admin/reports", label: "Reports", icon: Settings },
+const navGroups = [
+  {
+    label: "Workspace",
+    items: [
+      { to: "/admin", label: "Home", icon: LayoutGrid, exact: true },
+      { to: "/admin/patients", label: "Patients", icon: Users },
+    ],
+  },
+  {
+    label: "Clinics & Team",
+    items: [
+      { to: "/admin/clinics", label: "Clinics", icon: LayoutGrid },
+      { to: "/admin/staff", label: "Staff", icon: Users },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [{ to: "/admin/reports", label: "Reports", icon: Settings }],
+  },
 ] as const;
 function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
   const { selected } = useClinicContext();
   return (
-    <nav className="mt-8 space-y-1">
-      {nav.map((n) => (
-        <Link
-          key={n.to}
-          to={n.to}
-          onClick={onNavigate}
-          activeOptions={{ exact: "exact" in n }}
-          className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 transition hover:bg-sidebar-accent"
-          activeProps={{
-            className: "!bg-sidebar-accent !text-sidebar-accent-foreground font-medium",
-          }}
-        >
-          <n.icon className="size-4" />
-          {n.label}
-        </Link>
+    <nav className="mt-8 space-y-6">
+      {navGroups.map((group) => (
+        <div className="space-y-1" key={group.label}>
+          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+            {group.label}
+          </p>
+          {group.items.map((n) => (
+            <Link
+              key={n.to}
+              to={n.to}
+              onClick={onNavigate}
+              activeOptions={{ exact: "exact" in n }}
+              className="relative flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 transition hover:bg-sidebar-accent"
+              activeProps={{
+                className:
+                  "!bg-sidebar-accent !text-sidebar-accent-foreground font-medium before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary",
+              }}
+            >
+              <n.icon className="size-4" />
+              {n.label}
+            </Link>
+          ))}
+        </div>
       ))}
       {selected !== "all" && (
         <a
@@ -87,18 +108,21 @@ function AdminLayoutContent() {
     <div className="flex min-h-screen">
       <aside className="sticky top-0 hidden h-screen overflow-y-auto w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 py-5 lg:flex">
         <Logo className="px-2" />
+        <p className="mt-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+          Clinic Operations
+        </p>
         <AdminNavigation />
         <button
           aria-label="Sign out"
           onClick={() => void runAction(logout, "Signed out.")}
-          className="mt-auto flex items-center gap-3 rounded-lg p-2 hover:bg-sidebar-accent"
+          className="mt-auto flex w-full items-center gap-3 rounded-xl border-t border-sidebar-border p-2 pt-5 text-left hover:bg-sidebar-accent"
         >
           <div className="grid size-8 place-items-center rounded-full bg-primary-soft text-xs font-semibold text-accent-foreground">
             {initials}
           </div>
           <div className="text-sm leading-tight">
             <div className="font-medium">{profile?.fullName}</div>
-            <div className="text-xs text-muted-foreground">Doctor / Administrator</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">Doctor / Administrator</div>
           </div>
         </button>
       </aside>
@@ -132,9 +156,12 @@ function AdminLayoutContent() {
             <Menu className="size-5" />
           </button>
           <Logo className="[&>span]:hidden sm:[&>span]:inline lg:hidden" />
-          <div className="hidden text-sm lg:block">
+          <div className="hidden items-center text-sm lg:flex">
             <span className="font-medium">{selected === "all" ? "All Clinics" : clinic.name}</span>
-            <span className="ml-3 text-muted-foreground">{date}</span>
+            <span className="ml-3 inline-flex items-center gap-1.5 text-muted-foreground">
+              <CalendarDays className="size-3.5" />
+              {date}
+            </span>
           </div>
           <div className="min-w-0 max-w-40">
             <ClinicSwitcher all />
