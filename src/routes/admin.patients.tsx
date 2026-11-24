@@ -13,7 +13,6 @@ export function Patients() {
   const [q, setQ] = useState(""),
     [clinic, setClinic] = useState(selected),
     [group, setGroup] = useState(""),
-    [clinical, setClinical] = useState(""),
     [tab, setTab] = useState<"patients" | "documents">("patients");
   // Follow the clinic chosen in the header so both sections stay in sync.
   useEffect(() => {
@@ -21,21 +20,20 @@ export function Patients() {
     setGroup("");
   }, [selected]);
   // Typing previously issued one database query per keystroke.
-  const [debounced, setDebounced] = useState({ q: "", clinical: "" });
+  const [debounced, setDebounced] = useState("");
   useEffect(() => {
-    const timer = setTimeout(() => setDebounced({ q, clinical }), 250);
+    const timer = setTimeout(() => setDebounced(q), 250);
     return () => clearTimeout(timer);
-  }, [q, clinical]);
+  }, [q]);
   const groups = useClinicalData<Condition[]>(
     "/admin/conditions?clinicId=" + encodeURIComponent(clinic),
   );
   const remote = useClinicalData<PatientSearchRow[]>(
     "/admin/patients/search?" +
       new URLSearchParams({
-        q: debounced.q,
+        q: debounced,
         clinicId: clinic,
         conditionId: group,
-        clinical: debounced.clinical,
       }),
   );
   return (
@@ -116,12 +114,6 @@ export function Patients() {
                 ))}
               </SelectField>
             </label>
-            <Field
-              label="Free-text clinical matches"
-              placeholder="Recorded condition or completed diagnosis"
-              value={clinical}
-              onChange={(e) => setClinical(e.target.value)}
-            />
           </div>
           <section className="mb-5">
             <h2 className="mb-2 text-sm font-semibold">Condition groups</h2>
@@ -152,7 +144,7 @@ export function Patients() {
               </p>
             )}
             <p className="mt-2 text-xs text-muted-foreground">
-              Group counts use explicit tags only; free-text matches do not assign a disease.
+              Group counts use explicit tags only, taken from patient records.
             </p>
           </section>
           {remote.error && remote.data && (
