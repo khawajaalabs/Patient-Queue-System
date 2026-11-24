@@ -6,7 +6,7 @@ import { logout } from "@/services/auth";
 import { runAction } from "@/services/queue";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useState } from "react";
-import { LayoutGrid, ListOrdered, Monitor, Settings, Users, Menu } from "lucide-react";
+import { LayoutGrid, Monitor, Settings, Users, Menu } from "lucide-react";
 import { Logo, LiveDot } from "@/components/qc";
 import { useQueue } from "@/lib/queue-store";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,6 @@ const nav = [
   { to: "/admin/patients", label: "Patients", icon: Users },
   { to: "/admin/clinics", label: "Clinics", icon: LayoutGrid },
   { to: "/admin/staff", label: "Staff", icon: Users },
-  { to: "/admin/billing", label: "Billing", icon: ListOrdered },
   { to: "/admin/reports", label: "Reports", icon: Settings },
 ] as const;
 function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
