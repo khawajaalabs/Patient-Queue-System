@@ -158,6 +158,30 @@
   .tabular {
     font-variant-numeric: tabular-nums;
   }
+  @media screen {
+    main table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    main thead th {
+      color: var(--muted-foreground);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    main tbody tr {
+      transition: background-color 150ms ease;
+    }
+    main tbody tr:hover {
+      background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+    }
+    main td,
+    main th {
+      font-variant-numeric: tabular-nums;
+    }
+  }
 }
 
 @keyframes pulse-ring {

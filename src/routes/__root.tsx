@@ -82,7 +82,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Neuro Spine Care Center — Clinic queue & token management" },
       {
         name: "description",
-        content: "Join the clinic queue remotely and arrive closer to your turn.",
+        content:
+          "Neuro Spine Care Center — modern clinic queue, appointments, patient records and reporting for doctors and staff.",
       },
       {
         property: "og:title",
@@ -90,9 +91,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         property: "og:description",
-        content: "Join the clinic queue remotely and arrive closer to your turn.",
+        content:
+          "Neuro Spine Care Center — modern clinic queue, appointments, patient records and reporting for doctors and staff.",
       },
       { property: "og:type", content: "website" },
+      { name: "theme-color", content: "#0e7c86" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [

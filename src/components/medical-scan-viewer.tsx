@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Btn } from "@/components/qc";
+import { Download, X } from "lucide-react";
 
 export interface ScanDocument {
   id: string;
@@ -201,7 +202,7 @@ export function MedicalScanViewer({
             download={scan.filename}
             className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white ring-1 ring-slate-700"
           >
-            Download File ⤓
+            <Download className="size-3.5" /> Download file
           </a>
 
           {/* Close */}
@@ -211,7 +212,7 @@ export function MedicalScanViewer({
             className="text-slate-300 hover:bg-rose-500/20 hover:text-rose-400"
             title="Close Viewer (Esc)"
           >
-            ✕ Close
+            <X className="size-4" /> Close
           </Btn>
         </div>
       </header>

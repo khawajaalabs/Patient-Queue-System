@@ -309,24 +309,31 @@ export function DocumentsPanel({
                 maxLength={1000}
                 placeholder="Optional clinical notes"
               />
-              <label className="text-sm font-medium">
-                Choose File · PDF, JPG or PNG · up to 10 MB
-                <input
-                  aria-label="Document file"
-                  className="mt-2 block w-full text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-muted file:px-4 file:py-2"
-                  disabled={busy}
-                  onChange={(e) => {
-                    setChosen(e.target.files?.[0] ?? null);
-                    setUploadKey(crypto.randomUUID());
-                    setError("");
-                    setProgress("");
-                  }}
-                  name="file"
-                  type="file"
-                  accept="application/pdf,image/jpeg,image/png"
-                  required={!chosen}
-                />
-              </label>
+              <div className="sm:col-span-2">
+                <p className="mb-1.5 text-sm font-medium">Report file</p>
+                <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-input bg-muted/30 px-4 py-7 text-center transition hover:border-primary hover:bg-primary-soft/40">
+                  <UploadCloud className="size-6 text-primary" />
+                  <span className="text-sm font-medium">Click to choose a report file</span>
+                  <span className="text-xs text-muted-foreground">
+                    PDF, JPG or PNG · up to 10 MB
+                  </span>
+                  <input
+                    aria-label="Document file"
+                    className="sr-only"
+                    disabled={busy}
+                    onChange={(e) => {
+                      setChosen(e.target.files?.[0] ?? null);
+                      setUploadKey(crypto.randomUUID());
+                      setError("");
+                      setProgress("");
+                    }}
+                    name="file"
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png"
+                    required={!chosen}
+                  />
+                </label>
+              </div>
             </div>
             {chosen && (
               <div className="flex flex-wrap items-center gap-3 text-sm">

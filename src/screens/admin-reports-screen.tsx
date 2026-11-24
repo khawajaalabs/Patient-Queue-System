@@ -61,7 +61,15 @@ const PERIODS = [
   { id: "month", label: "30 days", days: 30 },
   { id: "overall", label: "Overall", days: 365 },
 ] as const;
-const PIE_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#7c3aed", "#dc2626", "#0891b2", "#64748b"];
+const PIE_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--color-primary-hover)",
+  "var(--muted-foreground)",
+];
 export function AdminReports() {
   const { selected } = useClinicContext();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]["id"]>("overall");
@@ -220,8 +228,8 @@ export function AdminReports() {
                     <AreaChart data={trend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="visitsFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#2563eb" stopOpacity={0.4} />
-                          <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                          <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.4} />
+                          <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -231,7 +239,7 @@ export function AdminReports() {
                       <Area
                         type="monotone"
                         dataKey="visits"
-                        stroke="#2563eb"
+                        stroke="var(--chart-1)"
                         fill="url(#visitsFill)"
                         strokeWidth={2}
                       />
@@ -257,7 +265,7 @@ export function AdminReports() {
                       <Tooltip
                         formatter={(value) => `Rs ${Number(value).toLocaleString("en-PK")}`}
                       />
-                      <Bar dataKey="revenue" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="revenue" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -313,8 +321,8 @@ export function AdminReports() {
                       <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
                       <Tooltip />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="appointments" fill="#2563eb" radius={[0, 4, 4, 0]} />
-                      <Bar dataKey="completed" fill="#16a34a" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="appointments" fill="var(--chart-1)" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="completed" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
