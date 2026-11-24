@@ -375,7 +375,7 @@ export function Today() {
         {d.unscheduled.map((c) => (
           <a
             key={c.id}
-            href={"/admin/doctor-schedule?clinicId=" + c.id}
+            href="/admin/clinics"
             className="block border-b border-border p-5 text-sm text-primary"
           >
             Set schedule for {c.name} →

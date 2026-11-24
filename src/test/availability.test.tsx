@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AppointmentSlotPicker } from "@/components/appointment-slot-picker";
-import { DoctorSchedule } from "@/routes/admin.doctor-schedule";
+import { DoctorScheduleEditor } from "@/components/doctor-schedule-editor";
 import { selectOption } from "./select-option";
 const fixture = vi.hoisted(() => ({ api: vi.fn(), selected: "northstar" }));
 vi.mock("@/api/client", () => ({ api: fixture.api }));
@@ -68,7 +68,7 @@ it("doctor schedule supports split shifts, day off and saves existing duration s
     openingTime: "09:00",
     closingTime: "17:00",
   });
-  render(<DoctorSchedule />);
+  render(<DoctorScheduleEditor clinicId="northstar" clinicName="Northstar" />);
   await screen.findByLabelText("Monday start 1");
   fireEvent.click(screen.getByRole("button", { name: "+ Add another time" }));
   await screen.findByLabelText("Monday start 2");
