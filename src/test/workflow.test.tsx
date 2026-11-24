@@ -68,11 +68,8 @@ it("Home guides schedule setup before patient booking", async () => {
     unscheduled: f.clinics,
   });
   render(<Today />);
-  expect(await screen.findByRole("button", { name: "Set doctor schedule" })).toBeVisible();
-  expect(screen.getByRole("button", { name: "Set doctor schedule" }).closest("a")).toHaveAttribute(
-    "href",
-    "/admin/doctor-schedule?clinicId=clinic",
-  );
+  expect(await screen.findByText("Set your doctor schedule")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Set doctor schedule" })).toBeNull();
 });
 it("configured Home shows Next up and obvious check-in action", async () => {
   f.api.mockResolvedValue({ ...base, setup: "ready", appointments: [appointment] });

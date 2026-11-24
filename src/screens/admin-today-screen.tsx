@@ -124,16 +124,11 @@ export function Today() {
             <li>2. Set doctor schedule</li>
             <li>3. Patients can book</li>
           </ol>
-          <a
-            href={
-              d.setup === "clinic"
-                ? "/admin/clinics"
-                : "/admin/doctor-schedule" +
-                  (d.unscheduled[0]?.id ? "?clinicId=" + d.unscheduled[0].id : "")
-            }
-          >
-            <Btn>{d.setup === "clinic" ? "Add clinic" : "Set doctor schedule"}</Btn>
-          </a>
+          {d.setup === "clinic" && (
+            <a href="/admin/clinics">
+              <Btn>Add clinic</Btn>
+            </a>
+          )}
         </section>
       </>
     );
