@@ -4,7 +4,7 @@ import { Field, Btn } from "@/components/qc";
 import { SelectField } from "@/components/form-controls";
 import { friendlyError } from "@/services/errors";
 
-import { clinicToday } from "@/lib/appointment-time";
+import { clinicToday, defaultBookingDate, clinicTomorrow } from "@/lib/appointment-time";
 export function AppointmentSlotPicker({
   clinicId,
   exclude,
@@ -16,11 +16,17 @@ export function AppointmentSlotPicker({
   defaultValue?: string;
   refresh?: number;
 }) {
-  const [day, setDay] = useState(defaultValue.slice(0, 10) || clinicToday());
+  const [day, setDay] = useState(defaultValue.slice(0, 10) || defaultBookingDate());
   const [value, setValue] = useState("");
   const [slots, setSlots] = useState<{ value: string; label: string }[] | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (day === clinicToday() && defaultBookingDate() !== clinicToday()) {
+      setDay(defaultBookingDate());
+    }
+  }, [clinicId]);
   useEffect(() => {
     const controller = new AbortController();
     setSlots(null);
@@ -62,7 +68,9 @@ export function AppointmentSlotPicker({
           onChange={(e) => setValue(e.target.value)}
           disabled={!slots?.length}
         >
-          <option value="">Choose a time</option>
+          <option value="">
+            {slots?.length ? `Choose a time (${slots.length} available)` : "Choose a time"}
+          </option>
           {slots?.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
@@ -76,9 +84,24 @@ export function AppointmentSlotPicker({
         </p>
       )}
       {!error && slots?.length === 0 && (
-        <p role="status" className="text-sm text-muted-foreground">
-          No appointments are available on this date.
-        </p>
+        <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+          <p role="status" className="text-sm text-muted-foreground">
+            {day === clinicToday()
+              ? "No remaining appointments available today (clinic hours may have passed). Please choose tomorrow or a future date."
+              : "No appointments are available on this date."}
+          </p>
+          <Btn
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              const d = new Date(day + "T12:00:00Z");
+              d.setUTCDate(d.getUTCDate() + 1);
+              setDay(d.toISOString().slice(0, 10));
+            }}
+          >
+            Check next date →
+          </Btn>
+        </div>
       )}
       {error && (
         <div>

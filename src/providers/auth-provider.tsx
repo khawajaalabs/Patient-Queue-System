@@ -8,12 +8,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void restoreSession();
     };
     restore();
+    // A window focus (switching browser tabs) must not trigger a database
+    // round trip — that was the main cause of slow tab switches. The session
+    // is restored on mount and only re-checked when the API reports expiry.
     window.addEventListener("queuecare:session-expired", restore);
-    window.addEventListener("focus", restore);
-    return () => {
-      window.removeEventListener("queuecare:session-expired", restore);
-      window.removeEventListener("focus", restore);
-    };
+    return () => window.removeEventListener("queuecare:session-expired", restore);
   }, []);
   return (
     <Context.Provider

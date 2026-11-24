@@ -2,6 +2,10 @@
 
 Neuro Spine Care Center is the public brand of the existing QueueCare clinic management application for one doctor/administrator managing multiple clinics. The existing React/TypeScript interface is served by Vercel; Express APIs use Supabase PostgreSQL through a restricted server-only database role. Local development uses the same Express application. SQLite remains available for isolated local tests; production uses PostgreSQL.
 
+## Requirements and functionality
+
+`SYSTEM_REQUIREMENTS_AND_FUNCTIONALITY.md` is the authoritative, code-derived inventory of every page, role, workflow, API group and known gap. Use it as the functional requirements document for this project.
+
 ## Run locally
 
 Install Node.js 24, run `npm install`, and configure the ignored `.env.local` using the names in `.env.example`. Keep `APP_URL` set to the local frontend origin for development. Then run:

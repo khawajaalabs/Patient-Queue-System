@@ -1,13 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useClinicalData, ClinicalLoading, PatientVisitView } from "@/components/clinical";
-import type { PatientVisit } from "@/types/clinical";
-export const Route = createFileRoute("/patient/prescription/$visitId")({ component: Prescription });
-function Prescription() {
-  const { visitId } = Route.useParams();
-  const remote = useClinicalData<PatientVisit>(`/patient/visits/${encodeURIComponent(visitId)}`);
-  return remote.data ? (
-    <PatientVisitView visit={remote.data} prescriptionOnly />
-  ) : (
-    <ClinicalLoading error={remote.error} retry={remote.reload} />
-  );
-}
+import { Prescription } from "@/screens/patient-prescription-screen";
+export { Prescription } from "@/screens/patient-prescription-screen";
+
+export const Route = createFileRoute("/patient/prescription/$visitId")({
+  component: Prescription,
+});

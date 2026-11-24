@@ -1,12 +1,18 @@
 import { ensureAppointmentQueue } from "../services/appointment-tokens.ts";
-import { rememberSlot } from "../services/availability.ts";
+import { invalidateConfigurationCache, rememberSlot } from "../services/availability.ts";
 import { deliverEmails } from "../services/email.ts";
 import { Router } from "express";
 import { z } from "zod";
 import { randomUUID, createHash } from "node:crypto";
 import { compare, hash } from "bcryptjs";
 import { atomic, one, many, type Database, type UserRow } from "../db/database.ts";
-import { ApiError, requireRole, sessionCookie, publicUser } from "../middleware/auth.ts";
+import {
+  ApiError,
+  invalidateSessionCache,
+  requireRole,
+  sessionCookie,
+  publicUser,
+} from "../middleware/auth.ts";
 import { audit, authorizeClinic, notification, idValue, stamp } from "../services/operations.ts";
 import { createAppointment, appointments } from "../services/clinics.ts";
 import { mutateQueue } from "../services/queueService.ts";
@@ -439,6 +445,8 @@ export function finalRoutes(db: Database, notify: Notify) {
           stamp(),
         );
       await audit(db, user(res).id, "clinic.branding_updated", "clinic", clinic, clinic);
+      // Slot duration is part of the cached availability configuration.
+      invalidateConfigurationCache(clinic);
     });
     send(res, { saved: true });
   });
@@ -531,6 +539,8 @@ export function finalRoutes(db: Database, notify: Notify) {
       await db
         .prepare("DELETE FROM sessions WHERE user_id=? AND token_hash<>?")
         .run(user(res).id, createHash("sha256").update(sessionCookie(req)).digest("hex"));
+      // Revoked tokens must stop authenticating immediately, not after the cache TTL.
+      invalidateSessionCache();
       await audit(db, user(res).id, "account.sessions_revoked", "user", user(res).id);
     });
     send(res, { revoked: true });
@@ -558,6 +568,8 @@ export function finalRoutes(db: Database, notify: Notify) {
       await db
         .prepare("DELETE FROM sessions WHERE user_id=? AND token_hash<>?")
         .run(u.id, createHash("sha256").update(sessionCookie(req)).digest("hex"));
+      // Other sessions were signed out; drop their cached identities right away.
+      invalidateSessionCache();
       await audit(db, u.id, "account.password_changed", "user", u.id);
     });
     send(res, { changed: true });

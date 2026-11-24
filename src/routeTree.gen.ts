@@ -33,7 +33,6 @@ import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
 import { Route as AdminFollowUpsRouteImport } from './routes/admin.follow-ups'
 import { Route as AdminHistoryRouteImport } from './routes/admin.history'
 import { Route as AdminLiveQueueRouteImport } from './routes/admin.live-queue'
-import { Route as AdminMedicineLibraryRouteImport } from './routes/admin.medicine-library'
 import { Route as AdminPatientsRouteImport } from './routes/admin.patients'
 import { Route as AdminQueueRouteImport } from './routes/admin.queue'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
@@ -176,11 +175,6 @@ const AdminHistoryRoute = AdminHistoryRouteImport.update({
 const AdminLiveQueueRoute = AdminLiveQueueRouteImport.update({
   id: '/live-queue',
   path: '/live-queue',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminMedicineLibraryRoute = AdminMedicineLibraryRouteImport.update({
-  id: '/medicine-library',
-  path: '/medicine-library',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPatientsRoute = AdminPatientsRouteImport.update({
@@ -326,7 +320,6 @@ export interface FileRoutesByFullPath {
   '/admin/follow-ups': typeof AdminFollowUpsRoute
   '/admin/history': typeof AdminHistoryRoute
   '/admin/live-queue': typeof AdminLiveQueueRoute
-  '/admin/medicine-library': typeof AdminMedicineLibraryRoute
   '/admin/patients': typeof AdminPatientsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -374,7 +367,6 @@ export interface FileRoutesByTo {
   '/admin/follow-ups': typeof AdminFollowUpsRoute
   '/admin/history': typeof AdminHistoryRoute
   '/admin/live-queue': typeof AdminLiveQueueRoute
-  '/admin/medicine-library': typeof AdminMedicineLibraryRoute
   '/admin/patients': typeof AdminPatientsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -425,7 +417,6 @@ export interface FileRoutesById {
   '/admin/follow-ups': typeof AdminFollowUpsRoute
   '/admin/history': typeof AdminHistoryRoute
   '/admin/live-queue': typeof AdminLiveQueueRoute
-  '/admin/medicine-library': typeof AdminMedicineLibraryRoute
   '/admin/patients': typeof AdminPatientsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -477,7 +468,6 @@ export interface FileRouteTypes {
     | '/admin/follow-ups'
     | '/admin/history'
     | '/admin/live-queue'
-    | '/admin/medicine-library'
     | '/admin/patients'
     | '/admin/queue'
     | '/admin/reports'
@@ -525,7 +515,6 @@ export interface FileRouteTypes {
     | '/admin/follow-ups'
     | '/admin/history'
     | '/admin/live-queue'
-    | '/admin/medicine-library'
     | '/admin/patients'
     | '/admin/queue'
     | '/admin/reports'
@@ -575,7 +564,6 @@ export interface FileRouteTypes {
     | '/admin/follow-ups'
     | '/admin/history'
     | '/admin/live-queue'
-    | '/admin/medicine-library'
     | '/admin/patients'
     | '/admin/queue'
     | '/admin/reports'
@@ -786,13 +774,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLiveQueueRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/medicine-library': {
-      id: '/admin/medicine-library'
-      path: '/medicine-library'
-      fullPath: '/admin/medicine-library'
-      preLoaderRoute: typeof AdminMedicineLibraryRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/patients': {
       id: '/admin/patients'
       path: '/patients'
@@ -970,7 +951,6 @@ interface AdminRouteChildren {
   AdminFollowUpsRoute: typeof AdminFollowUpsRoute
   AdminHistoryRoute: typeof AdminHistoryRoute
   AdminLiveQueueRoute: typeof AdminLiveQueueRoute
-  AdminMedicineLibraryRoute: typeof AdminMedicineLibraryRoute
   AdminPatientsRoute: typeof AdminPatientsRoute
   AdminQueueRoute: typeof AdminQueueRoute
   AdminReportsRoute: typeof AdminReportsRoute
@@ -994,7 +974,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminFollowUpsRoute: AdminFollowUpsRoute,
   AdminHistoryRoute: AdminHistoryRoute,
   AdminLiveQueueRoute: AdminLiveQueueRoute,
-  AdminMedicineLibraryRoute: AdminMedicineLibraryRoute,
   AdminPatientsRoute: AdminPatientsRoute,
   AdminQueueRoute: AdminQueueRoute,
   AdminReportsRoute: AdminReportsRoute,

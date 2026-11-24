@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Btn } from "@/components/qc";
 import { ConfirmAction } from "@/components/queue-feedback";
-import { useClinicalData } from "@/components/clinical";
+import { useClinicalData } from "@/data/use-clinical-data";
 import { api } from "@/api/client";
 import { friendlyError } from "@/services/errors";
 import { useClinicContext } from "@/providers/clinic-provider";
@@ -74,11 +74,7 @@ export function AppointmentTokens() {
       if (document.visibilityState === "visible") remote.reload();
     };
     const timer = setInterval(refresh, 30000);
-    window.addEventListener("queuecare:updated", refresh);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener("queuecare:updated", refresh);
-    };
+    return () => clearInterval(timer);
   }, [remote.reload]);
   const appointments =
     remote.data?.filter(

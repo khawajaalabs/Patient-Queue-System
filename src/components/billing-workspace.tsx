@@ -3,7 +3,7 @@ import { PrintBranding } from "@/components/final-operations";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/api/client";
 import { Btn, Field } from "@/components/qc";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { PatientPicker } from "@/components/patient-picker";
 import { useClinicContext } from "@/providers/clinic-provider";
 import type { ClinicConfig } from "@/types/local";
@@ -415,7 +415,10 @@ export function BillingWorkspace({ portal = false }: { portal?: boolean }) {
               />
               <label className="text-sm font-medium">
                 Method
-                <SelectField name="method" className="mt-2 block w-full rounded-lg border bg-card p-3">
+                <SelectField
+                  name="method"
+                  className="mt-2 block w-full rounded-lg border bg-card p-3"
+                >
                   {["cash", "card", "bank_transfer", "other"].map((m) => (
                     <option key={m} value={m}>
                       {m.replaceAll("_", " ")}

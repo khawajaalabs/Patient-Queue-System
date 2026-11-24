@@ -248,10 +248,23 @@
   }
 }
 
-
-.skip-link { position: fixed; left: 20px; top: 12px; z-index: 100; transform: translateY(-200%); background: var(--primary); color: var(--primary-foreground); padding: 12px 20px; border-radius: var(--radius); }
-.skip-link:focus { transform: none; }
-main { min-width: 0; }
+.skip-link {
+  position: fixed;
+  left: 20px;
+  top: 12px;
+  z-index: 100;
+  transform: translateY(-200%);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 12px 20px;
+  border-radius: var(--radius);
+}
+.skip-link:focus {
+  transform: none;
+}
+main {
+  min-width: 0;
+}
 
 .prescription-sheet {
   background: #fff;
@@ -339,5 +352,40 @@ main { min-width: 0; }
   }
   body.printing-prescription .prescription-sheet tbody tr:hover {
     background: transparent;
+  }
+}
+
+/* Full visit summary: print only the dedicated portal, never the app shell. */
+@media print {
+  body.printing-summary > :not(#visit-summary-print-root) {
+    display: none !important;
+  }
+  body.printing-summary #visit-summary-print-root {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    visibility: visible !important;
+  }
+  body.printing-summary #visit-summary-print-root * {
+    visibility: visible !important;
+  }
+  body.printing-summary .visit-summary-sheet {
+    position: static;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    background: #fff;
+    color: #111;
+  }
+  html:has(body.printing-summary),
+  body.printing-summary {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 }

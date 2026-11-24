@@ -1,16 +1,16 @@
 import { Router } from "express";
 import type { Database } from "../db/database.ts";
 import { randomUUID } from "node:crypto";
-import { compare, hash, hashSync } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import { z } from "zod";
 import { one, type UserRow } from "../db/database.ts";
 import {
   ApiError,
+  applyStaffColumns,
   currentUser,
   startSession,
   endSession,
   publicUser,
-  resolveUser,
 } from "../middleware/auth.ts";
 const password = z
   .string()
@@ -35,7 +35,10 @@ const registration = credentials
       .regex(/^[+0-9 ()-]{6,30}$/, "Enter a valid phone number."),
   })
   .strict();
-const unusedHash = hashSync("unassigned-authentication-account", 12);
+// Precomputed bcrypt(cost 12) of a dummy password. Computing hashSync() at
+// module load added ~300 ms to every cold start, which users felt as a slow
+// first login. This keeps timing-equalised responses for unknown emails.
+const unusedHash = "$2b$12$.qcojrdQSUFgoGutBe8S0ORH8KtKMRjJZbQH/N0g.dTbNvPlcLTza";
 export function authRoutes(db: Database) {
   const routes = Router();
   const attempts = new Map<string, { count: number; until: number }>();
@@ -70,10 +73,18 @@ export function authRoutes(db: Database) {
         );
       throw error;
     }
-    await startSession(db, req, res, id);
+    const newUser: UserRow = {
+      id,
+      full_name: input.fullName,
+      email: input.email,
+      phone: input.phone,
+      password_hash: encoded,
+      role: "patient",
+    };
+    await startSession(db, req, res, id, newUser);
     res.status(201).json({
       success: true,
-      data: publicUser((await one<UserRow>(db, "SELECT * FROM users WHERE id=?", id))!),
+      data: publicUser(newUser),
     });
   });
   routes.post("/login", async (req, res) => {
@@ -90,18 +101,21 @@ export function authRoutes(db: Database) {
       );
     state.count++;
     attempts.set(key, state);
-    const user = await one<UserRow>(db, "SELECT * FROM users WHERE email=?", input.email);
+    // One query returns the user and the effective staff role. The old flow
+    // issued a second query for staff_profiles on every login.
+    const user = await one<UserRow & { staff_role?: string | null; staff_active?: number | null }>(
+      db,
+      "SELECT u.*,sp.role staff_role,sp.active staff_active FROM users u LEFT JOIN staff_profiles sp ON sp.user_id=u.id WHERE u.email=?",
+      input.email,
+    );
     const matches = await compare(input.password, user?.password_hash ?? unusedHash);
     if (!user || !matches)
       throw new ApiError(401, "INVALID_CREDENTIALS", "The email or password is incorrect.");
-    const activeUser = await resolveUser(db, user);
+    const activeUser = applyStaffColumns(user);
     if (!activeUser)
       throw new ApiError(401, "INVALID_CREDENTIALS", "The email or password is incorrect.");
-    await db
-      .prepare("UPDATE staff_profiles SET last_activity_at=? WHERE user_id=?")
-      .run(new Date().toISOString(), user.id);
     attempts.delete(key);
-    await startSession(db, req, res, user.id);
+    await startSession(db, req, res, user.id, activeUser);
     res.json({ success: true, data: publicUser(activeUser) });
   });
   routes.get("/me", async (req, res) => {

@@ -1,5 +1,6 @@
 import { PrescriptionItems } from "@/components/prescription-items";
 import { PrescriptionPreview } from "@/components/prescription-preview";
+import { VisitSummaryReport } from "@/components/visit-summary-report";
 import { useState } from "react";
 import { api } from "@/api/client";
 import { Btn, Field } from "@/components/qc";
@@ -206,6 +207,13 @@ export function VisitEditor({
       )}
       <div className="sticky bottom-4 flex flex-wrap gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-soft">
         <PrescriptionPreview
+          visit={{
+            ...visit,
+            ...draft,
+            prescription: { ...visit.prescription, ...draft.prescription },
+          }}
+        />
+        <VisitSummaryReport
           visit={{
             ...visit,
             ...draft,

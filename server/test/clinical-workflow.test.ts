@@ -11,7 +11,7 @@ test(
   { timeout: process.env["QUEUECARE_WORKFLOW_TEST_SCHEMA"] ? 900000 : 180000 },
   async () => {
     const files = new Map<string, Uint8Array>();
-    let failRemove = false;
+    const failRemove = false;
     const storage: DocumentStorage = {
       async uploadUrl(path) {
         return "memory://" + path;

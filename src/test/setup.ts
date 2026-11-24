@@ -1,5 +1,22 @@
 import { vi } from "vitest";
-import type { ReactNode } from "react";
+import { createElement, type ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// Components now read data through TanStack Query. Give every test render a
+// fresh client so components can be tested in isolation without boilerplate.
+vi.mock("@testing-library/react", async () => {
+  const actual =
+    await vi.importActual<typeof import("@testing-library/react")>("@testing-library/react");
+  return {
+    ...actual,
+    render: (ui: ReactNode, options?: Record<string, unknown>) => {
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 } },
+      });
+      return actual.render(createElement(QueryClientProvider, { client }, ui), options as never);
+    },
+  };
+});
 vi.mock("@/lib/queue-store", async () => {
   const fixture = await import("./fixtures/queue-store");
   return {
@@ -32,7 +49,7 @@ vi.mock("@/lib/queue-store", async () => {
           new Date(),
         ),
         setHistoryDate: () => {},
-        setQueueDate: ()=>{},
+        setQueueDate: () => {},
       };
     },
   };

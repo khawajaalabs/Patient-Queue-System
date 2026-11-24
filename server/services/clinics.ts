@@ -1,5 +1,5 @@
 import { appointmentToken } from "./appointment-tokens.ts";
-import { rememberSlot } from "./availability.ts";
+import { invalidateConfigurationCache, rememberSlot } from "./availability.ts";
 import { validateSlot } from "./final.ts";
 import { audit, notification } from "./operations.ts";
 import { randomUUID } from "node:crypto";
@@ -7,7 +7,7 @@ import { z } from "zod";
 import { atomic, one, many, type Database } from "../db/database.ts";
 import { ApiError } from "../middleware/auth.ts";
 import { clinicDayKey } from "../../src/domain/queue.js";
-import { clinicValue, publicQueue } from "./queueService.ts";
+import { clinicValue, publicQueue, invalidateClinicConfigCache } from "./queueService.ts";
 import type { ManagedClinic, AllClinicsState, Appointment } from "../../src/types/local.ts";
 
 export async function listClinics(db: Database, includeInactive = false): Promise<ManagedClinic[]> {
@@ -109,26 +109,37 @@ export async function saveClinic(
         c.area === undefined ? (existing?.area ?? null) : c.area || null,
         clinicId,
       );
+    invalidateClinicConfigCache(clinicId);
     return (await clinicValue(db, clinicId)) as ManagedClinic;
   });
 }
 export async function allClinicsState(db: Database): Promise<AllClinicsState> {
   const day = clinicDayKey();
+  const [allClinics, distinct] = await Promise.all([
+    listClinics(db, true),
+    one<{ n: number }>(
+      db,
+      "SELECT CAST(COUNT(DISTINCT t.patient_id) AS INTEGER) n FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.queue_date=?",
+      day,
+    ),
+  ]);
   const clinics = await Promise.all(
-    (await listClinics(db, true)).map(async (clinic) => {
-      const pub = await publicQueue(db, clinic.id);
-      const counts = await one<{ patients: number; completed: number }>(
-        db,
-        "SELECT CAST(COUNT(DISTINCT t.patient_id) AS INTEGER) patients, CAST(COALESCE(SUM(CASE WHEN t.status='completed' THEN 1 ELSE 0 END),0) AS INTEGER) completed FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.clinic_id=? AND q.queue_date=?",
-        clinic.id,
-        day,
-      );
-      const appt = await one<{ n: number }>(
-        db,
-        "SELECT CAST(COUNT(*) AS INTEGER) n FROM appointments WHERE clinic_id=? AND substr(scheduled_at,1,10)=? AND status<>'cancelled'",
-        clinic.id,
-        day,
-      );
+    allClinics.map(async (clinic) => {
+      const [pub, counts, appt] = await Promise.all([
+        publicQueue(db, clinic.id),
+        one<{ patients: number; completed: number }>(
+          db,
+          "SELECT CAST(COUNT(DISTINCT t.patient_id) AS INTEGER) patients, CAST(COALESCE(SUM(CASE WHEN t.status='completed' THEN 1 ELSE 0 END),0) AS INTEGER) completed FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.clinic_id=? AND q.queue_date=?",
+          clinic.id,
+          day,
+        ),
+        one<{ n: number }>(
+          db,
+          "SELECT CAST(COUNT(*) AS INTEGER) n FROM appointments WHERE clinic_id=? AND substr(scheduled_at,1,10)=? AND status<>'cancelled'",
+          clinic.id,
+          day,
+        ),
+      ]);
       return {
         clinic,
         status: pub.status,
@@ -139,11 +150,6 @@ export async function allClinicsState(db: Database): Promise<AllClinicsState> {
         patients: counts!.patients,
       };
     }),
-  );
-  const distinct = await one<{ n: number }>(
-    db,
-    "SELECT CAST(COUNT(DISTINCT t.patient_id) AS INTEGER) n FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.queue_date=?",
-    day,
   );
   return {
     clinics,
@@ -212,7 +218,6 @@ export async function createAppointment(
     .strict()
     .parse(input);
   return atomic(db, async () => {
-    const clinic = await clinicValue(db, clinicId);
     const previous = await one<{ id: string }>(
       db,
       "SELECT id FROM appointments WHERE patient_id=? AND clinic_id=? AND scheduled_at=? AND status<>'cancelled'",
@@ -221,16 +226,18 @@ export async function createAppointment(
       c.scheduledAt,
     );
     if (previous) return { id: previous.id, token: await appointmentToken(db, previous.id) };
-    const slot = await validateSlot(db, clinicId, c.scheduledAt);
-    if (!clinic.active) throw new ApiError(409, "CLINIC_INACTIVE", "This clinic is inactive.");
-    if (
-      !(await one(
+
+    const [clinic, slot, patient] = await Promise.all([
+      clinicValue(db, clinicId),
+      validateSlot(db, clinicId, c.scheduledAt),
+      one(
         db,
         "SELECT id FROM users WHERE id=? AND role='patient' AND NOT EXISTS (SELECT 1 FROM staff_profiles sp WHERE sp.user_id=users.id)",
         c.patientId,
-      ))
-    )
-      throw new ApiError(400, "INVALID_PATIENT", "Choose a patient account.");
+      ),
+    ]);
+    if (!clinic.active) throw new ApiError(409, "CLINIC_INACTIVE", "This clinic is inactive.");
+    if (!patient) throw new ApiError(400, "INVALID_PATIENT", "Choose a patient account.");
     const id = randomUUID(),
       stamp = new Date().toISOString();
     // Appointment wall times are clinic-local (Asia/Karachi), matching queue dates.
@@ -326,6 +333,8 @@ export async function clinicRemoval(
       await db
         .prepare("UPDATE clinics SET active=0,updated_at=? WHERE id=?")
         .run(new Date().toISOString(), clinicId);
+      invalidateClinicConfigCache(clinicId);
+      invalidateConfigurationCache(clinicId);
       await audit(db, actor, "clinic.archived", "clinic", clinicId, clinicId);
       return { archived: true };
     }
@@ -333,6 +342,8 @@ export async function clinicRemoval(
 
     await audit(db, actor, "clinic.deleted", "clinic", clinicId, null);
     await db.prepare("DELETE FROM clinics WHERE id=?").run(clinicId);
+    invalidateClinicConfigCache(clinicId);
+    invalidateConfigurationCache(clinicId);
     return { deleted: true };
   });
 }

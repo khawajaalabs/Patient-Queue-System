@@ -1,7 +1,7 @@
-import { SelectField } from "@/components/form-controls";
+﻿import { SelectField } from "@/components/form-controls";
 import { useClinicContext } from "@/providers/clinic-provider";
 import { useAuth } from "@/providers/auth-provider";
-import { useClinicalData } from "@/components/clinical";
+import { useClinicalData } from "@/data/use-clinical-data";
 export function PatientPicker({
   value,
   onChange,

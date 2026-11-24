@@ -388,8 +388,8 @@ export function operationsRoutes(
       clinic = scope(req),
       patient = req.query["patientId"] ? idValue.parse(req.query["patientId"]) : null,
       visit = req.query["visitId"] ? idValue.parse(req.query["visitId"]) : null;
-    let where = "d.status='ready'",
-      args: string[] = [];
+    let where = "d.status='ready'";
+    const args: string[] = [];
     if (u.role === "patient") {
       where += " AND d.patient_id=? AND d.patient_visible=1";
       args.push(u.id);
@@ -412,7 +412,7 @@ export function operationsRoutes(
         db,
         "SELECT " +
           docColumns +
-          " FROM patient_documents d JOIN clinics c ON c.id=d.clinic_id WHERE " +
+          ",u.full_name patient_name,u.phone patient_phone FROM patient_documents d JOIN clinics c ON c.id=d.clinic_id JOIN users u ON u.id=d.patient_id WHERE " +
           where +
           " ORDER BY d.created_at DESC LIMIT 200",
         ...args,

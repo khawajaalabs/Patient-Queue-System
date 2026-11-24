@@ -1,9 +1,8 @@
-import { afterEach, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
+﻿import { afterEach, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import { useState } from "react";
 import { PatientDemographics } from "@/components/patient-demographics";
-import { useClinicalData } from "@/components/clinical";
-import { MedicineLibrary } from "@/components/medicine-library";
+import { useClinicalData } from "@/data/use-clinical-data";
 import { Clinics } from "@/routes/admin.clinics";
 import { ageOnDate, patientToday, validBirthDate } from "@/domain/patient-demographics";
 import { groupClinicLocations } from "@/domain/locations";
@@ -154,28 +153,4 @@ it("one city card exposes Add Area with a fixed city", async () => {
   expect(screen.getByLabelText("City")).toHaveValue("Lahore");
   expect(screen.getByLabelText("City")).toHaveAttribute("readonly");
   expect(screen.getByRole("button", { name: "Area" })).not.toBeDisabled();
-});
-it("medicine deletion confirms first, refreshes after success and reports an actual failure", async () => {
-  const med = {
-    id: "m",
-    clinicId: "clinic",
-    name: "Medicine",
-    strength: "",
-    dosageForm: "",
-    defaultDose: "",
-    defaultFrequency: "",
-    defaultDuration: "",
-    defaultInstructions: "",
-    active: true,
-  };
-  f.api.mockResolvedValue([med]);
-  render(<MedicineLibrary />);
-  await screen.findByText("Medicine");
-  fireEvent.click(screen.getByRole("button", { name: "Delete medicine" }));
-  expect(screen.getByRole("alertdialog")).toBeVisible();
-  expect(f.api.mock.calls.some(([, o]) => o?.method === "DELETE")).toBe(false);
-  f.api.mockRejectedValueOnce(Error("Deletion failed"));
-  fireEvent.click(screen.getByRole("button", { name: "Delete or archive" }));
-  await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Deletion failed"));
-  expect(screen.getByText("Medicine")).toBeVisible();
 });

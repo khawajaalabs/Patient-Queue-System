@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api } from "@/api/client";
 import { Btn } from "@/components/qc";
 import { SearchableChoice } from "@/components/searchable-choice";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { friendlyError } from "@/services/errors";
 import type { Condition } from "@/types/workflow";
 export function PatientConditions({ patientId }: { patientId: string }) {

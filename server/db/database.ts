@@ -13,6 +13,12 @@ export interface UserRow {
   password_hash: string;
   role: "admin" | "patient" | "receptionist" | "nurse";
 }
+export interface TransactionOptions {
+  /** Skip the cross-request queue mutation lock (safe for non-queue writes). */
+  serialize?: boolean;
+  /** Skip the LISTEN/NOTIFY invalidation (no listeners on serverless). */
+  notify?: boolean;
+}
 export interface Database {
   prepare(sql: string): {
     get(...values: SQLInputValue[]): unknown | Promise<unknown>;
@@ -22,7 +28,7 @@ export interface Database {
   exec(sql: string): void | Promise<void>;
   close(): void | Promise<void>;
   subscribe?(listener: () => void): Promise<void>;
-  transaction?<T>(action: () => Promise<T>): Promise<T>;
+  transaction?<T>(action: () => Promise<T>, options?: TransactionOptions): Promise<T>;
 }
 export async function one<T>(
   db: Database,
@@ -36,9 +42,13 @@ export async function many<T>(db: Database, sql: string, ...values: SQLInputValu
 }
 const activeTransaction = new AsyncLocalStorage<Database>();
 const transactions = new WeakMap<Database, Promise<unknown>>();
-export async function atomic<T>(db: Database, action: () => Promise<T>): Promise<T> {
+export async function atomic<T>(
+  db: Database,
+  action: () => Promise<T>,
+  options?: TransactionOptions,
+): Promise<T> {
   if (activeTransaction.getStore() === db) return action();
-  if (db.transaction) return db.transaction(() => activeTransaction.run(db, action));
+  if (db.transaction) return db.transaction(() => activeTransaction.run(db, action), options);
   const prior = transactions.get(db) ?? Promise.resolve();
   const pending = prior
     .catch(() => {})

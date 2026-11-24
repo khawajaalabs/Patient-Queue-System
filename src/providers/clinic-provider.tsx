@@ -10,6 +10,13 @@ let commandClinic = "northstar";
 export function currentCommandClinic() {
   return commandClinic;
 }
+function readSavedClinic(key: string) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
 type ContextValue = {
   selected: string;
   clinics: ClinicOption[];
@@ -26,27 +33,31 @@ export const useClinicContext = () => useContext(Context);
 export function ClinicProvider({
   children,
   publicOnly = false,
+  enabled = true,
 }: {
   children: ReactNode;
   publicOnly?: boolean;
+  enabled?: boolean;
 }) {
   const { profile, loading } = useAuth();
   const key = `queuecare:clinic:${profile?.id ?? "guest"}`;
-  const [selected, setSelected] = useState("northstar");
+  // Read the saved/URL clinic during the first render. Previously the hardcoded
+  // default was used for the first request, then corrected in an effect —
+  // every page fetched its data twice on boot.
+  const [selected, setSelected] = useState(() => {
+    if (typeof window === "undefined") return "northstar";
+    const urlClinic = new URLSearchParams(window.location.search).get("clinicId");
+    return urlClinic ?? (publicOnly ? "northstar" : (readSavedClinic(key) ?? "northstar"));
+  });
   const [clinics, setClinics] = useState<ClinicOption[]>([]);
   const [error, setError] = useState("");
   useEffect(() => {
-    if (loading && !publicOnly) return;
+    // Login and other auth forms don't need the clinic list; loading it there
+    // added a multi-second request to every sign-in.
+    if (!enabled || (loading && !publicOnly)) return;
     let active = true;
-    const readSaved = () => {
-      try {
-        return localStorage.getItem(key);
-      } catch {
-        return null;
-      }
-    };
     const urlClinic = new URLSearchParams(window.location.search).get("clinicId");
-    const saved = urlClinic ?? (publicOnly ? "northstar" : (readSaved() ?? "northstar"));
+    const saved = urlClinic ?? (publicOnly ? "northstar" : (readSavedClinic(key) ?? "northstar"));
     setSelected(saved);
     commandClinic = saved;
     const refresh = async () => {
@@ -82,7 +93,7 @@ export function ClinicProvider({
       active = false;
       window.removeEventListener("queuecare:refresh", onRefresh);
     };
-  }, [key, profile?.role, loading, publicOnly]);
+  }, [enabled, key, profile?.role, loading, publicOnly]);
   const select = (id: string) => {
     if (!(id === "all" && profile?.role === "admin") && !clinics.some((c) => c.id === id)) return;
     setSelected(id);

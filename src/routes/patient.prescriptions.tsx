@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/qc";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import type { PatientVisit } from "@/types/clinical";
 export const Route = createFileRoute("/patient/prescriptions")({ component: Prescriptions });
 function Prescriptions() {
@@ -21,7 +21,7 @@ function Prescriptions() {
               <p className="font-medium">{v.clinicName}</p>
               <p className="mt-2 text-sm text-muted-foreground">
                 {new Date(v.visitAt).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })} ·{" "}
-                {v.doctorName} · {v.prescription.items.length} medicine(s)
+                {v.doctorName} · {v.prescription?.items?.length ?? 0} medicine(s)
               </p>
             </Link>
           ))

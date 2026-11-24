@@ -37,4 +37,12 @@ export default tseslint.config(
     },
   },
   eslintPluginPrettier,
+  {
+    // Test fixtures deliberately use loose `any` values for mocked API rows.
+    files: ["**/*.test.{ts,tsx}", "server/test/**/*.ts", "src/test/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-unsafe-finally": "off",
+    },
+  },
 );

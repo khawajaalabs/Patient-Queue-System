@@ -1,59 +1,13 @@
 import type { PrintIdentity } from "@/types/clinical-workflow";
 import { PrescriptionPreview } from "@/components/prescription-preview";
+import { VisitSummaryReport } from "@/components/visit-summary-report";
 import { DoctorSignature, PrintBranding } from "@/components/final-operations";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { api } from "@/api/client";
 import { Btn, PageHeader } from "@/components/qc";
 import { friendlyError } from "@/services/errors";
 import type { ClinicalVisit, PatientVisit } from "@/types/clinical";
-export function useClinicalData<T>(path: string | null) {
-  const [data, setData] = useState<T | null>(null),
-    [error, setError] = useState(""),
-    [attempt, setAttempt] = useState(0);
-  const loadedPath = useRef<string | null>(null);
-  const reload = useCallback(() => setAttempt((n) => n + 1), []);
-  useEffect(() => {
-    if (!path) {
-      setData(null);
-      loadedPath.current = null;
-      return;
-    }
-    const c = new AbortController();
-    if (loadedPath.current !== path) setData(null);
-    setError("");
-    api<T>(path, { signal: c.signal })
-      .then((next) => {
-        if (!c.signal.aborted) {
-          loadedPath.current = path;
-          setData(next);
-        }
-      })
-      .catch((e) => {
-        if (!c.signal.aborted) setError(friendlyError(e));
-      });
-    return () => c.abort();
-  }, [path, attempt]);
-  return { data, error, reload };
-}
-export function ClinicalLoading({ error, retry }: { error: string; retry: () => void }) {
-  return (
-    <div className="surface p-8 text-sm">
-      {error ? (
-        <>
-          <p role="alert" className="mb-4 text-destructive">
-            {error}
-          </p>
-          <Btn variant="secondary" onClick={retry}>
-            Try again
-          </Btn>
-        </>
-      ) : (
-        <p className="text-muted-foreground">Loading patient record…</p>
-      )}
-    </div>
-  );
-}
 export function StartConsultation({
   patientId,
   clinicId,
@@ -261,9 +215,10 @@ export function PatientVisitView({
               prescriptionOnly ? (
                 <PrescriptionPreview visit={visit} />
               ) : (
-                <Btn variant="secondary" onClick={() => window.print()}>
-                  Print visit summary
-                </Btn>
+                <div className="flex flex-wrap gap-2">
+                  <PrescriptionPreview visit={visit} />
+                  <VisitSummaryReport visit={visit} triggerLabel="📄 Full Visit Summary" />
+                </div>
               )
             }
           />

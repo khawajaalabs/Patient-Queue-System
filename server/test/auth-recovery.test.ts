@@ -5,8 +5,14 @@ import { createHash } from "node:crypto";
 import { createLocalApp } from "../app.ts";
 import { createPostgresDatabase } from "../db/postgres.ts";
 async function testApp(options: Parameters<typeof createLocalApp>[0]) {
- if(process.env["QUEUECARE_AUTH_TEST_SCHEMA"])options.database=await createPostgresDatabase(process.env["DATABASE_URL"]!,true,process.env["QUEUECARE_AUTH_TEST_SCHEMA"],()=>{});
- return createLocalApp(options);
+  if (process.env["QUEUECARE_AUTH_TEST_SCHEMA"])
+    options.database = await createPostgresDatabase(
+      process.env["DATABASE_URL"]!,
+      true,
+      process.env["QUEUECARE_AUTH_TEST_SCHEMA"],
+      () => {},
+    );
+  return createLocalApp(options);
 }
 import type { GoogleIdentity } from "../services/identity.ts";
 

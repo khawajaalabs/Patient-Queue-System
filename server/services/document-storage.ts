@@ -67,7 +67,13 @@ export function validateFileName(filename: string, mime: string) {
     "image/jpeg": /\.jpe?g$/i,
     "image/png": /\.png$/i,
   };
-  if (/[\\/\x00-\x1f]/.test(filename) || !extensions[mime]?.test(filename))
+  const hasControlCharacter = Array.from(filename).some((char) => char.charCodeAt(0) < 32);
+  if (
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    hasControlCharacter ||
+    !extensions[mime]?.test(filename)
+  )
     throw new ApiError(
       400,
       "INVALID_FILE",

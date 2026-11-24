@@ -36,10 +36,14 @@ try {
         .replace(/^CREATE ROLE queuecare_backend[^;]+;\r?\n/m, "")
         .replace(/\bqueuecare\b/g, schema),
     );
-  const result = spawnSync(process.execPath, ["--test", "server/test/appointment-tokens-api.test.ts"], {
-    stdio: "inherit",
-    env: { ...process.env, QUEUECARE_TOKEN_TEST_SCHEMA: schema, VERCEL: "1" },
-  });
+  const result = spawnSync(
+    process.execPath,
+    ["--test", "server/test/appointment-tokens-api.test.ts"],
+    {
+      stdio: "inherit",
+      env: { ...process.env, QUEUECARE_TOKEN_TEST_SCHEMA: schema, VERCEL: "1" },
+    },
+  );
   process.exitCode = result.status ?? 1;
 } finally {
   await query("DROP SCHEMA " + schema + " CASCADE");

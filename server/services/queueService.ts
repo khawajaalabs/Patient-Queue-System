@@ -41,7 +41,7 @@ interface QueueRow {
   current_token_id: string | null;
   updated_at: string;
 }
-interface TokenRow {
+export interface TokenRow {
   appointment_id: string | null;
   scheduled_at: string | null;
   appointment_order: number;
@@ -99,10 +99,35 @@ export function tokenValue(t: TokenRow): QueueToken {
     cancelledAt: t.cancelled_at,
   };
 }
+const isTest = Boolean(
+  process.env["NODE_TEST_CONTEXT"] || process.env["VITEST"] || process.env["NODE_ENV"] === "test",
+);
+const clinicConfigCache = new Map<string, { value: ClinicConfig; expires: number }>();
+const estimateCache = new Map<string, { value: number; expires: number }>();
+const CLINIC_CONFIG_TTL_MS = isTest ? 0 : 60_000;
+
+export function invalidateClinicConfigCache(clinicId?: string) {
+  if (clinicId) {
+    clinicConfigCache.delete(clinicId);
+    estimateCache.delete(clinicId);
+  } else {
+    clinicConfigCache.clear();
+    estimateCache.clear();
+  }
+}
+
 export async function clinicValue(db: Database, clinicId = "northstar"): Promise<ClinicConfig> {
-  const c = await one<ClinicRow>(db, "SELECT * FROM clinics WHERE id=?", clinicId);
+  const now = Date.now();
+  const cached = clinicConfigCache.get(clinicId);
+  if (cached && cached.expires > now) {
+    return cached.value;
+  }
+  const [c, avgMinutes] = await Promise.all([
+    one<ClinicRow>(db, "SELECT * FROM clinics WHERE id=?", clinicId),
+    consultationEstimate(db, clinicId),
+  ]);
   if (!c) throw new ApiError(404, "CLINIC_NOT_FOUND", "This clinic is unavailable.");
-  return {
+  const value: ClinicConfig = {
     id: c.id,
     city: c.city,
     area: c.area,
@@ -116,10 +141,15 @@ export async function clinicValue(db: Database, clinicId = "northstar"): Promise
     doctorName: c.doctor_name,
     openingTime: c.opening_time,
     closingTime: c.closing_time,
-    averageConsultationMinutes: await consultationEstimate(db, clinicId),
+    averageConsultationMinutes: avgMinutes,
     tokenPrefix: c.token_prefix,
     publicDisplayShowNext: Boolean(c.public_display_show_next),
   };
+  clinicConfigCache.set(clinicId, {
+    value,
+    expires: now + CLINIC_CONFIG_TTL_MS,
+  });
+  return value;
 }
 export async function currentQueue(db: Database, clinicId = "northstar", day = clinicDayKey()) {
   return await one<QueueRow>(
@@ -261,29 +291,40 @@ export async function adminState(
       date,
     )
   ).map(tokenValue);
-  const patients: PatientRow[] = await Promise.all(
-    (
-      await many<UserRow>(
-        db,
-        "SELECT u.* FROM users u WHERE u.role='patient' AND NOT EXISTS (SELECT 1 FROM staff_profiles sp WHERE sp.user_id=u.id) AND (?='all' OR EXISTS (SELECT 1 FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE t.patient_id=u.id AND q.clinic_id=?)) ORDER BY full_name LIMIT 200",
-        clinicId,
-        clinicId,
-      )
-    ).map(async (u) => {
-      const visit = await one<TokenRow>(
-        db,
-        tokenSelect +
-          " WHERE t.patient_id=? AND (?='all' OR q.clinic_id=?) ORDER BY t.joined_at DESC,t.rowid DESC LIMIT 1",
-        u.id,
-        clinicId,
-        clinicId,
-      );
-      return {
-        user: { id: u.id, fullName: u.full_name, phone: u.phone },
-        visit: visit ? tokenValue(visit) : null,
-      };
-    }),
+  const users = await many<UserRow>(
+    db,
+    "SELECT u.* FROM users u WHERE u.role='patient' AND NOT EXISTS (SELECT 1 FROM staff_profiles sp WHERE sp.user_id=u.id) AND (?='all' OR EXISTS (SELECT 1 FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE t.patient_id=u.id AND q.clinic_id=?)) ORDER BY full_name LIMIT 200",
+    clinicId,
+    clinicId,
   );
+  // One ranked query replaces the old per-patient query (up to 200 round trips).
+  // The rank must go in the SELECT list, before tokenSelect's FROM/JOIN clauses.
+  const rankedTokenSelect = tokenSelect.replace(
+    "a.scheduled_at,",
+    "a.scheduled_at,ROW_NUMBER() OVER(PARTITION BY t.patient_id ORDER BY t.joined_at DESC,t.rowid DESC) AS patient_visit_rank,",
+  );
+  const latest = users.length
+    ? await many<TokenRow>(
+        db,
+        "SELECT * FROM (" +
+          rankedTokenSelect +
+          " WHERE t.patient_id IN (" +
+          users.map(() => "?").join(",") +
+          ")" +
+          (all ? "" : " AND q.clinic_id=?") +
+          ") WHERE patient_visit_rank=1",
+        ...users.map((u) => u.id),
+        ...(all ? [] : [clinicId]),
+      )
+    : [];
+  const latestByPatient = new Map(latest.map((t) => [t.patient_id, t]));
+  const patients: PatientRow[] = users.map((u) => {
+    const visit = latestByPatient.get(u.id);
+    return {
+      user: { id: u.id, fullName: u.full_name, phone: u.phone },
+      visit: visit ? tokenValue(visit) : null,
+    };
+  });
   const queue = q ? await queueTokens(db, q.id) : [];
   const visits = queue.length
     ? await many<{ id: string; token_id: string }>(
@@ -544,6 +585,11 @@ export async function saveSettings(
       .parse(input),
     c = data.clinic;
   return atomic(db, async () => {
+    const existing = await one<ClinicRow>(
+      db,
+      "SELECT average_consultation_minutes,token_prefix FROM clinics WHERE id=?",
+      clinicId,
+    );
     await db
       .prepare(
         "UPDATE clinics SET name=?,display_name=?,address=?,phone=?,department=?,doctor_name=?,opening_time=?,closing_time=?,average_consultation_minutes=?,token_prefix=?,public_display_show_next=?,updated_at=? WHERE id=?",
@@ -557,13 +603,13 @@ export async function saveSettings(
         c.doctor,
         c.opening,
         c.closing,
-        (await one<ClinicRow>(db, "SELECT * FROM clinics WHERE id=?", clinicId))!
-          .average_consultation_minutes,
-        (await one<ClinicRow>(db, "SELECT * FROM clinics WHERE id=?", clinicId))!.token_prefix,
+        existing?.average_consultation_minutes ?? 5,
+        existing?.token_prefix ?? c.prefix,
         c.showNext ? 1 : 0,
         new Date().toISOString(),
         clinicId,
       );
+    invalidateClinicConfigCache(clinicId);
     if (actorId) await audit(db, actorId, "clinic.settings_updated", "clinic", clinicId, clinicId);
     return await clinicValue(db, clinicId);
   });
@@ -573,6 +619,11 @@ export async function saveSettings(
 // Five samples required; median resists outliers, rounded and clamped to 2–30 minutes.
 // Five minutes is the internal fallback; appointment slot duration and legacy setting are unrelated.
 export async function consultationEstimate(db: Database, clinicId: string) {
+  const now = Date.now();
+  const cached = estimateCache.get(clinicId);
+  if (cached && cached.expires > now) {
+    return cached.value;
+  }
   const rows = await many<{ called_at: string; completed_at: string }>(
     db,
     "SELECT t.called_at,t.completed_at FROM tokens t JOIN daily_queues q ON q.id=t.queue_id WHERE q.clinic_id=? AND t.status='completed' AND t.called_at IS NOT NULL AND t.completed_at IS NOT NULL AND t.skipped_at IS NULL ORDER BY t.completed_at DESC LIMIT 30",
@@ -582,8 +633,17 @@ export async function consultationEstimate(db: Database, clinicId: string) {
     .map((t) => (Date.parse(t.completed_at) - Date.parse(t.called_at)) / 60000)
     .filter((n) => Number.isFinite(n) && n >= 0.5 && n <= 120)
     .sort((a, b) => a - b);
-  if (minutes.length < 5) return 5;
-  const mid = Math.floor(minutes.length / 2),
-    median = minutes.length % 2 ? minutes[mid]! : (minutes[mid - 1]! + minutes[mid]!) / 2;
-  return Math.min(30, Math.max(2, Math.round(median)));
+  const result =
+    minutes.length < 5
+      ? 5
+      : (() => {
+          const mid = Math.floor(minutes.length / 2),
+            median = minutes.length % 2 ? minutes[mid]! : (minutes[mid - 1]! + minutes[mid]!) / 2;
+          return Math.min(30, Math.max(2, Math.round(median)));
+        })();
+  estimateCache.set(clinicId, {
+    value: result,
+    expires: now + CLINIC_CONFIG_TTL_MS,
+  });
+  return result;
 }

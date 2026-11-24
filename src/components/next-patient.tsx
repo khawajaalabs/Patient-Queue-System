@@ -1,4 +1,4 @@
-import { useClinicalData } from "@/components/clinical";
+import { useClinicalData } from "@/data/use-clinical-data";
 import type { TodayState } from "@/types/workflow";
 export function NextPatient({ clinicId, patientId }: { clinicId: string; patientId: string }) {
   const remote = useClinicalData<TodayState>(

@@ -4,7 +4,7 @@ import { AppointmentTokens, TokenActions } from "@/components/appointment-tokens
 import { clinicDayKey } from "@/utils/clinic-date";
 const f = vi.hoisted(() => ({ api: vi.fn(), data: [] as unknown[], reload: vi.fn() }));
 vi.mock("@/api/client", () => ({ api: f.api }));
-vi.mock("@/components/clinical", () => ({
+vi.mock("@/data/use-clinical-data", () => ({
   useClinicalData: () => ({ data: f.data, reload: f.reload, error: "" }),
 }));
 vi.mock("@/providers/clinic-provider", () => ({

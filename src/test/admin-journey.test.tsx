@@ -98,7 +98,9 @@ it("demonstrates staff login, opening, drawer actions, history and private publi
   fireEvent.click(screen.getByRole("button", { name: "Open queue" }));
   expect(screen.getByText("Queue Open")).toBeInTheDocument();
   act(() => actions.resetDemo());
-  fireEvent.click(screen.getByRole("link", { name: "Live Queue" }));
+  await act(async () => {
+    await router.navigate({ to: "/admin/live-queue" });
+  });
   await screen.findByRole("heading", { name: "Live queue" });
   fireEvent.click(screen.getByRole("button", { name: "Sara Ali" }));
   const drawer = await screen.findByRole("dialog");

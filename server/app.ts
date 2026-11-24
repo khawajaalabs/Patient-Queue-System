@@ -58,11 +58,11 @@ export function createLocalApp(options: {
   });
   app.disable("x-powered-by");
   app.use((_req, res, next) => {
-    res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     next();
   });
   app.use("/api", (req, _res, next) => {
+    _res.setHeader("Cache-Control", "no-store");
     if (!allowedOrigin(req.headers.origin))
       return next(new ApiError(403, "INVALID_ORIGIN", "This request origin is not allowed."));
     if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.get("X-QueueCare-Request") !== "1")
@@ -98,10 +98,21 @@ export function createLocalApp(options: {
   );
   const client = path.resolve("dist/client");
   if (existsSync(path.join(client, "index.html"))) {
-    app.use(express.static(client));
-    app.use((req, res, next) =>
-      req.method === "GET" ? res.sendFile(path.join(client, "index.html")) : next(),
+    app.use(
+      express.static(client, {
+        maxAge: "1y",
+        immutable: true,
+        setHeaders(res, filePath) {
+          // The HTML shell must always be fresh; hashed assets can be cached forever.
+          if (filePath.endsWith("index.html")) res.setHeader("Cache-Control", "no-store");
+        },
+      }),
     );
+    app.use((req, res, next) => {
+      if (req.method !== "GET") return next();
+      res.setHeader("Cache-Control", "no-store");
+      res.sendFile(path.join(client, "index.html"));
+    });
   }
   const errors: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
     if (error instanceof ZodError) {

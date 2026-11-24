@@ -7,7 +7,7 @@ import { attachDatabasePool } from "@vercel/functions";
 import { readFileSync } from "node:fs";
 import { rootCertificates } from "node:tls";
 import type { SQLInputValue } from "node:sqlite";
-import { one, type Database } from "./database.ts";
+import { one, type Database, type TransactionOptions } from "./database.ts";
 
 export function postgresSql(sql: string) {
   let parameter = 0;
@@ -39,7 +39,9 @@ export async function createPostgresDatabase(
         readFileSync(new URL("../certs/supabase-ca.crt", import.meta.url), "utf8"),
       ],
     },
-    max: serverless ? 1 : 10,
+    // A pool of 1 serialised every request behind a single TLS connection;
+    // five concurrent page requests could take seconds to queue up.
+    max: serverless ? 5 : 10,
     connectionTimeoutMillis: 15000,
     idleTimeoutMillis: serverless ? 1000 : 30000,
     options: `-c search_path=${schema},pg_catalog -c statement_timeout=15000 -c idle_in_transaction_session_timeout=30000`,
@@ -108,6 +110,8 @@ export async function createPostgresDatabase(
   async function query(sql: string, values: SQLInputValue[] = []) {
     const active = context.getStore();
     if (active) return active.query(postgresSql(sql), values);
+    // Standard pool checkout/release: compatible with Vercel's
+    // attachDatabasePool and safe for Promise.all parallel reads.
     const client = await acquire();
     let discard = false;
     try {
@@ -116,7 +120,7 @@ export async function createPostgresDatabase(
       discard = true;
       throw error;
     } finally {
-      client.release(discard || (serverless && pool.waitingCount === 0));
+      client.release(discard);
     }
   }
   const db: Database = {
@@ -145,17 +149,19 @@ export async function createPostgresDatabase(
       await subscriber?.end().catch(() => {});
       await pool.end();
     },
-    async transaction<T>(action: () => Promise<T>): Promise<T> {
+    async transaction<T>(action: () => Promise<T>, options?: TransactionOptions): Promise<T> {
       if (context.getStore()) throw new Error("Nested QueueCare transactions are not supported.");
       const client = await acquire();
       let discard = false;
       try {
         await client.query("BEGIN");
         // Serialize queue mutations across requests/processes, including opening a new daily queue.
-        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`${schema}:queue`]);
+        if (options?.serialize !== false)
+          await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`${schema}:queue`]);
         const value = await context.run(client, action);
         // Delivered only after commit; contains no patient data. Used by persistent servers.
-        await client.query("SELECT pg_notify($1, $2)", [channel, "queue:updated"]);
+        if (options?.notify !== false)
+          await client.query("SELECT pg_notify($1, $2)", [channel, "queue:updated"]);
         await client.query("COMMIT");
         return value;
       } catch (error) {
@@ -166,7 +172,7 @@ export async function createPostgresDatabase(
         }
         throw error;
       } finally {
-        client.release(discard || (serverless && pool.waitingCount === 0));
+        client.release(discard);
       }
     },
   };
@@ -207,35 +213,74 @@ async function bootstrapDatabase(db: Database, log: (message: string) => void) {
         stamp,
         stamp,
       );
-    if (await one(db, "SELECT id FROM users WHERE role='admin' LIMIT 1")) return;
-    const email = (process.env["QUEUECARE_ADMIN_EMAIL"] ?? "admin@queuecare.local")
-      .trim()
-      .toLowerCase();
-    const password = process.env["QUEUECARE_ADMIN_PASSWORD"] ?? "";
-    if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-      password.length < 12 ||
-      Buffer.byteLength(password, "utf8") > 72
-    )
-      throw new Error(
-        "Set valid QUEUECARE_ADMIN_EMAIL and QUEUECARE_ADMIN_PASSWORD (12–72 bytes) for first startup.",
-      );
-    if (await one(db, "SELECT id FROM users WHERE email=?", email))
-      throw new Error(
-        "The bootstrap admin email already belongs to a patient; no role will be changed.",
-      );
     await db
-      .prepare("INSERT INTO users VALUES (?,?,?,?,?,?,?,?)")
-      .run(
-        randomUUID(),
-        "Clinic Staff",
-        email,
-        "+92 300 0000000",
-        await hash(password, 12),
-        "admin",
-        stamp,
-        stamp,
+      .prepare(
+        "UPDATE clinics SET city=COALESCE(city, 'Lahore'), area=COALESCE(area, 'Canal View') WHERE id='northstar'",
+      )
+      .run();
+    const adminUser = await one<{ id: string }>(
+      db,
+      "SELECT id FROM users WHERE role='admin' ORDER BY created_at,id LIMIT 1",
+    );
+    if (!adminUser) {
+      const email = (process.env["QUEUECARE_ADMIN_EMAIL"] ?? "admin@queuecare.local")
+        .trim()
+        .toLowerCase();
+      const password = process.env["QUEUECARE_ADMIN_PASSWORD"] ?? "";
+      if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+        password.length < 12 ||
+        Buffer.byteLength(password, "utf8") > 72
+      )
+        throw new Error(
+          "Set valid QUEUECARE_ADMIN_EMAIL and QUEUECARE_ADMIN_PASSWORD (12–72 bytes) for first startup.",
+        );
+      if (await one(db, "SELECT id FROM users WHERE email=?", email))
+        throw new Error(
+          "The bootstrap admin email already belongs to a patient; no role will be changed.",
+        );
+      const newAdminId = randomUUID();
+      await db
+        .prepare("INSERT INTO users VALUES (?,?,?,?,?,?,?,?)")
+        .run(
+          newAdminId,
+          "Clinic Staff",
+          email,
+          "+92 300 0000000",
+          await hash(password, 12),
+          "admin",
+          stamp,
+          stamp,
+        );
+      log(`Supabase admin created: ${email}`);
+    }
+    const currentDoctor = await one<{ id: string }>(
+      db,
+      "SELECT id FROM users WHERE role='admin' ORDER BY created_at,id LIMIT 1",
+    );
+    if (currentDoctor) {
+      const hasAvail = await one(
+        db,
+        "SELECT 1 FROM doctor_availability WHERE clinic_id='northstar' LIMIT 1",
       );
-    log(`Supabase admin created: ${email}`);
+      if (!hasAvail) {
+        for (let weekday = 0; weekday < 7; weekday++) {
+          await db
+            .prepare(
+              "INSERT INTO doctor_availability (id,doctor_user_id,clinic_id,weekday,start_time,end_time,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+            )
+            .run(
+              randomUUID(),
+              currentDoctor.id,
+              "northstar",
+              weekday,
+              "09:00",
+              "17:00",
+              stamp,
+              stamp,
+            );
+        }
+      }
+    }
   });
 }

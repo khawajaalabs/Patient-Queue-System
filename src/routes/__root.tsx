@@ -1,4 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import {
   Outlet,
   Link,
@@ -120,14 +121,47 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** One listener for all invalidation events instead of every page refetching itself. */
+function QueryInvalidator() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      clearTimeout(timer);
+      // Mutations commonly emit both events; coalesce them into one refetch.
+      timer = setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: ["api"] });
+      }, 50);
+    };
+    window.addEventListener("queuecare:updated", schedule);
+    window.addEventListener("queuecare:refresh", schedule);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("queuecare:updated", schedule);
+      window.removeEventListener("queuecare:refresh", schedule);
+    };
+  }, [queryClient]);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const publicOnly = useRouterState({ select: (s) => s.location.pathname === "/public-display" });
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const publicOnly = pathname === "/public-display";
+  // Auth screens need no queue or clinic data. Avoiding those requests makes
+  // the login page load immediately instead of waiting on the API.
+  const queueEnabled =
+    publicOnly ||
+    pathname === "/" ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/patient") ||
+    pathname.startsWith("/staff");
   return (
     <QueryClientProvider client={queryClient}>
+      <QueryInvalidator />
       <AuthProvider>
-        <ClinicProvider publicOnly={publicOnly}>
-          <QueueProvider publicOnly={publicOnly}>
+        <ClinicProvider publicOnly={publicOnly} enabled={queueEnabled}>
+          <QueueProvider publicOnly={publicOnly} enabled={queueEnabled}>
             <a href="#main-content" className="skip-link">
               Skip to content
             </a>

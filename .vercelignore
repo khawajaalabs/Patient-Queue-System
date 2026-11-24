@@ -1,8 +1,9 @@
 .env*
 *.local
 .npm-cache/
-work/
-data/
+/work/
+/data/
+!src/data/
 .firebase/
 .wrangler/
 .output/

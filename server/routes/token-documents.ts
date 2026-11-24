@@ -2,11 +2,20 @@ import PDFDocument from "pdfkit";
 import { Router } from "express";
 import { one, type Database } from "../db/database.ts";
 import { requireRole, ApiError } from "../middleware/auth.ts";
-import { tokenValue } from "../services/queueService.ts";
+import { tokenValue, type TokenRow } from "../services/queueService.ts";
+
+type TokenDocumentRow = Omit<TokenRow, "scheduled_at"> & {
+  scheduled_at: string;
+  city: string | null;
+  area: string | null;
+  address: string | null;
+  clinic_phone: string | null;
+};
+
 export function tokenDocumentRoutes(db: Database) {
   const r = Router();
   const data = async (id: string, user: { id: string; role: string }) => {
-    const t = await one<any>(
+    const t = await one<TokenDocumentRow>(
       db,
       "SELECT t.*,q.queue_date,q.clinic_id,c.name clinic_name,c.city,c.area,c.address,c.phone clinic_phone,a.scheduled_at,u.full_name,u.phone FROM tokens t JOIN appointments a ON a.id=t.appointment_id JOIN daily_queues q ON q.id=t.queue_id JOIN clinics c ON c.id=q.clinic_id JOIN users u ON u.id=t.patient_id WHERE t.id=?",
       id,
@@ -45,8 +54,8 @@ export function tokenDocumentRoutes(db: Database) {
     pdf
       .fontSize(11)
       .text([t.area, t.city].filter(Boolean).join(" · "))
-      .text(t.address)
-      .text(t.clinic_phone);
+      .text(t.address ?? "")
+      .text(t.clinic_phone ?? "");
     pdf.moveDown(2).fontSize(12).text("APPOINTMENT TOKEN");
     pdf.fontSize(48).fillColor("#148577").text(t.token_code);
     pdf

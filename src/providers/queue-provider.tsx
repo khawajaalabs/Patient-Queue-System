@@ -124,9 +124,11 @@ const anonEntry = (
 export function QueueProvider({
   children,
   publicOnly = false,
+  enabled = true,
 }: {
   children: ReactNode;
   publicOnly?: boolean;
+  enabled?: boolean;
 }) {
   const { profile, loading: authLoading } = useAuth();
   const { selected } = useClinicContext();
@@ -148,7 +150,9 @@ export function QueueProvider({
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    if (authLoading && !publicOnly) return;
+    // Auth/public form pages do not use queue data. Skipping this prevents a
+    // slow /public/queue request and Socket.IO connection on every login page.
+    if (!enabled || (authLoading && !publicOnly)) return;
     let active = true,
       sequence = 0;
     const controller = new AbortController();
@@ -246,27 +250,45 @@ export function QueueProvider({
       void refresh();
     };
     refreshNow();
-    const socket = io({
-      withCredentials: true,
-      transports: ["websocket"],
-      path: import.meta.env["VITE_SOCKET_PATH"] ?? "/socket.io",
-      addTrailingSlash: !import.meta.env["VITE_SOCKET_PATH"],
-    });
-    socket.on("queue:updated", () => {
-      refreshNow();
-      window.dispatchEvent(new Event("queuecare:updated"));
-    });
-    socket.on("connect", refreshNow);
+    // Vercel cannot upgrade Socket.IO; repeated failed WebSocket attempts were
+    // generating console errors and extra reloads. The 30s poll below is the
+    // documented fallback there, while local development keeps live updates.
+    const socket = import.meta.env.DEV
+      ? io({
+          withCredentials: true,
+          transports: ["websocket"],
+          path: import.meta.env["VITE_SOCKET_PATH"] ?? "/socket.io",
+          addTrailingSlash: !import.meta.env["VITE_SOCKET_PATH"],
+        })
+      : null;
+    if (socket) {
+      socket.on("queue:updated", () => {
+        refreshNow();
+        window.dispatchEvent(new Event("queuecare:updated"));
+      });
+      socket.on("connect", refreshNow);
+    }
     window.addEventListener("queuecare:refresh", refreshNow);
     const timer = setInterval(refreshNow, 30000);
     return () => {
       active = false;
       controller.abort();
       clearInterval(timer);
-      socket.disconnect();
+      socket?.disconnect();
       window.removeEventListener("queuecare:refresh", refreshNow);
     };
-  }, [role, uid, authLoading, publicOnly, day, historyDate, selectedQueueDate, attempt, selected]);
+  }, [
+    enabled,
+    role,
+    uid,
+    authLoading,
+    publicOnly,
+    day,
+    historyDate,
+    selectedQueueDate,
+    attempt,
+    selected,
+  ]);
   return (
     <Context.Provider
       value={{

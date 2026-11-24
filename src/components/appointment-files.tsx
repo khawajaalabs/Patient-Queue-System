@@ -4,6 +4,8 @@ import { api } from "@/api/client";
 import { Btn } from "@/components/qc";
 import { friendlyError } from "@/services/errors";
 import type { AppointmentAttachment } from "@/types/clinical-workflow";
+import { MedicalScanViewer, type ScanDocument } from "@/components/medical-scan-viewer";
+
 export interface SelectedAttachment {
   key: string;
   file: File;
@@ -12,6 +14,7 @@ export interface SelectedAttachment {
   state: string;
   error: string;
 }
+
 export function AttachmentFields({
   files,
   onChange,
@@ -73,42 +76,48 @@ export function AttachmentFields({
           }}
         />
       </label>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
       {files.map((f, i) => (
-        <div key={f.key} className="rounded-lg border border-border p-3 space-y-2">
-          <p className="break-all text-sm text-muted-foreground">
-            {f.file.name} · {(f.file.size / 1024).toFixed(0)} KB
-          </p>
-          <p role="status" className="text-sm">
-            {f.state}
-          </p>
-          {f.error && (
-            <p role="alert" className="text-sm text-destructive">
-              {f.error}
-            </p>
-          )}
-          <Btn
+        <div key={f.key} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <input
+            className="rounded border border-border px-2 py-1 text-sm"
+            aria-label={`File title ${i + 1}`}
+            value={f.title}
+            disabled={disabled}
+            onChange={(e) =>
+              onChange(files.map((x) => (x.key === f.key ? { ...x, title: e.target.value } : x)))
+            }
+          />
+          <span className="text-xs text-muted-foreground">
+            {f.state} {f.error && `— ${f.error}`}
+          </span>
+          <button
             type="button"
-            variant="ghost"
+            className="text-xs text-destructive hover:underline"
             disabled={disabled || f.state === "Uploaded"}
             onClick={() => onChange(files.filter((x) => x.key !== f.key))}
           >
-            Remove file {i + 1}
-          </Btn>
+            Remove
+          </button>
         </div>
       ))}
     </section>
   );
 }
+
 export async function uploadAppointmentFiles(
   id: string,
   files: SelectedAttachment[],
-  progress: (key: string, state: string, error?: string) => void,
+  progress: (key: string, state: string, err?: string) => void,
 ) {
   let failed = 0;
   for (const f of files) {
     if (f.state === "Uploaded") continue;
-    let prepared: string | undefined;
+    let prepared: string | null = null;
     try {
       progress(f.key, "Preparing upload");
       const p = await api<{ id: string; uploadUrl?: string; ready?: boolean }>(
@@ -116,11 +125,11 @@ export async function uploadAppointmentFiles(
         {
           method: "POST",
           body: {
-            title: f.title,
-            type: f.type,
             filename: f.file.name,
             mime: f.file.type,
             size: f.file.size,
+            title: f.title || f.file.name,
+            type: f.type,
             uploadKey: f.key,
           },
         },
@@ -135,59 +144,112 @@ export async function uploadAppointmentFiles(
       await uploadPrivateFile(p.uploadUrl, f.file, (percent) =>
         progress(f.key, `Uploading ${percent}%`),
       );
-      progress(f.key, "Checking file");
+      progress(f.key, "Finishing");
       await api(`/appointment-attachments/${p.id}/complete`, { method: "POST", body: {} });
       progress(f.key, "Uploaded");
     } catch (e) {
       failed++;
       progress(f.key, "Upload failed", friendlyError(e));
-      if (prepared)
+      if (prepared) {
         try {
           await api(`/appointment-attachments/${prepared}`, { method: "DELETE" });
         } catch {
-          /* Server retains the private path for cleanup. */
+          /* Best effort */
         }
+      }
     }
   }
   return failed;
 }
+
 export function AppointmentFiles({ files }: { files: AppointmentAttachment[] }) {
   const [error, setError] = useState("");
+  const [activeScan, setActiveScan] = useState<ScanDocument | null>(null);
+
+  const viewScan = (f: AppointmentAttachment) => {
+    setError("");
+    void api<{ url: string }>(`/appointment-attachments/${f.id}/download`)
+      .then((d) => {
+        setActiveScan({
+          id: f.id,
+          title: f.title,
+          url: d.url,
+          filename: f.filename,
+          mimeType: f.mime,
+          documentType: f.type,
+          size: f.size,
+        });
+      })
+      .catch((e) => setError(friendlyError(e)));
+  };
+
+  const downloadFile = (f: AppointmentAttachment) => {
+    setError("");
+    void api<{ url: string }>(`/appointment-attachments/${f.id}/download`)
+      .then((d) => {
+        const a = document.createElement("a");
+        a.href = d.url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.click();
+      })
+      .catch((e) => setError(friendlyError(e)));
+  };
+
   return (
     <div className="space-y-3">
       {files.length ? (
         files.map((f) => (
-          <article key={f.id} className="rounded-lg border border-border p-4">
-            <h3 className="break-words font-semibold">{f.title}</h3>
-            <p className="break-all text-sm text-muted-foreground">
-              {f.type.replaceAll("_", " ")} · {f.filename} · {f.createdAt.slice(0, 10)} · {f.status}
-            </p>
+          <article
+            key={f.id}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4 bg-muted/20"
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base">🩻</span>
+                <h3 className="break-words font-semibold">{f.title}</h3>
+                <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground uppercase">
+                  {f.type.replaceAll("_", " ")}
+                </span>
+              </div>
+              <p className="mt-1 break-all text-xs text-muted-foreground">
+                {f.filename} · {f.createdAt.slice(0, 10)} · {(f.size / 1024).toFixed(0)} KB ·{" "}
+                {f.status}
+              </p>
+            </div>
             {f.status === "ready" && (
-              <Btn
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setError("");
-                  void api<{ url: string }>(`/appointment-attachments/${f.id}/download`)
-                    .then((d) => {
-                      const a = document.createElement("a");
-                      a.href = d.url;
-                      a.target = "_blank";
-                      a.rel = "noopener noreferrer";
-                      a.click();
-                    })
-                    .catch((e) => setError(friendlyError(e)));
-                }}
-              >
-                Download file
-              </Btn>
+              <div className="flex items-center gap-2">
+                <Btn
+                  type="button"
+                  variant="primary"
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs py-1"
+                  onClick={() => viewScan(f)}
+                >
+                  🔍 View Scan
+                </Btn>
+                <Btn
+                  type="button"
+                  variant="secondary"
+                  className="text-xs py-1"
+                  onClick={() => downloadFile(f)}
+                >
+                  Download ⤓
+                </Btn>
+              </div>
             )}
           </article>
         ))
       ) : (
         <p className="text-sm text-muted-foreground">No supporting files attached.</p>
       )}
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {/* Interactive Medical Scan Viewer Modal */}
+      {activeScan && <MedicalScanViewer scan={activeScan} onClose={() => setActiveScan(null)} />}
     </div>
   );
 }

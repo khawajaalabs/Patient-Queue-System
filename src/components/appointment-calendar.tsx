@@ -7,15 +7,16 @@ import { useEffect, useState } from "react";
 import { api } from "@/api/client";
 import { useAuth } from "@/providers/auth-provider";
 import { useClinicContext } from "@/providers/clinic-provider";
-import { ClinicalLoading, useClinicalData } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { Btn, Field, PageHeader } from "@/components/qc";
 import { PatientPicker } from "@/components/patient-picker";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { friendlyError } from "@/services/errors";
 import type { Appointment } from "@/types/local";
 export function AppointmentCalendar() {
-  const { selected } = useClinicContext(),
+  const { selected, clinics } = useClinicContext(),
     { profile } = useAuth(),
+    [chosenClinic, setChosenClinic] = useState(""),
     [view, setView] = useState(() =>
       typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).get("view") === "upcoming"
@@ -43,15 +44,10 @@ export function AppointmentCalendar() {
     ),
     admin = profile?.role === "admin";
   useEffect(() => {
-    const fn = () => remote.reload();
-    window.addEventListener("queuecare:updated", fn);
     const timer = window.setInterval(() => {
-      if (!document.hidden) fn();
+      if (!document.hidden) remote.reload();
     }, 30000);
-    return () => {
-      window.removeEventListener("queuecare:updated", fn);
-      window.clearInterval(timer);
-    };
+    return () => window.clearInterval(timer);
   }, [selected]);
   useEffect(() => setEdit(null), [selected]);
   useEffect(() => {
@@ -95,7 +91,7 @@ export function AppointmentCalendar() {
       <PageHeader
         title="Appointments"
         sub="Today → patient → consultation."
-        right={selected !== "all" && <Btn onClick={() => setEdit("new")}>Add appointment</Btn>}
+        right={<Btn onClick={() => setEdit("new")}>Add appointment</Btn>}
       />
       <div className="mb-5 flex flex-wrap items-center gap-3">
         {[
@@ -198,53 +194,80 @@ export function AppointmentCalendar() {
             </p>
           )}
           {(edit === "new" ||
-            (edit &&
-              !["completed", "cancelled", "no_show", "checked_in"].includes(edit.status))) && (
-            <form
-              key={edit === "new" ? "new" : edit?.id}
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget),
-                  time = String(f.get("scheduledAt"));
-                if (edit && edit !== "new") {
-                  void action(edit, "scheduled", time);
-                  return;
-                }
-                setBusy(true);
-                setError("");
-                void api(
-                  (admin ? "/admin/appointments" : "/staff/appointments") +
-                    "?clinicId=" +
-                    encodeURIComponent(selected),
-                  {
-                    method: "POST",
-                    body: {
-                      patientId: String(f.get("patientId")),
-                      scheduledAt: time,
-                      reason: String(f.get("reason") ?? ""),
-                    },
-                  },
-                )
-                  .then(() => {
-                    setEdit(null);
-                    remote.reload();
-                  })
-                  .catch((e) => setError(friendlyError(e)))
-                  .finally(() => setBusy(false));
-              }}
-            >
-              {edit === "new" && <PatientPicker />}
-              <AppointmentSlotPicker
-                clinicId={edit && edit !== "new" ? edit.clinicId : selected}
-                exclude={edit && edit !== "new" ? edit.id : undefined}
-                defaultValue={edit && edit !== "new" ? edit.scheduledAt : date}
-                refresh={error ? 1 : 0}
-              />
-              {edit === "new" && <Field label="Reason (optional)" name="reason" maxLength={300} />}
-              <Btn disabled={busy}>{edit === "new" ? "Book appointment" : "Reschedule"}</Btn>
-            </form>
-          )}
+            (edit && !["completed", "cancelled", "no_show", "checked_in"].includes(edit.status))) &&
+            (() => {
+              const activeClinics = clinics.filter((c) => c.active !== false);
+              const targetClinic =
+                edit && edit !== "new"
+                  ? edit.clinicId
+                  : selected !== "all"
+                    ? selected
+                    : chosenClinic || activeClinics[0]?.id || "northstar";
+              return (
+                <form
+                  key={edit === "new" ? "new" : edit?.id}
+                  className="space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const f = new FormData(e.currentTarget),
+                      time = String(f.get("scheduledAt"));
+                    if (edit && edit !== "new") {
+                      void action(edit, "scheduled", time);
+                      return;
+                    }
+                    setBusy(true);
+                    setError("");
+                    void api(
+                      (admin ? "/admin/appointments" : "/staff/appointments") +
+                        "?clinicId=" +
+                        encodeURIComponent(targetClinic),
+                      {
+                        method: "POST",
+                        body: {
+                          patientId: String(f.get("patientId")),
+                          scheduledAt: time,
+                          reason: String(f.get("reason") ?? ""),
+                        },
+                      },
+                    )
+                      .then(() => {
+                        setEdit(null);
+                        remote.reload();
+                      })
+                      .catch((e) => setError(friendlyError(e)))
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  {edit === "new" && selected === "all" && activeClinics.length > 1 && (
+                    <label className="block text-sm font-medium">
+                      Clinic
+                      <SelectField
+                        value={targetClinic}
+                        onChange={(e) => setChosenClinic(e.target.value)}
+                        className="mt-2 block w-full rounded-lg border border-input bg-card p-3 text-sm"
+                      >
+                        {activeClinics.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </SelectField>
+                    </label>
+                  )}
+                  {edit === "new" && <PatientPicker />}
+                  <AppointmentSlotPicker
+                    clinicId={targetClinic}
+                    exclude={edit && edit !== "new" ? edit.id : undefined}
+                    defaultValue={edit && edit !== "new" ? edit.scheduledAt : date}
+                    refresh={error ? 1 : 0}
+                  />
+                  {edit === "new" && (
+                    <Field label="Reason (optional)" name="reason" maxLength={300} />
+                  )}
+                  <Btn disabled={busy}>{edit === "new" ? "Book appointment" : "Reschedule"}</Btn>
+                </form>
+              );
+            })()}
           {edit && edit !== "new" && (
             <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
               {[

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Btn, Field } from "@/components/qc";
-import { useClinicalData } from "@/components/clinical";
+import { useClinicalData } from "@/data/use-clinical-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,

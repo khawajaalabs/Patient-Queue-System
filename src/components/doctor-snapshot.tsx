@@ -1,6 +1,6 @@
 import { ageOnDate } from "@/domain/patient-demographics";
 import { AttentionEditor } from "@/components/appointment-attention";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { AppointmentFiles } from "@/components/appointment-files";
 import type { ClinicalRecord } from "@/types/clinical";
 import type { AppointmentContext } from "@/types/clinical-workflow";

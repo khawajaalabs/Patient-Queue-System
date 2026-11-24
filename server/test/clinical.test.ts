@@ -7,7 +7,8 @@ import { once } from "node:events";
 import { createLocalApp } from "../app.ts";
 import { createPostgresDatabase } from "../db/postgres.ts";
 
-test("clinical workflow: global profiles, structured notes/vitals/prescriptions, atomic completion and private patient portal", async () => {
+test("clinical workflow: global profiles, structured notes/vitals/prescriptions, atomic completion and private patient portal", async (t) => {
+  t.mock.method(Date, "now", () => +new Date("2026-11-10T08:00:00+05:00"));
   const database = process.env["QUEUECARE_CLINICAL_TEST_SCHEMA"]
     ? await createPostgresDatabase(
         process.env["DATABASE_URL"]!,
@@ -37,6 +38,7 @@ test("clinical workflow: global profiles, structured notes/vitals/prescriptions,
     return {
       status: r.status,
       data: json.data,
+      error: json.error,
       cookie: r.headers.get("set-cookie")?.split(";")[0] ?? "",
     };
   }

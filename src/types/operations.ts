@@ -22,6 +22,8 @@ export interface PatientDocument {
   patient_visible: number;
   created_at: string;
   clinic_name: string;
+  patient_name?: string | null;
+  patient_phone?: string | null;
 }
 export interface Invoice {
   appointment_id?: string | null;

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { api } from "@/api/client";
 import { Btn, Field } from "@/components/qc";
 import { ConfirmAction } from "@/components/queue-feedback";

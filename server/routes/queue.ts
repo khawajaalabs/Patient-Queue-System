@@ -58,9 +58,18 @@ export function queueRoutes(db: Database, notify: Notify) {
       })),
     }),
   );
-  router.get("/admin/clinics", requireRole(db, "admin"), async (_req, res) =>
-    res.json({ success: true, data: await listClinics(db, true) }),
-  );
+  router.get("/admin/clinics", requireRole(db, "admin"), async (_req, res) => {
+    const clinics = await listClinics(db, true);
+    const scheduled = await many<{ clinic_id: string }>(
+      db,
+      "SELECT DISTINCT clinic_id FROM doctor_availability WHERE clinic_id IS NOT NULL",
+    );
+    const scheduledIds = new Set(scheduled.map((s) => s.clinic_id));
+    res.json({
+      success: true,
+      data: clinics.map((c) => ({ ...c, hasSchedule: scheduledIds.has(c.id ?? "") })),
+    });
+  });
   router.delete("/admin/clinics/:id", requireRole(db, "admin"), async (req, res) => {
     const data = await clinicRemoval(
       db,
@@ -144,7 +153,12 @@ export function queueRoutes(db: Database, notify: Notify) {
   router.get("/admin/state", requireRole(db, "admin"), async (req, res) =>
     res.json({
       success: true,
-      data: await adminState(db, dateValue(req.query["historyDate"]), scope(req), dateValue(req.query["queueDate"])),
+      data: await adminState(
+        db,
+        dateValue(req.query["historyDate"]),
+        scope(req),
+        dateValue(req.query["queueDate"]),
+      ),
     }),
   );
   router.get("/admin/history", requireRole(db, "admin"), async (req, res) =>

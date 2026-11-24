@@ -2,7 +2,7 @@ import { TokenActions } from "@/components/appointment-tokens";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageHeader, Btn } from "@/components/qc";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 
 import type { AppointmentContext } from "@/types/clinical-workflow";
 export const Route = createFileRoute("/patient/appointment/$appointmentId")({

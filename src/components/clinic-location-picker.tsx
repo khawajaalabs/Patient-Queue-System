@@ -16,6 +16,7 @@ export function ClinicLocationPicker({
   const [city, setCity] = useState(selected?.city || (selected ? legacy : "")),
     [area, setArea] = useState(selected?.area || (selected ? legacy : ""));
   useEffect(() => {
+    if (!value) return;
     const c = active.find((c) => c.id === value);
     if (c) {
       setCity(c.city || legacy);
@@ -32,7 +33,7 @@ export function ClinicLocationPicker({
     ];
   const relevant = active.filter(
     (c) =>
-      (c.city || legacy) === city &&
+      normalizeLocation(c.city || legacy) === normalizeLocation(city) &&
       normalizeLocation(c.area || legacy) === normalizeLocation(area),
   );
   return (
@@ -43,8 +44,16 @@ export function ClinicLocationPicker({
         value={city}
         onChange={(v) => {
           setCity(v);
-          setArea("");
-          onChange("");
+          const inCity = active.filter(
+            (c) => normalizeLocation(c.city || legacy) === normalizeLocation(v),
+          );
+          if (inCity.length === 1 && inCity[0]) {
+            setArea(inCity[0].area || legacy);
+            onChange(inCity[0].id);
+          } else {
+            setArea("");
+            onChange("");
+          }
         }}
       />
       <SearchableChoice

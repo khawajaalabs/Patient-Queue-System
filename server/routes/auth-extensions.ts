@@ -3,7 +3,13 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 import { atomic, one, type Database, type UserRow } from "../db/database.ts";
-import { ApiError, publicUser, startSession, authCookieOptions } from "../middleware/auth.ts";
+import {
+  ApiError,
+  publicUser,
+  startSession,
+  authCookieOptions,
+  invalidateSessionCache,
+} from "../middleware/auth.ts";
 import type { AuthOptions, GoogleIdentity } from "../services/identity.ts";
 
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -65,24 +71,25 @@ function clearCookie(req: Request, res: Response, name: string) {
 export function extendedAuthRoutes(db: Database, options: AuthOptions) {
   const routes = Router();
   const origin = new URL(options.appUrl).origin;
+  const rateLimits = new Map<string, { count: number; until: number }>();
+
   async function limited(scope: string, key: string, limit: number) {
-    return atomic(db, async () => {
-      const now = Date.now(),
-        bucket = scope + ":" + digest(key);
-      await db.prepare("DELETE FROM auth_rate_limits WHERE expires_at<=?").run(now);
-      await db
-        .prepare(
-          "INSERT INTO auth_rate_limits VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts=auth_rate_limits.attempts+1",
-        )
-        .run(bucket, now + 15 * 60000);
-      const row = await one<{ attempts: number }>(
-        db,
-        "SELECT attempts FROM auth_rate_limits WHERE bucket=?",
-        bucket,
-      );
-      return row!.attempts > limit;
-    });
+    const now = Date.now(),
+      bucket = scope + ":" + digest(key);
+    const existing = rateLimits.get(bucket);
+    if (!existing || existing.until <= now) {
+      if (rateLimits.size > 2000) {
+        for (const [k, v] of rateLimits) {
+          if (v.until <= now) rateLimits.delete(k);
+        }
+      }
+      rateLimits.set(bucket, { count: 1, until: now + 15 * 60000 });
+      return false;
+    }
+    existing.count++;
+    return existing.count > limit;
   }
+
   async function saveTicket(
     kind: string,
     userId: string | null,
@@ -90,77 +97,95 @@ export function extendedAuthRoutes(db: Database, options: AuthOptions) {
     minutes = 10,
   ) {
     const token = randomBytes(32).toString("hex");
-    await atomic(db, async () => {
-      await db.prepare("DELETE FROM auth_requests WHERE expires_at<=?").run(Date.now());
-      if (kind === "password_reset")
-        await db.prepare("DELETE FROM auth_requests WHERE kind=? AND user_id=?").run(kind, userId);
-      await db
-        .prepare("INSERT INTO auth_requests VALUES (?,?,?,?,?,?)")
-        .run(digest(token), kind, userId, payload, Date.now() + minutes * 60000, Date.now());
-    });
+    const now = Date.now();
+    const tokenHash = digest(token);
+    if (kind === "password_reset") {
+      await db.prepare("DELETE FROM auth_requests WHERE kind=? AND user_id=?").run(kind, userId);
+    }
+    await db
+      .prepare("INSERT INTO auth_requests VALUES (?,?,?,?,?,?)")
+      .run(tokenHash, kind, userId, payload, now + minutes * 60000, now);
+    void (async () => {
+      try {
+        await db.prepare("DELETE FROM auth_requests WHERE expires_at<=?").run(now);
+      } catch {
+        // Best-effort cleanup; never fail the issued request.
+      }
+    })();
     return token;
   }
+
   async function ticket(token: string, kind: string, consume = false) {
     if (!/^[a-f0-9]{64}$/.test(token)) throw invalid();
-    return atomic(db, async () => {
-      const row = await one<Ticket>(
-        db,
-        "SELECT * FROM auth_requests WHERE token_hash=? AND kind=? AND expires_at>?",
-        digest(token),
-        kind,
-        Date.now(),
-      );
-      if (!row) throw invalid();
-      if (consume)
-        await db.prepare("DELETE FROM auth_requests WHERE token_hash=?").run(digest(token));
-      return row;
-    });
+    const tokenHash = digest(token);
+    const row = await one<Ticket>(
+      db,
+      "SELECT * FROM auth_requests WHERE token_hash=? AND kind=? AND expires_at>?",
+      tokenHash,
+      kind,
+      Date.now(),
+    );
+    if (!row) throw invalid();
+    if (consume) {
+      void (async () => {
+        try {
+          await db.prepare("DELETE FROM auth_requests WHERE token_hash=?").run(tokenHash);
+        } catch {
+          // Best-effort single-use cleanup; the request is already validated.
+        }
+      })();
+    }
+    return row;
   }
+
   async function linkPatient(identity: GoogleIdentity, details?: z.infer<typeof profile>) {
     const verifiedEmail = email.parse(identity.email);
     if (!identity.subject || identity.subject.length > 255) throw invalid();
-    // A random, unshared bcrypt secret keeps Google-only accounts out of password login until reset.
-    const newHash = await hash(randomBytes(32).toString("hex"), 12);
-    return atomic(db, async () => {
-      const sameEmail = await one<UserRow>(db, "SELECT * FROM users WHERE email=?", verifiedEmail);
-      if (
-        sameEmail &&
-        (sameEmail.role === "admin" ||
-          (await one(db, "SELECT user_id FROM staff_profiles WHERE user_id=?", sameEmail.id)))
-      )
-        throw new ApiError(403, "PATIENT_ONLY", "Use clinic staff email/password login.");
-      const linked = await one<UserRow>(
+
+    const [sameEmail, linked] = await Promise.all([
+      one<UserRow>(db, "SELECT * FROM users WHERE email=?", verifiedEmail),
+      one<UserRow>(
         db,
         "SELECT u.* FROM users u JOIN google_identities g ON g.user_id=u.id WHERE g.provider_subject=?",
         identity.subject,
-      );
-      if (linked && (linked.role !== "patient" || (sameEmail && sameEmail.id !== linked.id)))
-        throw invalid();
-      if (linked) return linked;
-      let user = sameEmail;
-      if (!user) {
-        if (!details) return null;
-        const stamp = new Date().toISOString(),
-          id = randomUUID();
-        await db
-          .prepare("INSERT INTO users VALUES (?,?,?,?,?,?,?,?)")
-          .run(
-            id,
-            details.fullName,
-            verifiedEmail,
-            details.phone,
-            newHash,
-            "patient",
-            stamp,
-            stamp,
-          );
-        user = (await one<UserRow>(db, "SELECT * FROM users WHERE id=?", id))!;
-      }
+      ),
+    ]);
+
+    if (
+      sameEmail &&
+      (sameEmail.role === "admin" ||
+        (sameEmail.role !== "patient" &&
+          (await one(db, "SELECT user_id FROM staff_profiles WHERE user_id=?", sameEmail.id))))
+    )
+      throw new ApiError(403, "PATIENT_ONLY", "Use clinic staff email/password login.");
+
+    if (linked && (linked.role !== "patient" || (sameEmail && sameEmail.id !== linked.id)))
+      throw invalid();
+    if (linked) return linked;
+
+    let user = sameEmail;
+    if (!user) {
+      if (!details) return null;
+      // A random, unshared bcrypt secret keeps Google-only accounts out of password login until reset.
+      const newHash = await hash(randomBytes(32).toString("hex"), 12);
+      const stamp = new Date().toISOString(),
+        id = randomUUID();
       await db
-        .prepare("INSERT INTO google_identities VALUES (?,?,?)")
-        .run(identity.subject, user.id, new Date().toISOString());
-      return user;
-    });
+        .prepare("INSERT INTO users VALUES (?,?,?,?,?,?,?,?)")
+        .run(id, details.fullName, verifiedEmail, details.phone, newHash, "patient", stamp, stamp);
+      user = {
+        id,
+        full_name: details.fullName,
+        email: verifiedEmail,
+        phone: details.phone,
+        password_hash: newHash,
+        role: "patient",
+      };
+    }
+    await db
+      .prepare("INSERT INTO google_identities VALUES (?,?,?)")
+      .run(identity.subject, user.id, new Date().toISOString());
+    return user;
   }
   routes.post("/google/start", async (req, res) => {
     if (!options.google)
@@ -189,7 +214,7 @@ export function extendedAuthRoutes(db: Database, options: AuthOptions) {
       const parsed = profile.safeParse({ fullName: identity.fullName, phone: identity.phone });
       const user = await linkPatient(identity, parsed.success ? parsed.data : undefined);
       if (user) {
-        await startSession(db, req, res, user.id);
+        await startSession(db, req, res, user.id, user);
         res.redirect(303, origin + "/patient/dashboard");
         return;
       }
@@ -214,7 +239,7 @@ export function extendedAuthRoutes(db: Database, options: AuthOptions) {
     );
     const user = await linkPatient(JSON.parse(pending.payload!), details);
     if (!user) throw invalid();
-    await startSession(db, req, res, user.id);
+    await startSession(db, req, res, user.id, user);
     clearCookie(req, res, "queuecare_google_profile");
     res.json({ success: true, data: publicUser(user) });
   });
@@ -294,6 +319,7 @@ export function extendedAuthRoutes(db: Database, options: AuthOptions) {
         .prepare("UPDATE users SET password_hash=?,updated_at=? WHERE id=?")
         .run(encoded, new Date().toISOString(), pending.user_id);
       await db.prepare("DELETE FROM sessions WHERE user_id=?").run(pending.user_id);
+      invalidateSessionCache();
       await db
         .prepare("DELETE FROM auth_requests WHERE kind='password_reset' AND user_id=?")
         .run(pending.user_id);

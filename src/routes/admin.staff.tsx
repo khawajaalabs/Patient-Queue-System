@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { api } from "@/api/client";
 import { Btn, Field, PageHeader } from "@/components/qc";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { useClinicContext } from "@/providers/clinic-provider";
 import { friendlyError } from "@/services/errors";
 import type { StaffAccount } from "@/types/operations";

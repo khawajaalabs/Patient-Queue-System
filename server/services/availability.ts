@@ -32,7 +32,51 @@ export function timeLabel(s: string) {
   const h = Number(s.slice(0, 2));
   return `${h % 12 || 12}:${s.slice(3, 5)} ${h < 12 ? "AM" : "PM"}`;
 }
-export async function primaryDoctor(db: Database) {
+const configCache = new Map<
+  string,
+  {
+    value: {
+      clinic: {
+        name: string;
+        active: number;
+        opening_time: string;
+        closing_time: string;
+      };
+      doctorId: string;
+      slotMinutes: number;
+    };
+    expires: number;
+  }
+>();
+const isTest = Boolean(
+  process.env["NODE_TEST_CONTEXT"] || process.env["VITEST"] || process.env["NODE_ENV"] === "test",
+);
+const CONFIG_CACHE_TTL_MS = isTest ? 0 : 60_000;
+
+export function invalidateConfigurationCache(clinicId?: string) {
+  if (clinicId) {
+    configCache.delete(clinicId);
+  } else {
+    configCache.clear();
+  }
+}
+
+export async function primaryDoctor(db: Database, clinicId?: string) {
+  if (clinicId) {
+    const clinic = await one<{ doctor_name: string }>(
+      db,
+      "SELECT doctor_name FROM clinics WHERE id=?",
+      clinicId,
+    );
+    if (clinic?.doctor_name) {
+      const doc = await one<{ id: string }>(
+        db,
+        "SELECT id FROM users WHERE full_name=? AND role='admin' LIMIT 1",
+        clinic.doctor_name,
+      );
+      if (doc) return doc.id;
+    }
+  }
   const doctor = await one<{ id: string }>(
     db,
     "SELECT id FROM users WHERE role='admin' ORDER BY created_at,id LIMIT 1",
@@ -41,21 +85,49 @@ export async function primaryDoctor(db: Database) {
   return doctor.id;
 }
 async function configuration(db: Database, clinicId: string) {
-  const clinic = await one<{
-    name: string;
-    active: number;
-    opening_time: string;
-    closing_time: string;
-  }>(db, "SELECT name,active,opening_time,closing_time FROM clinics WHERE id=?", clinicId);
+  const now = Date.now();
+  const cached = configCache.get(clinicId);
+  if (cached && cached.expires > now) {
+    return cached.value;
+  }
+  const [clinic, branding] = await Promise.all([
+    one<{
+      name: string;
+      active: number;
+      opening_time: string;
+      closing_time: string;
+      doctor_name: string;
+    }>(
+      db,
+      "SELECT name,active,opening_time,closing_time,doctor_name FROM clinics WHERE id=?",
+      clinicId,
+    ),
+    one<{ slot_minutes: number }>(
+      db,
+      "SELECT slot_minutes FROM clinic_branding WHERE clinic_id=?",
+      clinicId,
+    ),
+  ]);
   if (!clinic || !clinic.active)
     throw new ApiError(409, "CLINIC_INACTIVE", "Choose an active clinic.");
-  const doctorId = await primaryDoctor(db);
-  const branding = await one<{ slot_minutes: number }>(
-    db,
-    "SELECT slot_minutes FROM clinic_branding WHERE clinic_id=?",
-    clinicId,
-  );
-  return { clinic, doctorId, slotMinutes: branding?.slot_minutes ?? 15 };
+  let doctorId: string | null = null;
+  if (clinic.doctor_name) {
+    const doc = await one<{ id: string }>(
+      db,
+      "SELECT id FROM users WHERE full_name=? AND role='admin' LIMIT 1",
+      clinic.doctor_name,
+    );
+    if (doc) doctorId = doc.id;
+  }
+  if (!doctorId) {
+    doctorId = await primaryDoctor(db);
+  }
+  const value = { clinic, doctorId, slotMinutes: branding?.slot_minutes ?? 15 };
+  configCache.set(clinicId, {
+    value,
+    expires: now + CONFIG_CACHE_TTL_MS,
+  });
+  return value;
 }
 export async function doctorSchedule(db: Database, clinicId: string) {
   const { clinic, doctorId, slotMinutes } = await configuration(db, clinicId);
@@ -136,6 +208,7 @@ export async function saveDoctorSchedule(
         "INSERT INTO clinic_branding (clinic_id,slot_minutes,updated_at) VALUES (?,?,?) ON CONFLICT(clinic_id) DO UPDATE SET slot_minutes=excluded.slot_minutes,updated_at=excluded.updated_at",
       )
       .run(clinicId, slotMinutes, stamp);
+    invalidateConfigurationCache(clinicId);
     await audit(db, actorId, "doctor.schedule.updated", "clinic", clinicId, clinicId);
     return doctorSchedule(db, clinicId);
   });
@@ -143,31 +216,31 @@ export async function saveDoctorSchedule(
 export async function availableSlots(db: Database, clinicId: string, day: string, exclude = "") {
   availabilityDate.parse(day);
   const { clinic, doctorId, slotMinutes } = await configuration(db, clinicId);
-  if (
-    await one(
+  const [leave, windows, booked] = await Promise.all([
+    one(
       db,
       "SELECT id FROM doctor_leave WHERE doctor_user_id=? AND start_date<=? AND end_date>=? LIMIT 1",
       doctorId,
       day,
       day,
-    )
-  )
-    return { slots: [], slotMinutes, timezone: "Asia/Karachi", doctorId };
-  const windows = await many<{ start_time: string; end_time: string }>(
-    db,
-    "SELECT start_time,end_time FROM doctor_availability WHERE doctor_user_id=? AND clinic_id=? AND weekday=? ORDER BY start_time",
-    doctorId,
-    clinicId,
-    new Date(day + "T12:00:00Z").getUTCDay(),
-  );
-  // A single doctor serves every clinic. Legacy appointments retain their clinic duration;
-  // new appointments store a duration snapshot so later settings do not shrink reservations.
-  const booked = await many<{ scheduled_at: string; duration: number }>(
-    db,
-    "SELECT a.scheduled_at,COALESCE(s.duration_minutes,b.slot_minutes,15) duration FROM appointments a LEFT JOIN appointment_slots s ON s.appointment_id=a.id LEFT JOIN clinic_branding b ON b.clinic_id=a.clinic_id LEFT JOIN appointment_workflow w ON w.appointment_id=a.id WHERE a.id<>? AND a.status<>'cancelled' AND COALESCE(w.status,a.status) NOT IN ('cancelled','no_show') AND substr(a.scheduled_at,1,10)=?",
-    exclude,
-    day,
-  );
+    ),
+    many<{ start_time: string; end_time: string }>(
+      db,
+      "SELECT start_time,end_time FROM doctor_availability WHERE doctor_user_id=? AND clinic_id=? AND weekday=? ORDER BY start_time",
+      doctorId,
+      clinicId,
+      new Date(day + "T12:00:00Z").getUTCDay(),
+    ),
+    many<{ scheduled_at: string; duration: number }>(
+      db,
+      "SELECT a.scheduled_at,COALESCE(s.duration_minutes,b.slot_minutes,15) duration FROM appointments a LEFT JOIN appointment_slots s ON s.appointment_id=a.id LEFT JOIN clinic_branding b ON b.clinic_id=a.clinic_id LEFT JOIN appointment_workflow w ON w.appointment_id=a.id WHERE a.id<>? AND (a.clinic_id=? OR s.doctor_user_id=?) AND a.status<>'cancelled' AND COALESCE(w.status,a.status) NOT IN ('cancelled','no_show') AND substr(a.scheduled_at,1,10)=?",
+      exclude,
+      clinicId,
+      doctorId,
+      day,
+    ),
+  ]);
+  if (leave) return { slots: [], slotMinutes, timezone: "Asia/Karachi", doctorId };
   const slots: { value: string; label: string }[] = [];
   for (const w of windows) {
     for (

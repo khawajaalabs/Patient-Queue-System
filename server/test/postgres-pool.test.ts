@@ -45,7 +45,7 @@ test("Vercel uses one request connection, no LISTEN client and drains idle conne
   let db;
   try {
     db = await createPostgresDatabase("postgres://test:test@example.invalid:5432/test", false);
-    assert.equal(options?.max, 1);
+    assert.equal(options?.max, 5);
     assert.equal(options?.idleTimeoutMillis, 1000);
     await db.subscribe?.(() => {});
     assert.equal(listeners, 0);
@@ -70,8 +70,8 @@ test("Vercel uses one request connection, no LISTEN client and drains idle conne
     assert.equal(releases.at(-1), true, "broken rollback connections are discarded");
     assert.equal(
       releases[2],
-      true,
-      "serverless transactions close the last idle connection before suspension",
+      false,
+      "healthy connections return to the pool for attachDatabasePool to drain",
     );
   } finally {
     await db?.close();
@@ -92,8 +92,8 @@ test("Vercel retries only rejected session-pool acquisitions and never replays S
   let rejected = 2,
     connections = 0,
     releases = 0,
-    statements: string[] = [],
     queryFailure = false;
+  const statements: string[] = [];
   const full = () =>
     Object.assign(new Error("(EMAXCONNSESSION) max clients reached in session mode"), {
       code: "XX000",
@@ -128,7 +128,9 @@ test("Vercel retries only rejected session-pool acquisitions and never replays S
     assert.equal(statements.filter((s) => s === "WRITE TRANSACTION").length, 1);
     queryFailure = true;
     const prior = connections;
-    await assert.rejects(async () => { await db!.exec("WRITE ONCE"); }, /EMAXCONNSESSION/);
+    await assert.rejects(async () => {
+      await db!.exec("WRITE ONCE");
+    }, /EMAXCONNSESSION/);
     assert.equal(connections, prior + 1);
     assert.equal(statements.filter((s) => s === "WRITE ONCE").length, 1);
     assert.equal(releases, 3);
@@ -147,6 +149,7 @@ test("queued SQL reuses one connection while localhost retains normal pooling", 
   let waiting = 1;
   const releases: boolean[] = [];
   const connectMock = mock.method(pg.Pool.prototype, "connect", async function (this: pg.Pool) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     pool = this;
     Object.defineProperty(this, "waitingCount", { configurable: true, get: () => waiting });
     return {
@@ -162,7 +165,7 @@ test("queued SQL reuses one connection while localhost retains normal pooling", 
     assert.equal(releases.at(-1), false, "waiting queries keep short-lived reuse");
     waiting = 0;
     await db.exec("SELECT 1");
-    assert.equal(releases.at(-1), true, "last queued operation closes before freezing");
+    assert.equal(releases.at(-1), false, "warm connections stay in the pool for reuse");
     delete process.env["VERCEL"];
     local = await createPostgresDatabase("postgres://test:test@example.invalid:5432/test", false);
     assert.equal(releases.at(-1), false, "localhost retains idle reuse");

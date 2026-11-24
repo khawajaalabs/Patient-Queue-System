@@ -1,8 +1,9 @@
-import type { PrintBrandingData } from "@/types/clinical-workflow";
+﻿import type { PrintBrandingData } from "@/types/clinical-workflow";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Btn } from "@/components/qc";
-import { PrescriptionView, useClinicalData } from "@/components/clinical";
+import { PrescriptionView } from "@/components/clinical";
+import { useClinicalData } from "@/data/use-clinical-data";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { PatientVisit } from "@/types/clinical";
 export function PrescriptionPreview({ visit }: { visit: PatientVisit }) {

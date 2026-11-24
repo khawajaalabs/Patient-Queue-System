@@ -1,8 +1,9 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { TemporalInput } from "@/components/form-controls";
 import { useSyncExternalStore } from "react";
 import { subscribePending, isQueueActionPending } from "@/services/queue";
 import { cn } from "@/lib/utils";
+import { Eye, EyeOff } from "lucide-react";
 import type { Status } from "@/lib/queue-store";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
@@ -113,6 +114,9 @@ export function Field({
   ...p
 }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   const generatedId = useId();
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = p.type === "password";
+
   if (["date", "time", "datetime-local"].includes(p.type ?? "")) {
     const id = p.id ?? generatedId;
     return (
@@ -124,13 +128,37 @@ export function Field({
       </div>
     );
   }
+
+  const inputType = isPassword ? (showPassword ? "text" : "password") : p.type;
+
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium">{label}</span>
-      <input
-        {...p}
-        className="h-11 w-full rounded-lg border border-input bg-card px-3.5 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/10"
-      />
+      <div className="relative">
+        <input
+          {...p}
+          type={inputType}
+          className={cn(
+            "h-11 w-full rounded-lg border border-input bg-card px-3.5 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/10",
+            isPassword && "pr-11",
+            p.className,
+          )}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              setShowPassword((prev) => !prev);
+            }}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded focus:outline-none"
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+        )}
+      </div>
     </label>
   );
 }

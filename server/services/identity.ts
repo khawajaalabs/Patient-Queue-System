@@ -72,8 +72,8 @@ export function configuredAuth(appUrl: string): AuthOptions {
             phone: typeof user.phone === "string" ? user.phone : "",
           };
         } finally {
-          // QueueCare owns the application session; do not keep a parallel Supabase login alive.
-          await request("logout?scope=local", {
+          // QueueCare owns the application session; fire-and-forget Supabase session logout in background
+          void request("logout?scope=local", {
             method: "POST",
             headers: { Authorization: "Bearer " + session.access_token },
           }).catch(() => {});

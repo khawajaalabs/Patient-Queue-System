@@ -4,11 +4,13 @@ import { PatientPicker } from "@/components/patient-picker";
 import { useState } from "react";
 import { api } from "@/api/client";
 import { Btn, Field } from "@/components/qc";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { useAuth } from "@/providers/auth-provider";
 import { useClinicContext } from "@/providers/clinic-provider";
 import { friendlyError } from "@/services/errors";
 import type { PatientDocument } from "@/types/operations";
+import { MedicalScanViewer, type ScanDocument } from "@/components/medical-scan-viewer";
+
 export function DocumentsPanel({
   patientId,
   visitId,
@@ -33,8 +35,13 @@ export function DocumentsPanel({
     [error, setError] = useState(""),
     [chosen, setChosen] = useState<File | null>(null),
     [uploadKey, setUploadKey] = useState(""),
-    [progress, setProgress] = useState("");
+    [progress, setProgress] = useState(""),
+    [query, setQuery] = useState(""),
+    [categoryFilter, setCategoryFilter] = useState<"all" | "imaging" | "labs" | "other">("all"),
+    [activeScan, setActiveScan] = useState<ScanDocument | null>(null);
+
   const canUpload = !portal && (profile?.role === "admin" || profile?.role === "nurse");
+
   async function upload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget,
@@ -87,6 +94,26 @@ export function DocumentsPanel({
       setBusy(false);
     }
   }
+
+  async function viewScan(d: PatientDocument) {
+    setError("");
+    try {
+      const result = await api<{ url: string }>("/documents/" + d.id + "/download");
+      setActiveScan({
+        id: d.id,
+        title: d.title,
+        url: result.url,
+        filename: d.original_filename,
+        mimeType: d.mime_type,
+        documentType: d.document_type,
+        clinicName: d.clinic_name,
+        size: d.file_size,
+      });
+    } catch (e) {
+      setError(friendlyError(e));
+    }
+  }
+
   async function download(d: PatientDocument) {
     setError("");
     try {
@@ -96,6 +123,7 @@ export function DocumentsPanel({
       setError(friendlyError(e));
     }
   }
+
   async function release(d: PatientDocument) {
     setError("");
     try {
@@ -109,24 +137,123 @@ export function DocumentsPanel({
       setError(friendlyError(e));
     }
   }
+
+  const documents = remote.data ?? [];
+  // Search covers patient identity, clinic and file metadata so staff can find
+  // a scan without knowing which clinic it was uploaded to.
+  const needle = query.trim().toLowerCase();
+  const searchable = (d: PatientDocument) =>
+    !needle ||
+    [d.patient_name, d.patient_phone, d.clinic_name, d.title, d.original_filename, d.description]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(needle));
+  const filteredDocuments = documents.filter((d) => {
+    if (!searchable(d)) return false;
+    if (categoryFilter === "all") return true;
+    if (categoryFilter === "imaging") return d.document_type === "imaging_report";
+    if (categoryFilter === "labs") return d.document_type === "lab_report";
+    return d.document_type !== "imaging_report" && d.document_type !== "lab_report";
+  });
+
+  const imagingCount = documents.filter((d) => d.document_type === "imaging_report").length;
+  const labCount = documents.filter((d) => d.document_type === "lab_report").length;
+
   return (
     <section className="space-y-5">
-      <h2 className="text-lg font-semibold">
-        {visitId ? "Consultation Attachments" : "Documents & lab reports"}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">
+            {visitId
+              ? "Consultation Attachments & Imaging"
+              : "Diagnostic Imaging & Medical Reports"}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Encrypted private files. Secure in-browser radiography inspection & PDF reports.
+          </p>
+        </div>
+
+        {/* Category Tabs */}
+        <div className="flex flex-wrap gap-1 rounded-lg border border-border p-1 bg-muted/30 text-xs">
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("all")}
+            className={`rounded-md px-3 py-1 font-medium transition-all ${
+              categoryFilter === "all"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            All ({documents.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("imaging")}
+            className={`rounded-md px-3 py-1 font-medium transition-all ${
+              categoryFilter === "imaging"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            🩻 MRI & X-Ray ({imagingCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("labs")}
+            className={`rounded-md px-3 py-1 font-medium transition-all ${
+              categoryFilter === "labs"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            🧪 Lab Reports ({labCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("other")}
+            className={`rounded-md px-3 py-1 font-medium transition-all ${
+              categoryFilter === "other"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Other Documents
+          </button>
+        </div>
+      </div>
+
+      {!patientId && !portal && (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-full max-w-sm">
+            <Field
+              label="Search scans & documents"
+              placeholder="Patient name, phone, clinic or file title"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <p role="status" className="pb-3 text-xs text-muted-foreground">
+            {filteredDocuments.length} of {documents.length} documents
+          </p>
+        </div>
+      )}
+
       {canUpload && selected !== "all" && (
         <form onSubmit={(e) => void upload(e)} className="surface space-y-4 p-6">
-          <h3 className="font-semibold">Upload a private document</h3>
+          <h3 className="font-semibold text-sm">Upload a private document</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             {!patientId && <PatientPicker />}
             <Field label="Title" name="title" maxLength={160} required />
             <label className="text-sm font-medium">
               Document type
               <SelectField name="type" className="mt-2 block w-full rounded-lg border bg-card p-3">
-                {["lab_report", "imaging_report", "referral", "medical_document", "other"].map(
+                {["imaging_report", "lab_report", "referral", "medical_document", "other"].map(
                   (t) => (
                     <option key={t} value={t}>
-                      {t.replaceAll("_", " ")}
+                      {t === "imaging_report"
+                        ? "🩻 MRI / X-Ray / CT (Imaging)"
+                        : t === "lab_report"
+                          ? "🧪 Lab Report"
+                          : t.replaceAll("_", " ")}
                     </option>
                   ),
                 )}
@@ -154,7 +281,7 @@ export function DocumentsPanel({
           </div>
           {chosen && (
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="break-all">
+              <span className="break-all font-mono text-xs">
                 {chosen.name} · {(chosen.size / 1024).toFixed(0)} KB
               </span>
               <Btn
@@ -177,42 +304,66 @@ export function DocumentsPanel({
             Files remain private. Only the doctor can release them to the patient portal.
           </p>
           {progress && (
-            <p role="status" className="text-sm">
+            <p role="status" className="text-sm font-medium text-primary">
               {progress}
             </p>
           )}
           <Btn disabled={busy || !chosen}>{busy ? "Uploading…" : "Upload document"}</Btn>
         </form>
       )}
-      {canUpload && selected === "all" && (
-        <p className="text-sm text-muted-foreground">Select a clinic to upload a document.</p>
-      )}
+
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
+
       {!remote.data ? (
         <ClinicalLoading error={remote.error} retry={remote.reload} />
       ) : (
         <div className="surface divide-y divide-border">
-          {remote.data.map((d) => (
+          {filteredDocuments.map((d) => (
             <article key={d.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
               <div>
-                <h3 className="font-medium">{d.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {d.document_type.replaceAll("_", " ")} · {d.clinic_name} ·{" "}
-                  {new Date(d.created_at).toLocaleDateString()}
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">
+                    {d.document_type === "imaging_report"
+                      ? "🩻"
+                      : d.document_type === "lab_report"
+                        ? "🧪"
+                        : "📄"}
+                  </span>
+                  <h3 className="font-semibold">{d.title}</h3>
+                  <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground uppercase">
+                    {d.document_type.replaceAll("_", " ")}
+                  </span>
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {d.original_filename} · {(d.file_size / 1024).toFixed(0)} KB{" "}
-                  {d.visit_id ? "· Linked visit" : ""}
+                  {!patientId && d.patient_name && (
+                    <span className="font-medium text-foreground">
+                      {d.patient_name}
+                      {d.patient_phone ? ` · ${d.patient_phone}` : ""} ·{" "}
+                    </span>
+                  )}
+                  {d.clinic_name} · {new Date(d.created_at).toLocaleDateString()} ·{" "}
+                  {d.original_filename} ({(d.file_size / 1024).toFixed(0)} KB)
+                  {d.visit_id ? " · Linked visit" : ""}
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">{d.description}</p>
+                {d.description && (
+                  <p className="mt-1.5 text-sm text-muted-foreground">{d.description}</p>
+                )}
               </div>
-              <div className="flex gap-2">
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Btn
+                  variant="primary"
+                  onClick={() => void viewScan(d)}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                >
+                  🔍 View Scan / Report
+                </Btn>
                 <Btn variant="secondary" onClick={() => void download(d)}>
-                  View / download
+                  Download ⤓
                 </Btn>
                 {profile?.role === "admin" && (
                   <Btn variant="ghost" onClick={() => void release(d)}>
@@ -222,11 +373,18 @@ export function DocumentsPanel({
               </div>
             </article>
           ))}
-          {!remote.data.length && (
-            <p className="p-6 text-sm text-muted-foreground">No released documents available.</p>
+          {!filteredDocuments.length && (
+            <p className="p-6 text-center text-sm text-muted-foreground">
+              {needle
+                ? `No documents match “${query.trim()}”. Try a patient name, phone number or clinic.`
+                : "No documents found in this category."}
+            </p>
           )}
         </div>
       )}
+
+      {/* Interactive Medical Scan Viewer Modal */}
+      {activeScan && <MedicalScanViewer scan={activeScan} onClose={() => setActiveScan(null)} />}
     </section>
   );
 }

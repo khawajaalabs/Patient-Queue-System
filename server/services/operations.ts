@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 import { atomic, one, many, type Database, type UserRow } from "../db/database.ts";
-import { ApiError } from "../middleware/auth.ts";
+import { ApiError, invalidateSessionCache } from "../middleware/auth.ts";
 export const stamp = () => new Date().toISOString();
 export const idValue = z.string().min(1).max(100);
 export async function audit(
@@ -199,6 +199,8 @@ export async function saveStaff(db: Database, actor: UserRow, input: unknown, id
         .run(c.role, c.active ? 1 : 0, now, uid);
       await db.prepare("DELETE FROM staff_clinics WHERE staff_id=?").run(uid);
       await db.prepare("DELETE FROM sessions WHERE user_id=?").run(uid);
+      // Role/deactivation changes take effect immediately for cached sessions.
+      invalidateSessionCache();
     } else {
       await db
         .prepare("INSERT INTO users VALUES (?,?,?,?,?,?,?,?)")

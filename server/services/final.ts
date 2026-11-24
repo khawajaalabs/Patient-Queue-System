@@ -3,6 +3,9 @@ import { z } from "zod";
 import { ApiError } from "../middleware/auth.ts";
 import { many, type Database } from "../db/database.ts";
 import { clinicDayKey } from "../../src/domain/queue.js";
+// Dynamic SQL rows: the selected columns differ per query, so the values stay
+// intentionally loose rather than forcing every call site to duplicate a schema.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export type DataRow = Record<
   | "id"
   | "clinic_id"
@@ -20,6 +23,7 @@ export type DataRow = Record<
   any
 > &
   Record<string, any>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
 export const wallTime = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)

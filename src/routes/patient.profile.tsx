@@ -5,7 +5,7 @@ import { useState } from "react";
 import { api } from "@/api/client";
 import { restoreSession } from "@/services/auth";
 import { PageHeader, Btn, Field } from "@/components/qc";
-import { ClinicalLoading, useClinicalData } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { friendlyError } from "@/services/errors";
 import type { PatientProfile } from "@/types/clinical";
 export const Route = createFileRoute("/patient/profile")({ component: Profile });

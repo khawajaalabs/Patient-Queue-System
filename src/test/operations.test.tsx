@@ -102,7 +102,7 @@ it("patient documents request an authorized short-lived download and cannot uplo
   );
   const opened = vi.spyOn(window, "open").mockReturnValue(null);
   render(<DocumentsPanel portal />);
-  fireEvent.click(await screen.findByRole("button", { name: "View / download" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Download ⤓" }));
   await waitFor(() =>
     expect(opened).toHaveBeenCalledWith(
       "https://private.test/document?expires=60",

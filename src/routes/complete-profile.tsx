@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Btn, Field } from "@/components/qc";
 import { AuthPage } from "@/components/auth-page";
@@ -77,9 +77,16 @@ export function CompleteProfile() {
           </Btn>
         </form>
       ) : (
-        <p role={error ? "alert" : "status"} className="mt-6 text-sm text-muted-foreground">
-          {error || "Loading your profile…"}
-        </p>
+        <div className="mt-6 space-y-3">
+          <p role={error ? "alert" : "status"} className="text-sm text-muted-foreground">
+            {error || "Loading your profile…"}
+          </p>
+          {error && (
+            <Link to="/login" className="inline-block text-sm text-primary underline">
+              Back to sign in
+            </Link>
+          )}
+        </div>
       )}
     </AuthPage>
   );

@@ -102,13 +102,13 @@ test(
         400,
       );
       let reception = await req("/auth/login", "", {
-          email: staffBody.email,
-          password: staffBody.password,
-        }),
-        nurseLogin = await req("/auth/login", "", {
-          email: "nurse@phase3.test",
-          password: staffBody.password,
-        });
+        email: staffBody.email,
+        password: staffBody.password,
+      });
+      const nurseLogin = await req("/auth/login", "", {
+        email: "nurse@phase3.test",
+        password: staffBody.password,
+      });
       assert.equal(reception.data.role, "receptionist");
       assert.equal(nurseLogin.data.role, "nurse");
       assert.equal((await req("/auth/me", reception.cookie)).data.role, "receptionist");

@@ -38,7 +38,8 @@ dist-ssr
 work/
 
 # Local persistent SQLite database and journals
-data/
+/data/
+!src/data/
 
 # Local Firebase leftovers
 .firebase/

@@ -7,7 +7,7 @@ import { api } from "@/api/client";
 import { useClinicContext } from "@/providers/clinic-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { Btn, Field, PageHeader } from "@/components/qc";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { friendlyError } from "@/services/errors";
 import { money } from "@/types/operations";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -56,11 +56,6 @@ export function OperationalReports({ reports = false }: { reports?: boolean }) {
     remote = useClinicalData<Report>(
       "/admin/" + (reports ? "reports" : "analytics") + "?" + params,
     );
-  useEffect(() => {
-    const refresh = () => remote.reload();
-    window.addEventListener("queuecare:updated", refresh);
-    return () => window.removeEventListener("queuecare:updated", refresh);
-  }, [selected, from, to, status]);
   function period(value: string) {
     const d = new Date(today() + "T12:00:00");
     if (value === "week") d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
@@ -277,9 +272,6 @@ export function OperationalReports({ reports = false }: { reports?: boolean }) {
                 audited. For a full encrypted backup, use Supabase database backup tools and back up
                 private Storage separately; credentials stay outside this application.
               </p>
-              <a href="/admin/data-management" className="text-sm text-primary underline">
-                Data management and email delivery
-              </a>
             </section>
           )}
         </>

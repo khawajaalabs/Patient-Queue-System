@@ -293,7 +293,7 @@ test(
         200,
       );
       assert.equal((await req("/admin/follow-ups", admin.cookie)).data[0].status, "booked");
-      let summary = await req("/patient/summary", patient.cookie);
+      const summary = await req("/patient/summary", patient.cookie);
       assert.equal(summary.data.followups.length, 1);
       assert.ok(!JSON.stringify(summary.data).includes("PRIVATE_FINAL_NOTE"));
       assert.equal((await req("/patient/summary", other.cookie)).data.followups.length, 0);
@@ -358,7 +358,7 @@ test(
       }
       const delivery = await deliverEmails(app.db, null);
       assert.deepEqual(delivery, { configured: false, sent: 0, failed: 0 });
-      let emailBodies: string[] = [];
+      const emailBodies: string[] = [];
       const delivered = await deliverEmails(app.db, {
         async send(_to, _subject, text) {
           emailBodies.push(text);

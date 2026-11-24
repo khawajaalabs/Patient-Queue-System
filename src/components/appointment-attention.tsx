@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useClinicalData, ClinicalLoading } from "@/components/clinical";
+import { useClinicalData, ClinicalLoading } from "@/data/use-clinical-data";
 import { api } from "@/api/client";
 import { Btn } from "@/components/qc";
 import { SelectField } from "@/components/form-controls";

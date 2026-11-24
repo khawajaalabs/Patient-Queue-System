@@ -136,6 +136,7 @@ export interface ManagedClinic extends ClinicConfig {
   id: string;
   active: boolean;
   consultationFee: number | null;
+  hasSchedule?: boolean;
 }
 export interface ClinicSummary {
   clinic: ManagedClinic;
