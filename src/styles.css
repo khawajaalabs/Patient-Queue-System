@@ -239,6 +239,22 @@
   animation: shimmer 1.6s linear infinite;
 }
 
+@utility login-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklch, var(--display-foreground) 8%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--display-foreground) 8%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom right, black, transparent 78%);
+}
+
 @media print {
   body:has(.prescription-sheet) * {
     visibility: hidden;
