@@ -264,16 +264,7 @@ function Login() {
                 )}
               </Btn>
             </form>
-            {role === "patient" && (
-              <>
-                <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="h-px flex-1 bg-border" />
-                  or
-                  <span className="h-px flex-1 bg-border" />
-                </div>
-                <GoogleButton />
-              </>
-            )}
+            {role === "patient" && <GoogleButton />}
             <p className="mt-6 text-center text-sm text-muted-foreground">
               New patient?{" "}
               <Link to="/register" className="font-medium text-primary hover:underline">
