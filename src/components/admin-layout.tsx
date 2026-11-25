@@ -52,6 +52,7 @@ function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
             <Link
               key={n.to}
               to={n.to}
+              preload="intent"
               onClick={onNavigate}
               activeOptions={{ exact: "exact" in n }}
               className="relative flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 transition hover:bg-sidebar-accent"

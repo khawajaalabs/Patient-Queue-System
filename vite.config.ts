@@ -5,6 +5,25 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig, loadEnv } from "vite";
 const port = process.env["PORT"] || loadEnv("development", process.cwd(), "")["PORT"] || "3001";
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Icons are imported by many routes. Without this, Rollup emits a
+        // separate tiny chunk per icon and the browser pays a round trip for
+        // each one — very visible on higher-latency connections.
+        manualChunks(id) {
+          if (id.includes("node_modules/lucide-react")) return "icons";
+          if (
+            id.includes("node_modules/recharts") ||
+            id.includes("node_modules/d3-") ||
+            id.includes("node_modules/victory-vendor")
+          )
+            return "charts";
+          return undefined;
+        },
+      },
+    },
+  },
   css: { transformer: "lightningcss" },
   resolve: {
     alias: { "@": `${process.cwd()}/src` },

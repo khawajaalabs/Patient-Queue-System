@@ -18,8 +18,8 @@ export function useClinicalData<T>(path: string | null) {
     queryKey: ["api", path],
     queryFn: ({ signal }) => api<T>(path!, { signal }),
     enabled: Boolean(path),
-    staleTime: 30_000,
-    gcTime: 5 * 60_000,
+    staleTime: 120_000,
+    gcTime: 10 * 60_000,
     refetchOnWindowFocus: false,
     retry: 1,
   });
